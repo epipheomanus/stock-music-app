@@ -123,7 +123,11 @@ export default function AdminTracks() {
       description: track.description ?? "",
       bpm: track.bpm ? String(track.bpm) : "",
       keySignature: track.keySignature ?? "",
-      tags: track.tags.map((t: any) => ({ type: t.type, value: t.value })),
+      tags: [
+        ...(track.tags?.genres ?? []).map((v: string) => ({ type: "genre" as TagType, value: v })),
+        ...(track.tags?.moods ?? []).map((v: string) => ({ type: "mood" as TagType, value: v })),
+        ...(track.tags?.attributes ?? []).map((v: string) => ({ type: "attribute" as TagType, value: v })),
+      ],
       isPublished: track.isPublished,
     });
   }
