@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, X, Download, ShoppingCart, Music, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Search, X, Download, ShoppingCart, Music, ChevronDown, ChevronUp, Loader2, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +46,14 @@ export default function Browse() {
     moods: filters.moods.length ? filters.moods : undefined,
     attributes: filters.attributes.length ? filters.attributes : undefined,
   });
-  const tracks = tracksQuery.data ?? [];
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const rawTracks = tracksQuery.data ?? [];
+  const tracks = useMemo(() => {
+    const arr = [...rawTracks];
+    if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return arr;
+  }, [rawTracks, sortOrder]);
 
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { utils.cart.list.invalidate(); toast.success("Added to cart"); },
@@ -83,11 +90,25 @@ export default function Browse() {
       <CartDrawer />
       <div className="container py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-1">Browse Music</h1>
-          <p className="text-sm text-muted-foreground">
-            {tracks.length} track{tracks.length !== 1 ? "s" : ""} available
-            {activeFilterCount > 0 && " matching your filters"}
-          </p>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">Browse Music</h1>
+              <p className="text-sm text-muted-foreground">
+                {tracks.length} track{tracks.length !== 1 ? "s" : ""} available
+                {activeFilterCount > 0 && " matching your filters"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1.5 text-xs h-8"
+              onClick={() => setSortOrder(o => o === "newest" ? "oldest" : "newest")}
+              title={sortOrder === "newest" ? "Showing newest first — click to show oldest first" : "Showing oldest first — click to show newest first"}
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {sortOrder === "newest" ? "Newest first" : "Oldest first"}
+            </Button>
+          </div>
         </div>
 
         <div className="relative mb-6">

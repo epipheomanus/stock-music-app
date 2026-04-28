@@ -22,7 +22,7 @@ import {
 } from "./db";
 import { eq, and } from "drizzle-orm";
 import { trackTags as trackTagsTable } from "../drizzle/schema";
-import { storagePut } from "./storage";
+import { storagePut, storageGetSignedUrl } from "./storage";
 import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -385,28 +385,35 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const track = await getTrackById(input.id);
         if (!track) throw new TRPCError({ code: "NOT_FOUND" });
-        if (!track.wavUrl) throw new TRPCError({ code: "BAD_REQUEST", message: "No WAV file uploaded yet" });
+        if (!track.wavKey) throw new TRPCError({ code: "BAD_REQUEST", message: "No WAV file uploaded yet" });
         const wmConfig = await getWatermarkConfig();
-        if (!wmConfig?.audioUrl) throw new TRPCError({ code: "BAD_REQUEST", message: "No watermark audio configured" });
+        if (!wmConfig?.audioKey) throw new TRPCError({ code: "BAD_REQUEST", message: "No watermark audio configured" });
 
         await updateTrack(input.id, { watermarkStatus: "processing" });
 
         // Run async — don't block the response
+        const wavKey = track.wavKey!;
+        const wmAudioKey = wmConfig.audioKey!;
+        const trackId = input.id;
         (async () => {
           let cleanPath: string | null = null;
           let wmPath: string | null = null;
           let outPath: string | null = null;
           try {
-            cleanPath = await downloadToTemp(track.wavUrl!, ".wav");
-            wmPath = await downloadToTemp(wmConfig.audioUrl!, ".wav");
+            // Use signed URLs for server-side downloads — relative /manus-storage/ paths only work in the browser
+            const cleanSignedUrl = await storageGetSignedUrl(wavKey);
+            cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
+            const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
+            wmPath = await downloadToTemp(wmSignedUrl, ".wav");
             outPath = await generateWatermarkedMp3(cleanPath, wmPath);
             const buf = fs.readFileSync(outPath);
-            const key = `tracks/${input.id}/watermarked_${Date.now()}.mp3`;
-            const { url } = await storagePut(key, buf, "audio/mpeg");
-            await updateTrack(input.id, { watermarkedMp3Key: key, watermarkedMp3Url: url, watermarkStatus: "done" });
+            const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
+            const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
+            await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
+            console.log(`[Watermark] Done for track ${trackId}: ${mp3Url}`);
           } catch (err) {
             console.error("[Watermark] Failed:", err);
-            await updateTrack(input.id, { watermarkStatus: "error" });
+            await updateTrack(trackId, { watermarkStatus: "error" });
           } finally {
             if (cleanPath && fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath);
             if (wmPath && fs.existsSync(wmPath)) fs.unlinkSync(wmPath);
@@ -414,7 +421,7 @@ export const appRouter = router({
           }
         })();
 
-         return { success: true, message: "Watermark generation started" };
+        return { success: true, message: "Watermark generation started" };
       }),
     // Admin: delete a global tag value from all tracks
     deleteGlobalTag: adminOnly

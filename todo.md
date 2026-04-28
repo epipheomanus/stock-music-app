@@ -92,3 +92,7 @@
 - [x] Previous and Next track buttons in bottom playback bar
 - [x] Collapsible bottom playback bar (minimize to save screen space)
 - [x] Retry Watermark button in admin Tracks page for tracks stuck on WM Error
+
+## Round 5 Improvements
+- [x] Fix watermark generation pipeline errors (investigate ffmpeg/storage issue)
+- [x] Add sort-by-date to Browse page (newest first / oldest first toggle)
