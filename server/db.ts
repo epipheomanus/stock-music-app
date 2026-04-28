@@ -1,11 +1,26 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  CartItem,
+  Download,
+  InsertTrack,
+  InsertUser,
+  Invite,
+  Track,
+  TrackTag,
+  User,
+  cartItems,
+  downloads,
+  invites,
+  trackTags,
+  tracks,
+  users,
+  watermarkConfig,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -18,75 +33,289 @@ export async function getDb() {
   return _db;
 }
 
+// ─── Users ────────────────────────────────────────────────────────────────────
+
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
-
+  if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
+  if (!db) { console.warn("[Database] Cannot upsert user: database not available"); return; }
 
-  try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  }
+  const values: InsertUser = { openId: user.openId };
+  const updateSet: Record<string, unknown> = {};
+  const textFields = ["name", "email", "loginMethod", "firstName", "lastName", "company", "username", "passwordHash"] as const;
+  type TextField = typeof textFields[number];
+  const assignNullable = (field: TextField) => {
+    const value = user[field];
+    if (value === undefined) return;
+    const normalized = value ?? null;
+    values[field] = normalized;
+    updateSet[field] = normalized;
+  };
+  textFields.forEach(assignNullable);
+  if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
+  if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
+  else if (user.openId === ENV.ownerOpenId) { values.role = "admin"; updateSet.role = "admin"; }
+  if (!values.lastSignedIn) values.lastSignedIn = new Date();
+  if (Object.keys(updateSet).length === 0) updateSet.lastSignedIn = new Date();
+  await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
-export async function getUserByOpenId(openId: string) {
+export async function getUserByOpenId(openId: string): Promise<User | undefined> {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(id: number): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getUserByEmail(email: string): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return result[0];
+}
+
+export async function getUserByUsername(username: string): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+  return result[0];
+}
+
+export async function createLocalUser(data: {
+  firstName: string; lastName: string; email: string;
+  company?: string; username: string; passwordHash: string;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const openId = `local_${data.username}_${Date.now()}`;
+  const result = await db.insert(users).values({
+    openId, name: `${data.firstName} ${data.lastName}`,
+    firstName: data.firstName, lastName: data.lastName,
+    email: data.email, company: data.company ?? null,
+    username: data.username, passwordHash: data.passwordHash,
+    loginMethod: "local", role: "user", lastSignedIn: new Date(),
+  });
+  return (result as unknown as { insertId: number }).insertId;
+}
+
+export async function setResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ resetToken: token, resetTokenExpiresAt: expiresAt }).where(eq(users.id, userId));
+}
+
+export async function getUserByResetToken(token: string): Promise<User | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.resetToken, token)).limit(1);
+  return result[0];
+}
+
+export async function updatePassword(userId: number, passwordHash: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ passwordHash, resetToken: null, resetTokenExpiresAt: null }).where(eq(users.id, userId));
+}
+
+export async function getAllUsers(): Promise<User[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+// ─── Invites ──────────────────────────────────────────────────────────────────
+
+export async function createInvite(token: string, createdById: number, expiresAt: Date): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(invites).values({ token, createdById, expiresAt });
+}
+
+export async function getInviteByToken(token: string): Promise<Invite | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(invites).where(eq(invites.token, token)).limit(1);
+  return result[0];
+}
+
+export async function markInviteUsed(token: string, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(invites).set({ usedById: userId, usedAt: new Date() }).where(eq(invites.token, token));
+}
+
+export async function getAllInvites(): Promise<Invite[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(invites).orderBy(desc(invites.createdAt));
+}
+
+// ─── Tracks ───────────────────────────────────────────────────────────────────
+
+export async function createTrack(data: InsertTrack): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(tracks).values(data);
+  return (result as unknown as { insertId: number }).insertId;
+}
+
+export async function updateTrack(id: number, data: Partial<InsertTrack>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(tracks).set(data).where(eq(tracks.id, id));
+}
+
+export async function deleteTrack(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(trackTags).where(eq(trackTags.trackId, id));
+  await db.delete(cartItems).where(eq(cartItems.trackId, id));
+  await db.delete(tracks).where(eq(tracks.id, id));
+}
+
+export async function getTrackById(id: number): Promise<Track | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(tracks).where(eq(tracks.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getPublishedTracks(): Promise<Track[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(tracks).where(eq(tracks.isPublished, true)).orderBy(desc(tracks.createdAt));
+}
+
+export async function getAllTracks(): Promise<Track[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(tracks).orderBy(desc(tracks.createdAt));
+}
+
+// ─── Track Tags ───────────────────────────────────────────────────────────────
+
+export async function addTrackTag(trackId: number, type: "genre" | "mood" | "attribute", value: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(trackTags).values({ trackId, type, value });
+}
+
+export async function removeTrackTag(tagId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(trackTags).where(eq(trackTags.id, tagId));
+}
+
+export async function getTagsForTrack(trackId: number): Promise<TrackTag[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(trackTags).where(eq(trackTags.trackId, trackId));
+}
+
+export async function getTagsForTracks(trackIds: number[]): Promise<TrackTag[]> {
+  if (trackIds.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(trackTags).where(inArray(trackTags.trackId, trackIds));
+}
+
+export async function replaceTrackTags(trackId: number, tags: { type: "genre" | "mood" | "attribute"; value: string }[]): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(trackTags).where(eq(trackTags.trackId, trackId));
+  if (tags.length > 0) {
+    await db.insert(trackTags).values(tags.map(t => ({ trackId, type: t.type, value: t.value })));
+  }
+}
+
+export async function getAllDistinctTagValues(): Promise<{ type: string; value: string }[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.selectDistinct({ type: trackTags.type, value: trackTags.value }).from(trackTags).orderBy(trackTags.type, trackTags.value);
+}
+
+// ─── Cart ─────────────────────────────────────────────────────────────────────
+
+export async function addToCart(userId: number, trackId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await db.select().from(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.trackId, trackId))).limit(1);
+  if (existing.length === 0) {
+    await db.insert(cartItems).values({ userId, trackId });
+  }
+}
+
+export async function removeFromCart(userId: number, trackId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.trackId, trackId)));
+}
+
+export async function getCartItems(userId: number): Promise<CartItem[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(cartItems).where(eq(cartItems.userId, userId));
+}
+
+export async function clearCart(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(cartItems).where(eq(cartItems.userId, userId));
+}
+
+// ─── Downloads ────────────────────────────────────────────────────────────────
+
+export async function logDownload(userId: number, trackId: number, projectName: string, fileType: "clean_wav" | "watermarked_mp3"): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(downloads).values({ userId, trackId, projectName, fileType });
+}
+
+export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string })[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: downloads.id,
+      userId: downloads.userId,
+      trackId: downloads.trackId,
+      projectName: downloads.projectName,
+      downloadedAt: downloads.downloadedAt,
+      fileType: downloads.fileType,
+      userName: users.name,
+      userEmail: users.email,
+      trackTitle: tracks.title,
+    })
+    .from(downloads)
+    .leftJoin(users, eq(downloads.userId, users.id))
+    .leftJoin(tracks, eq(downloads.trackId, tracks.id))
+    .orderBy(desc(downloads.downloadedAt));
+  return rows as (Download & { userName: string | null; userEmail: string | null; trackTitle: string })[];
+}
+
+// ─── Watermark Config ─────────────────────────────────────────────────────────
+
+export async function getWatermarkConfig() {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(watermarkConfig).limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertWatermarkConfig(audioKey: string, audioUrl: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await db.select().from(watermarkConfig).limit(1);
+  if (existing.length > 0) {
+    await db.update(watermarkConfig).set({ audioKey, audioUrl });
+  } else {
+    await db.insert(watermarkConfig).values({ audioKey, audioUrl });
+  }
+}
