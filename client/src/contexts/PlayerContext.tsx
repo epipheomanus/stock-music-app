@@ -37,12 +37,20 @@ interface PlayerContextType {
   currentTime: number;
   duration: number;
   isLoading: boolean;
+  volume: number;
+  isCollapsed: boolean;
   /** Called by GlobalPlayerBar after its container div mounts */
   initWaveSurfer: (container: HTMLDivElement) => void;
   setActiveTrack: (track: GlobalTrack) => void;
+  /** Set the full queue and optionally start playing a specific track */
+  setQueue: (tracks: GlobalTrack[], startIndex?: number) => void;
   clearActiveTrack: () => void;
   togglePlayPause: () => void;
   seek: (time: number) => void;
+  setVolume: (v: number) => void;
+  playNext: () => void;
+  playPrev: () => void;
+  toggleCollapsed: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -52,11 +60,18 @@ const PlayerContext = createContext<PlayerContextType>({
   currentTime: 0,
   duration: 0,
   isLoading: false,
+  volume: 1,
+  isCollapsed: false,
   initWaveSurfer: () => {},
   setActiveTrack: () => {},
+  setQueue: () => {},
   clearActiveTrack: () => {},
   togglePlayPause: () => {},
   seek: () => {},
+  setVolume: () => {},
+  playNext: () => {},
+  playPrev: () => {},
+  toggleCollapsed: () => {},
 });
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
@@ -65,14 +80,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [volume, setVolumeState] = useState(1);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const pendingTrackRef = useRef<GlobalTrack | null>(null);
   const currentUrlRef = useRef<string>("");
+  const queueRef = useRef<GlobalTrack[]>([]);
+  const queueIndexRef = useRef<number>(-1);
+
+  const loadTrack = useCallback((track: GlobalTrack) => {
+    const url = track.watermarkedMp3Url ?? track.wavUrl ?? "";
+    if (!url) return;
+
+    setActiveTrackState(track);
+    setCurrentTime(0);
+    setDuration(0);
+
+    if (!wavesurferRef.current) {
+      pendingTrackRef.current = track;
+      return;
+    }
+
+    if (url === currentUrlRef.current) {
+      wavesurferRef.current.playPause();
+      return;
+    }
+
+    currentUrlRef.current = url;
+    setIsLoading(true);
+    wavesurferRef.current.load(url);
+  }, []);
 
   /** Called by GlobalPlayerBar once its container div is mounted */
   const initWaveSurfer = useCallback((container: HTMLDivElement) => {
-    if (wavesurferRef.current) return; // already initialized
+    if (wavesurferRef.current) return;
 
     const ws = WaveSurfer.create({
       container,
@@ -90,6 +132,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
 
     wavesurferRef.current = ws;
+    ws.setVolume(volume);
 
     ws.on("loading", () => setIsLoading(true));
     ws.on("ready", (dur) => {
@@ -104,6 +147,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ws.on("finish", () => {
       setIsPlaying(false);
       setCurrentTime(0);
+      // Auto-advance to next track
+      const nextIdx = queueIndexRef.current + 1;
+      if (nextIdx < queueRef.current.length) {
+        queueIndexRef.current = nextIdx;
+        loadTrack(queueRef.current[nextIdx]);
+      }
     });
     ws.on("error", (err) => {
       const msg = err instanceof Error ? err.message : String(err);
@@ -112,7 +161,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    // If a track was set before WaveSurfer was ready, load it now
     if (pendingTrackRef.current) {
       const url = pendingTrackRef.current.watermarkedMp3Url ?? pendingTrackRef.current.wavUrl ?? "";
       if (url) {
@@ -121,32 +169,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
       pendingTrackRef.current = null;
     }
-  }, []);
+  }, [volume, loadTrack]);
 
   const setActiveTrack = useCallback((track: GlobalTrack) => {
-    setActiveTrackState(track);
-    setCurrentTime(0);
-    setDuration(0);
-
-    const url = track.watermarkedMp3Url ?? track.wavUrl ?? "";
-    if (!url) return;
-
-    if (!wavesurferRef.current) {
-      // WaveSurfer not yet initialized — queue the track
-      pendingTrackRef.current = track;
-      return;
+    // Find in queue or append
+    const idx = queueRef.current.findIndex((t) => t.id === track.id);
+    if (idx >= 0) {
+      queueIndexRef.current = idx;
+    } else {
+      queueRef.current = [...queueRef.current, track];
+      queueIndexRef.current = queueRef.current.length - 1;
     }
+    loadTrack(track);
+  }, [loadTrack]);
 
-    if (url === currentUrlRef.current) {
-      // Same track — just toggle play
-      wavesurferRef.current.playPause();
-      return;
-    }
-
-    currentUrlRef.current = url;
-    setIsLoading(true);
-    wavesurferRef.current.load(url);
-  }, []);
+  const setQueue = useCallback((tracks: GlobalTrack[], startIndex = 0) => {
+    queueRef.current = tracks;
+    queueIndexRef.current = startIndex;
+    if (tracks[startIndex]) loadTrack(tracks[startIndex]);
+  }, [loadTrack]);
 
   const clearActiveTrack = useCallback(() => {
     if (wavesurferRef.current) {
@@ -155,6 +196,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     currentUrlRef.current = "";
     pendingTrackRef.current = null;
+    queueRef.current = [];
+    queueIndexRef.current = -1;
     setActiveTrackState(null);
     setIsPlaying(false);
     setCurrentTime(0);
@@ -170,6 +213,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     wavesurferRef.current.seekTo(time / duration);
   }, [duration]);
 
+  const setVolume = useCallback((v: number) => {
+    setVolumeState(v);
+    wavesurferRef.current?.setVolume(v);
+  }, []);
+
+  const playNext = useCallback(() => {
+    const nextIdx = queueIndexRef.current + 1;
+    if (nextIdx < queueRef.current.length) {
+      queueIndexRef.current = nextIdx;
+      loadTrack(queueRef.current[nextIdx]);
+    }
+  }, [loadTrack]);
+
+  const playPrev = useCallback(() => {
+    // If more than 3s in, restart current track; otherwise go to previous
+    if (currentTime > 3 && wavesurferRef.current) {
+      wavesurferRef.current.seekTo(0);
+      return;
+    }
+    const prevIdx = queueIndexRef.current - 1;
+    if (prevIdx >= 0) {
+      queueIndexRef.current = prevIdx;
+      loadTrack(queueRef.current[prevIdx]);
+    }
+  }, [currentTime, loadTrack]);
+
+  const toggleCollapsed = useCallback(() => {
+    setIsCollapsed((c) => !c);
+  }, []);
+
   return (
     <PlayerContext.Provider
       value={{
@@ -179,11 +252,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentTime,
         duration,
         isLoading,
+        volume,
+        isCollapsed,
         initWaveSurfer,
         setActiveTrack,
+        setQueue,
         clearActiveTrack,
         togglePlayPause,
         seek,
+        setVolume,
+        playNext,
+        playPrev,
+        toggleCollapsed,
       }}
     >
       {children}

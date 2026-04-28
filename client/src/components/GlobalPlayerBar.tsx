@@ -1,51 +1,52 @@
-import { useEffect, useRef, useCallback } from "react";
-import { Play, Pause, X, ShoppingCart, Download, Music, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+/**
+ * GlobalPlayerBar — persistent bottom playback bar.
+ * Owns the WaveSurfer container div and calls initWaveSurfer() after mount.
+ * Features: play/pause, prev/next, volume slider, collapsible, add to cart, preview download.
+ */
+import { useEffect, useRef, useState, useCallback } from "react";
 import { usePlayer } from "@/contexts/PlayerContext";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
+import {
+  Play, Pause, SkipBack, SkipForward, Volume2, VolumeX,
+  ShoppingCart, Download, X, ChevronDown, ChevronUp, Loader2, Music,
+} from "lucide-react";
 
-function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds)) return "0:00";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
+function formatTime(secs: number): string {
+  if (!secs || isNaN(secs)) return "0:00";
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export default function GlobalPlayerBar() {
   const {
-    activeTrack,
-    isPlaying,
-    currentTime,
-    duration,
-    isLoading,
-    initWaveSurfer,
-    togglePlayPause,
-    clearActiveTrack,
+    activeTrack, isPlaying, currentTime, duration, isLoading,
+    volume, isCollapsed,
+    initWaveSurfer, togglePlayPause, seek,
+    setVolume, playNext, playPrev, clearActiveTrack, toggleCollapsed,
   } = usePlayer();
 
-  const { isAuthenticated } = useAuth();
   const { openCart } = useCart();
-  const utils = trpc.useUtils();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Initialize WaveSurfer once the container div is mounted
-  const containerCallback = useCallback((node: HTMLDivElement | null) => {
-    if (node) {
-      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
-      initWaveSurfer(node);
-    }
-  }, [initWaveSurfer]);
-
   const addToCartMutation = trpc.cart.add.useMutation({
-    onSuccess: () => {
-      utils.cart.list.invalidate();
-      toast.success("Added to cart");
-    },
+    onSuccess: () => { openCart(); },
     onError: (err) => toast.error(err.message),
   });
+  const { isAuthenticated } = useAuth();
+  const waveContainerRef = useRef<HTMLDivElement | null>(null);
+  const [prevVolume, setPrevVolume] = useState(1);
+
+  // Initialize WaveSurfer once the container div is mounted
+  const setWaveContainerRef = useCallback((el: HTMLDivElement | null) => {
+    if (el && !waveContainerRef.current) {
+      waveContainerRef.current = el;
+      initWaveSurfer(el);
+    }
+  }, [initWaveSurfer]);
 
   const watermarkedDownloadMutation = trpc.downloads.downloadWatermarked.useMutation({
     onSuccess: (data) => {
@@ -56,138 +57,209 @@ export default function GlobalPlayerBar() {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      toast.success("Downloading preview…");
+      toast.success("Downloading preview...");
     },
     onError: (err) => toast.error(err.message),
   });
 
-  const isVisible = !!activeTrack;
+  function handleAddToCart() {
+    if (!activeTrack) return;
+    if (!isAuthenticated) { toast.info("Sign in to add tracks to your cart"); return; }
+    addToCartMutation.mutate({ trackId: activeTrack.id });
+    toast.success(`"${activeTrack.title}" added to cart`);
+  }
+
+  function handlePreviewDownload() {
+    if (!activeTrack) return;
+    if (!activeTrack.watermarkedMp3Url) {
+      toast.info("Preview not available yet — watermark is still processing");
+      return;
+    }
+    watermarkedDownloadMutation.mutate({ trackId: activeTrack.id });
+  }
+
+  function handleSeekClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (!duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    seek(ratio * duration);
+  }
+
+  function toggleMute() {
+    if (volume > 0) {
+      setPrevVolume(volume);
+      setVolume(0);
+    } else {
+      setVolume(prevVolume || 1);
+    }
+  }
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  if (!activeTrack) return null;
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ease-in-out ${
-        isVisible ? "translate-y-0" : "translate-y-full"
+      className={`fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)] transition-all duration-300 ${
+        isCollapsed ? "h-14" : "h-24"
       }`}
     >
-      <div className="bg-background/95 backdrop-blur-md border-t border-border shadow-2xl">
-        <div className="container py-3">
-          <div className="flex items-center gap-4">
-            {/* Cover art + track info */}
-            <div className="flex items-center gap-3 w-56 shrink-0 min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                {activeTrack?.coverArtUrl ? (
-                  <img
-                    src={activeTrack.coverArtUrl}
-                    alt={activeTrack.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Music className="h-4 w-4 text-muted-foreground/40" />
-                )}
+      {/* Collapsed mini-bar */}
+      {isCollapsed ? (
+        <div className="flex items-center h-full px-4 gap-3">
+          {/* Cover art */}
+          <div className="w-8 h-8 rounded bg-muted flex-shrink-0 overflow-hidden">
+            {activeTrack.coverArtUrl ? (
+              <img src={activeTrack.coverArtUrl} alt={activeTrack.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Music className="w-4 h-4 text-muted-foreground" />
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold truncate leading-tight">
-                  {activeTrack?.title ?? ""}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {activeTrack?.composerName ?? "Unknown Composer"}
-                </p>
-              </div>
+            )}
+          </div>
+          {/* Track info */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{activeTrack.title}</p>
+          </div>
+          {/* Play/pause */}
+          <Button
+            variant="ghost" size="icon"
+            className="h-8 w-8 rounded-full"
+            onClick={togglePlayPause}
+            disabled={isLoading}
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
+              isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          </Button>
+          {/* Expand */}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleCollapsed}>
+            <ChevronUp className="w-4 h-4" />
+          </Button>
+          {/* Close */}
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={clearActiveTrack}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      ) : (
+        /* Full bar */
+        <div className="flex flex-col h-full px-4 pt-2 pb-1 gap-1">
+          {/* Progress bar (clickable) */}
+          <div
+            className="relative w-full h-1.5 bg-muted rounded-full cursor-pointer group"
+            onClick={handleSeekClick}
+          >
+            <div
+              className="absolute left-0 top-0 h-full bg-primary rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            />
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-primary rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ left: `calc(${progress}% - 6px)` }}
+            />
+          </div>
+
+          {/* Main controls row */}
+          <div className="flex items-center gap-3 flex-1">
+            {/* Cover art */}
+            <div className="w-10 h-10 rounded bg-muted flex-shrink-0 overflow-hidden">
+              {activeTrack.coverArtUrl ? (
+                <img src={activeTrack.coverArtUrl} alt={activeTrack.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Music className="w-5 h-5 text-muted-foreground" />
+                </div>
+              )}
             </div>
 
-            {/* Play/Pause */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={togglePlayPause}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isPlaying ? (
-                <Pause className="h-4 w-4" />
-              ) : (
-                <Play className="h-4 w-4 ml-0.5" />
+            {/* Track info */}
+            <div className="w-40 flex-shrink-0 min-w-0">
+              <p className="text-sm font-semibold truncate leading-tight">{activeTrack.title}</p>
+              {activeTrack.composerName && (
+                <p className="text-xs text-muted-foreground truncate">{activeTrack.composerName}</p>
               )}
-            </Button>
+            </div>
 
-            {/* Time + Waveform */}
+            {/* Transport controls */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={playPrev} title="Previous track">
+                <SkipBack className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="default" size="icon"
+                className="h-9 w-9 rounded-full"
+                onClick={togglePlayPause}
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> :
+                  isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={playNext} title="Next track">
+                <SkipForward className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Waveform */}
             <div className="flex-1 min-w-0 flex items-center gap-2">
-              <span className="text-xs text-muted-foreground tabular-nums w-9 text-right shrink-0">
+              <span className="text-xs text-muted-foreground w-9 text-right flex-shrink-0">
                 {formatTime(currentTime)}
               </span>
-              {/* WaveSurfer renders into this div */}
               <div
-                ref={containerCallback}
-                className="flex-1 min-w-0 cursor-pointer"
+                ref={setWaveContainerRef}
+                className="flex-1 cursor-pointer"
                 style={{ height: 40 }}
               />
-              <span className="text-xs text-muted-foreground tabular-nums w-9 shrink-0">
+              <span className="text-xs text-muted-foreground w-9 flex-shrink-0">
                 {formatTime(duration)}
               </span>
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-1 shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 text-xs px-2 text-muted-foreground hover:text-foreground"
-                onClick={() =>
-                  activeTrack && watermarkedDownloadMutation.mutate({ trackId: activeTrack.id })
-                }
-                disabled={!activeTrack?.watermarkedMp3Url || watermarkedDownloadMutation.isPending}
-                title={
-                  activeTrack?.watermarkedMp3Url
-                    ? "Download watermarked preview (MP3)"
-                    : "Preview not available yet"
-                }
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Preview</span>
+            {/* Volume control */}
+            <div className="flex items-center gap-1.5 flex-shrink-0 w-28">
+              <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={toggleMute}>
+                {volume === 0 ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
               </Button>
+              <Slider
+                value={[volume]}
+                min={0} max={1} step={0.01}
+                onValueChange={([v]) => setVolume(v)}
+                className="flex-1"
+              />
+            </div>
 
-              {isAuthenticated ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs px-2 text-muted-foreground hover:text-primary"
-                  onClick={() =>
-                    activeTrack && addToCartMutation.mutate({ trackId: activeTrack.id })
-                  }
-                  disabled={addToCartMutation.isPending}
-                  title="Add to cart"
-                >
-                  <ShoppingCart className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Add to Cart</span>
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1.5 text-xs px-2 text-muted-foreground/40"
-                  title="Sign in to add to cart"
-                  onClick={() => toast.info("Sign in to add tracks to your cart")}
-                >
-                  <ShoppingCart className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Add to Cart</span>
-                </Button>
-              )}
-
+            {/* Action buttons */}
+            <div className="flex items-center gap-1 flex-shrink-0">
               <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground ml-1"
-                onClick={clearActiveTrack}
-                title="Close player"
+                variant="outline" size="sm"
+                className="h-7 text-xs gap-1 px-2"
+                onClick={handlePreviewDownload}
+                disabled={!activeTrack.watermarkedMp3Url}
+                title={activeTrack.watermarkedMp3Url ? "Download preview (watermarked)" : "Preview not ready yet"}
               >
-                <X className="h-3.5 w-3.5" />
+                <Download className="w-3 h-3" />
+                Preview
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                className="h-7 text-xs gap-1 px-2"
+                onClick={handleAddToCart}
+              >
+                <ShoppingCart className="w-3 h-3" />
+                Cart
+              </Button>
+            </div>
+
+            {/* Collapse + Close */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleCollapsed} title="Minimize player">
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={clearActiveTrack} title="Close player">
+                <X className="w-4 h-4" />
               </Button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

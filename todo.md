@@ -84,5 +84,11 @@
 - [x] Admin: Download report export to CSV/Google Sheets format (Name, Song, Date, Project Name)
 
 ## Round 3 Improvements
-- [ ] Persistent bottom playback bar (slides up when a track starts playing, persists across page navigation)
-- [ ] Playback bar: track title, composer, waveform progress, play/pause, seek, time display, Add to Cart, Preview (watermarked) download
+- [x] Persistent bottom playback bar (slides up when a track starts playing, persists across page navigation)
+- [x] Playback bar: track title, composer, waveform progress, play/pause, seek, time display, Add to Cart, Preview (watermarked) download
+
+## Round 4 Improvements
+- [x] Volume control slider in bottom playback bar
+- [x] Previous and Next track buttons in bottom playback bar
+- [x] Collapsible bottom playback bar (minimize to save screen space)
+- [x] Retry Watermark button in admin Tracks page for tracks stuck on WM Error

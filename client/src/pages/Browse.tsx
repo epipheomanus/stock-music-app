@@ -25,7 +25,7 @@ function formatDuration(seconds: number | null | undefined): string {
 export default function Browse() {
   const { isAuthenticated } = useAuth();
   const { openCart } = useCart();
-  const { activeTrackId, setActiveTrack } = usePlayer();
+  const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -161,7 +161,9 @@ export default function Browse() {
                     key={track.id}
                     track={track}
                     isPlaying={activeTrackId === track.id}
-                    onPlay={setActiveTrack}
+                    onPlay={(track) => {
+                      setQueue(tracks, tracks.findIndex(t => t.id === track.id));
+                    }}
                     isAuthenticated={isAuthenticated}
                     onAddToCart={() => addToCartMutation.mutate({ trackId: track.id })}
                     onDownloadWatermarked={() => watermarkedDownloadMutation.mutate({ trackId: track.id })}

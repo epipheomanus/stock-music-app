@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio } from "lucide-react";
+import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -201,6 +201,11 @@ export default function AdminTracks() {
     onError: (err: { message?: string }) => toast.error(err.message || "Update failed"),
   });
 
+  const retryWatermarkMutation = trpc.tracks.generateWatermark.useMutation({
+    onSuccess: () => { utils.tracks.adminList.invalidate(); toast.success("Watermark generation started — refresh in a moment"); },
+    onError: (err: { message?: string }) => toast.error(err.message || "Retry failed"),
+  });
+
   const deleteGlobalTagMutation = trpc.tracks.deleteGlobalTag.useMutation({
     onSuccess: () => {
       utils.tracks.filterOptions.invalidate();
@@ -388,6 +393,17 @@ export default function AdminTracks() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  {(track.watermarkStatus === "error" || track.watermarkStatus === "pending") && (
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-8 w-8 text-amber-500 hover:text-amber-700"
+                      title="Retry watermark generation"
+                      onClick={() => retryWatermarkMutation.mutate({ id: track.id })}
+                      disabled={retryWatermarkMutation.isPending}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(track)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
