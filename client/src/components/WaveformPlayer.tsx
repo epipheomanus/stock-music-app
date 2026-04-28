@@ -69,8 +69,13 @@ export default function WaveformPlayer({
       setCurrentTime(0);
     });
     ws.on("error", (err) => {
-      console.error("[WaveSurfer] error:", err);
+      // Suppress abort errors — these fire harmlessly when a load is
+      // cancelled (e.g. switching tracks before the previous one finishes).
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("aborted") || msg.includes("abort")) return;
+      console.warn("[WaveSurfer] error:", err);
       setIsLoading(false);
+      setIsReady(false);
     });
 
     return () => {

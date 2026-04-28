@@ -75,8 +75,8 @@ export function registerUploadRoutes(app: any) {
           req.body.tags ? JSON.parse(req.body.tags) : [];
 
         // 1. Upload clean WAV to storage
-        const wavKey = `tracks/wav/${Date.now()}_${wavFile.originalname.replace(/\s+/g, "_")}`;
-        const { url: wavUrl } = await storagePut(wavKey, wavFile.buffer, "audio/wav");
+        const wavKeyBase = `tracks/wav/${Date.now()}_${wavFile.originalname.replace(/\s+/g, "_")}`;
+        const { key: wavKey, url: wavUrl } = await storagePut(wavKeyBase, wavFile.buffer, "audio/wav");
 
         // 2. Upload cover art if provided
         let coverArtUrl: string | undefined;
@@ -177,8 +177,9 @@ export function registerUploadRoutes(app: any) {
           res.status(400).json({ error: "Watermark file is required" });
           return;
         }
-        const wmKey = `watermark/${Date.now()}_${req.file.originalname.replace(/\s+/g, "_")}`;
-        const { url: wmUrl } = await storagePut(wmKey, req.file.buffer, "audio/wav");
+        const wmKeyBase = `watermark/${Date.now()}_${req.file.originalname.replace(/\s+/g, "_")}`;
+        // storagePut appends a random hash suffix - use the RETURNED key, not wmKeyBase
+        const { key: wmKey, url: wmUrl } = await storagePut(wmKeyBase, req.file.buffer, "audio/wav");
         await upsertWatermarkConfig(wmKey, wmUrl);
         res.json({ success: true, url: wmUrl });
       } catch (err: any) {
@@ -226,8 +227,8 @@ async function generateWatermarkInBackground(
 
     // Upload to storage
     const mp3Buffer = fs.readFileSync(mp3TmpPath);
-    const mp3Key = `tracks/watermarked/${trackId}_${Date.now()}.mp3`;
-    const { url: mp3Url } = await storagePut(mp3Key, mp3Buffer, "audio/mpeg");
+    const mp3KeyBase = `tracks/watermarked/${trackId}_${Date.now()}.mp3`;
+    const { key: mp3Key, url: mp3Url } = await storagePut(mp3KeyBase, mp3Buffer, "audio/mpeg");
 
     // Update track record
     await updateTrack(trackId, {

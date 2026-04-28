@@ -72,13 +72,13 @@
 
 ## Round 2 Improvements (User Feedback)
 
-- [ ] Lighten color scheme — replace dark black/blue with a softer, lighter palette
-- [ ] Drag-and-drop file upload for WAV Mixdown and Stems Folder in admin track upload
-- [ ] Separate tag fields: Genre, Mood, Attributes (instead of one combined field)
-- [ ] Saved tag history — previously used tags shown as semi-transparent buttons with X to delete
-- [ ] Auto-populate track title from uploaded WAV filename (strip file extension)
-- [ ] Fix watermark pipeline error on track upload
-- [ ] Add "Download Watermarked Version" button next to each track on Browse page
-- [ ] Post-download navigation: "Back to Music Browsing" and "Back to Home Page" buttons
-- [ ] Admin: User Account Management panel — show new account registrations, lock/unlock accounts
-- [ ] Admin: Download report export to CSV/Google Sheets format (Name, Song, Date, Project Name)
+- [x] Lighten color scheme — replace dark black/blue with a softer, lighter palette
+- [x] Drag-and-drop file upload for WAV Mixdown and Stems Folder in admin track upload
+- [x] Separate tag fields: Genre, Mood, Attributes (instead of one combined field)
+- [x] Saved tag history — previously used tags shown as semi-transparent buttons with X to delete
+- [x] Auto-populate track title from uploaded WAV filename (strip file extension)
+- [x] Fix watermark pipeline error on track upload
+- [x] Add "Download Watermarked Version" button next to each track on Browse page
+- [x] Post-download navigation: "Back to Music Browsing" and "Back to Home Page" buttons
+- [x] Admin: User Account Management panel — show new account registrations, lock/unlock accounts
+- [x] Admin: Download report export to CSV/Google Sheets format (Name, Song, Date, Project Name)
