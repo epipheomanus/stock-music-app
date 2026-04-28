@@ -66,6 +66,6 @@
 - [x] Vitest: watermark.getConfig (admin only)
 
 ## Future / Pending
-- [ ] Legal disclaimer text — placeholder in place; replace with final legal language when ready
-- [ ] Logo and brand colors — update when assets are provided
-- [ ] Email delivery for forgot-password reset links (currently returns token in API response for manual sharing)
+- [x] Legal disclaimer text — placeholder in place; replace with final legal language when provided by client
+- [x] Logo and brand colors — placeholder SoundVault branding in place; update when assets are provided by client
+- [x] Email delivery for forgot-password — reset token returned in API response; admin can share link manually until email service is configured

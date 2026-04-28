@@ -190,8 +190,12 @@ export default function AdminTracks() {
                   </div>
                   <p className="text-xs text-muted-foreground">{track.composerName ?? "Unknown"}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {track.tags.slice(0, 5).map((tag: any) => (
-                      <span key={`${tag.type}-${tag.value}`} className={`text-[10px] px-1.5 py-0.5 rounded-full ${tagColors[tag.type as TagType]}`}>{tag.value}</span>
+                    {[
+                      ...(track.tags?.genres ?? []).map((v: string) => ({ type: "genre" as TagType, value: v })),
+                      ...(track.tags?.moods ?? []).map((v: string) => ({ type: "mood" as TagType, value: v })),
+                      ...(track.tags?.attributes ?? []).map((v: string) => ({ type: "attribute" as TagType, value: v })),
+                    ].slice(0, 6).map((tag) => (
+                      <span key={`${tag.type}-${tag.value}`} className={`text-[10px] px-1.5 py-0.5 rounded-full ${tagColors[tag.type as TagType] ?? ""}`}>{tag.value}</span>
                     ))}
                   </div>
                 </div>

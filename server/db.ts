@@ -162,8 +162,10 @@ export async function getAllInvites(): Promise<Invite[]> {
 export async function createTrack(data: InsertTrack): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(tracks).values(data);
-  return (result as unknown as { insertId: number }).insertId;
+  const result = await db.insert(tracks).values(data).$returningId();
+  const id = result[0]?.id;
+  if (!id) throw new Error("Failed to get inserted track ID");
+  return id;
 }
 
 export async function updateTrack(id: number, data: Partial<InsertTrack>): Promise<void> {
