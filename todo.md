@@ -82,3 +82,7 @@
 - [x] Post-download navigation: "Back to Music Browsing" and "Back to Home Page" buttons
 - [x] Admin: User Account Management panel — show new account registrations, lock/unlock accounts
 - [x] Admin: Download report export to CSV/Google Sheets format (Name, Song, Date, Project Name)
+
+## Round 3 Improvements
+- [ ] Persistent bottom playback bar (slides up when a track starts playing, persists across page navigation)
+- [ ] Playback bar: track title, composer, waveform progress, play/pause, seek, time display, Add to Cart, Preview (watermarked) download

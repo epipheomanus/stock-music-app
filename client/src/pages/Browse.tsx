@@ -78,7 +78,7 @@ export default function Browse() {
   const activeFilterCount = filters.genres.length + filters.moods.length + filters.attributes.length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground pb-28">
       <TopNav />
       <CartDrawer />
       <div className="container py-8">
@@ -215,7 +215,7 @@ type TrackData = {
 };
 
 function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDownloadWatermarked }: {
-  track: TrackData; isPlaying: boolean; onPlay: (id: number) => void;
+  track: TrackData; isPlaying: boolean; onPlay: (track: TrackData) => void;
   isAuthenticated: boolean; onAddToCart: () => void; onDownloadWatermarked: () => void;
 }) {
   const allTags = [...track.tags.genres, ...track.tags.moods, ...track.tags.attributes];
@@ -266,7 +266,7 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
               </div>
             </div>
             {audioUrl ? (
-              <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={onPlay} />
+              <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
             ) : (
               <div className="h-12 flex items-center text-xs text-muted-foreground/40">Audio not available</div>
             )}

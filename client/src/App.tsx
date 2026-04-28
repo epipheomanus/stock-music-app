@@ -6,6 +6,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
 import { PlayerProvider } from "./contexts/PlayerContext";
+import GlobalPlayerBar from "./components/GlobalPlayerBar";
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import Login from "./pages/Login";
@@ -51,6 +52,7 @@ function App() {
             <PlayerProvider>
               <Toaster position="bottom-right" theme="light" />
               <Router />
+              <GlobalPlayerBar />
             </PlayerProvider>
           </CartProvider>
         </TooltipProvider>
