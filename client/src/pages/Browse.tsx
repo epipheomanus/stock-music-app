@@ -34,11 +34,11 @@ export default function Browse() {
 
   const utils = trpc.useUtils();
   const filterOptionsQuery = trpc.tracks.filterOptions.useQuery();
-  const filterOptions = filterOptionsQuery.data ?? [];
+  const filterOptions = filterOptionsQuery.data ?? { genres: [], moods: [], attributes: [] };
 
-  const genres = useMemo(() => Array.from(new Set(filterOptions.filter(t => t.type === "genre").map(t => t.value))).sort(), [filterOptions]);
-  const moods = useMemo(() => Array.from(new Set(filterOptions.filter(t => t.type === "mood").map(t => t.value))).sort(), [filterOptions]);
-  const attributes = useMemo(() => Array.from(new Set(filterOptions.filter(t => t.type === "attribute").map(t => t.value))).sort(), [filterOptions]);
+  const genres = useMemo(() => [...(filterOptions.genres as string[] ?? [])].sort(), [filterOptions.genres]);
+  const moods = useMemo(() => [...(filterOptions.moods as string[] ?? [])].sort(), [filterOptions.moods]);
+  const attributes = useMemo(() => [...(filterOptions.attributes as string[] ?? [])].sort(), [filterOptions.attributes]);
 
   const tracksQuery = trpc.tracks.list.useQuery({
     search: search || undefined,
@@ -243,11 +243,17 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                {track.watermarkedMp3Url && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={onDownloadWatermarked} title="Download watermarked preview (MP3)">
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs px-2 text-muted-foreground hover:text-foreground"
+                  onClick={onDownloadWatermarked}
+                  disabled={!track.watermarkedMp3Url}
+                  title={track.watermarkedMp3Url ? "Download watermarked preview (MP3)" : track.watermarkStatus === "processing" ? "Watermark generating…" : "Preview not available"}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Preview
+                </Button>
                 {isAuthenticated ? (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={onAddToCart} title="Add to cart">
                     <ShoppingCart className="h-3.5 w-3.5" />

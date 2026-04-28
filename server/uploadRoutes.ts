@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 import archiver from "archiver";
 import os from "os";
-import { storagePut } from "./storage";
+import { storagePut, storageGetSignedUrl } from "./storage";
 import {
   createTrack,
   updateTrack,
@@ -211,8 +211,15 @@ async function generateWatermarkInBackground(
     const tmpWavPath = path.join(os.tmpdir(), `clean_${trackId}_${Date.now()}.wav`);
     fs.writeFileSync(tmpWavPath, wavBuffer);
 
-    // Download watermark to temp
-    const wmTmpPath = await downloadToTemp(wmConfig.audioUrl, ".wav");
+    // Download watermark to temp using signed URL (relative /manus-storage/ paths won't work server-side)
+    const wmAudioKey = wmConfig.audioKey;
+    if (!wmAudioKey) {
+      console.log(`[watermark] No audioKey in watermark config, skipping for track ${trackId}`);
+      await updateTrack(trackId, { watermarkStatus: "error" });
+      return;
+    }
+    const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
+    const wmTmpPath = await downloadToTemp(wmSignedUrl, ".wav");
 
     // Generate watermarked MP3
     const mp3TmpPath = await generateWatermarkedMp3(tmpWavPath, wmTmpPath);

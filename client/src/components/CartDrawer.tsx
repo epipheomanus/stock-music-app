@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { X, ShoppingCart, Trash2, Download, FileArchive, Loader2, Music } from "lucide-react";
+import { useLocation } from "wouter";
+import { X, ShoppingCart, Trash2, Download, FileArchive, Loader2, Music, CheckCircle2, ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { trpc } from "@/lib/trpc";
 import { useCart } from "@/contexts/CartContext";
@@ -31,10 +31,13 @@ Please confirm that you have read and understood these terms before proceeding w
 
 export default function CartDrawer() {
   const { isOpen, closeCart } = useCart();
+  const [, navigate] = useLocation();
   const [projectName, setProjectName] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadComplete, setDownloadComplete] = useState(false);
+  const [downloadedCount, setDownloadedCount] = useState(0);
   const [pendingCheckout, setPendingCheckout] = useState<{ projectName: string } | null>(null);
 
   const utils = trpc.useUtils();
@@ -49,19 +52,19 @@ export default function CartDrawer() {
       setShowCheckout(false);
       setProjectName("");
       utils.cart.list.invalidate();
-      closeCart();
 
       // Trigger downloads
       for (const file of data.files) {
         if (file.hasStems && file.stemsZipUrl) {
-          // Download stems ZIP
           triggerDownload(file.stemsZipUrl, `${file.title}_with_stems.zip`);
         } else {
-          // Download WAV
           triggerDownload(file.wavUrl, `${file.title}.wav`);
         }
-        await new Promise(r => setTimeout(r, 300)); // stagger downloads
+        await new Promise(r => setTimeout(r, 300));
       }
+
+      setDownloadedCount(data.files.length);
+      setDownloadComplete(true);
       toast.success(`Downloaded ${data.files.length} track${data.files.length > 1 ? "s" : ""}`);
     },
     onError: (err) => {
@@ -99,14 +102,30 @@ export default function CartDrawer() {
     });
   }
 
+  function handleClose() {
+    setDownloadComplete(false);
+    setDownloadedCount(0);
+    closeCart();
+  }
+
+  function handleGoToBrowse() {
+    handleClose();
+    navigate("/browse");
+  }
+
+  function handleGoToHome() {
+    handleClose();
+    navigate("/");
+  }
+
   if (!isOpen) return null;
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-        onClick={closeCart}
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        onClick={handleClose}
       />
 
       {/* Drawer */}
@@ -116,76 +135,111 @@ export default function CartDrawer() {
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-primary" />
             <h2 className="font-semibold text-lg">Cart</h2>
-            {items.length > 0 && (
+            {!downloadComplete && items.length > 0 && (
               <span className="text-xs bg-primary/20 text-primary rounded-full px-2 py-0.5 font-medium">
                 {items.length}
               </span>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={closeCart}>
+          <Button variant="ghost" size="icon" onClick={handleClose}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Items */}
-        <ScrollArea className="flex-1 px-6 py-4">
-          {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center">
-              <Music className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-muted-foreground text-sm">Your cart is empty.</p>
-              <p className="text-muted-foreground/60 text-xs mt-1">Add tracks from the browse page.</p>
+        {/* Download Complete State */}
+        {downloadComplete ? (
+          <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-6">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
-          ) : (
-            <div className="space-y-3">
-              {items.map((item) => {
-                if (!item) return null;
-                const track = item.track;
-                return (
-                  <div key={item.trackId} className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
-                    {/* Cover art placeholder */}
-                    <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-                      {track.coverArtUrl ? (
-                        <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover rounded-md" />
-                      ) : (
-                        <Music className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{track.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown"}</p>
-                      {track.hasStems && (
-                        <span className="inline-flex items-center gap-1 text-[10px] text-primary/80 mt-0.5">
-                          <FileArchive className="h-3 w-3" />
-                          Stems included
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeMutation.mutate({ trackId: item.trackId })}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                );
-              })}
+            <div>
+              <h3 className="text-lg font-semibold mb-1">Download Started!</h3>
+              <p className="text-sm text-muted-foreground">
+                {downloadedCount} track{downloadedCount !== 1 ? "s are" : " is"} downloading to your device.
+              </p>
             </div>
-          )}
-        </ScrollArea>
-
-        {/* Footer */}
-        {items.length > 0 && (
-          <div className="px-6 py-4 border-t border-border">
-            <Button
-              className="w-full gap-2 font-semibold"
-              onClick={() => setShowCheckout(true)}
-            >
-              <Download className="h-4 w-4" />
-              Download {items.length} Track{items.length > 1 ? "s" : ""}
-            </Button>
+            <div className="w-full space-y-3">
+              <Button
+                className="w-full gap-2 font-semibold"
+                onClick={handleGoToBrowse}
+                size="lg"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Music Browsing
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleGoToHome}
+                size="lg"
+              >
+                <Home className="h-4 w-4" />
+                Back to Home Page
+              </Button>
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Items */}
+            <ScrollArea className="flex-1 px-6 py-4">
+              {items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-center">
+                  <Music className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground text-sm">Your cart is empty.</p>
+                  <p className="text-muted-foreground/60 text-xs mt-1">Add tracks from the browse page.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {items.map((item) => {
+                    if (!item) return null;
+                    const track = item.track;
+                    return (
+                      <div key={item.trackId} className="flex items-center gap-3 p-3 rounded-lg bg-background/50 border border-border/50">
+                        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                          {track.coverArtUrl ? (
+                            <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover rounded-md" />
+                          ) : (
+                            <Music className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{track.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown"}</p>
+                          {track.hasStems && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-primary/80 mt-0.5">
+                              <FileArchive className="h-3 w-3" />
+                              Stems included
+                            </span>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeMutation.mutate({ trackId: item.trackId })}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Footer */}
+            {items.length > 0 && (
+              <div className="px-6 py-4 border-t border-border">
+                <Button
+                  className="w-full gap-2 font-semibold"
+                  onClick={() => setShowCheckout(true)}
+                >
+                  <Download className="h-4 w-4" />
+                  Download {items.length} Track{items.length > 1 ? "s" : ""}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

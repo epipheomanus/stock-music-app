@@ -20,6 +20,8 @@ import {
   updatePassword, updateTrack, upsertUser, upsertWatermarkConfig,
   getAllDistinctTagValues, createTrack,
 } from "./db";
+import { eq, and } from "drizzle-orm";
+import { trackTags as trackTagsTable } from "../drizzle/schema";
 import { storagePut } from "./storage";
 import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
 
@@ -51,6 +53,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const user = await getUserByEmail(input.identifier) ?? await getUserByUsername(input.identifier);
         if (!user || !user.passwordHash) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
+        if (user.isLocked) throw new TRPCError({ code: "FORBIDDEN", message: "Your account has been locked. Please contact an administrator." });
         const valid = await bcrypt.compare(input.password, user.passwordHash);
         if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
         await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
@@ -233,7 +236,16 @@ export const appRouter = router({
 
     // Public: get all distinct tag values for filter UI
     filterOptions: publicProcedure.query(async () => {
-      return getAllDistinctTagValues();
+      const rows = await getAllDistinctTagValues();
+      const genres: string[] = [];
+      const moods: string[] = [];
+      const attributes: string[] = [];
+      for (const row of rows) {
+        if (row.type === "genre") genres.push(row.value);
+        else if (row.type === "mood") moods.push(row.value);
+        else if (row.type === "attribute") attributes.push(row.value);
+      }
+      return { genres, moods, attributes };
     }),
 
     // Admin: list all tracks
@@ -402,10 +414,20 @@ export const appRouter = router({
           }
         })();
 
-        return { success: true, message: "Watermark generation started" };
+         return { success: true, message: "Watermark generation started" };
+      }),
+    // Admin: delete a global tag value from all tracks
+    deleteGlobalTag: adminOnly
+      .input(z.object({ type: z.enum(["genre", "mood", "attribute"]), value: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(trackTagsTable).where(
+          and(eq(trackTagsTable.type, input.type), eq(trackTagsTable.value, input.value))
+        );
+        return { success: true };
       }),
   }),
-
   // ─── Watermark Config ──────────────────────────────────────────────────────
   watermark: router({
     getConfig: adminOnly.query(async () => {
@@ -511,6 +533,13 @@ export const appRouter = router({
   // ─── Admin ─────────────────────────────────────────────────────────────────
   admin: router({
     users: adminOnly.query(async () => getAllUsers()),
+    lockUser: adminOnly.input(z.object({ userId: z.number(), locked: z.boolean() })).mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+      const { users: usersTable } = await import("../drizzle/schema");
+      await db.update(usersTable).set({ isLocked: input.locked }).where(eq(usersTable.id, input.userId));
+      return { success: true };
+    }),
     stats: adminOnly.query(async () => {
       const [allTracks, allDownloads, allUsers] = await Promise.all([
         getAllTracks(), getAllDownloads(), getAllUsers(),

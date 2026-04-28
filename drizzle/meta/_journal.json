@@ -15,6 +15,13 @@
       "when": 1777402980818,
       "tag": "0001_late_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1777409904857,
+      "tag": "0002_superb_red_hulk",
+      "breakpoints": true
     }
   ]
 }

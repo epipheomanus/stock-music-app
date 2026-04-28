@@ -39,9 +39,9 @@ export default function WaveformPlayer({
 
     const ws = WaveSurfer.create({
       container: containerRef.current,
-      waveColor: "oklch(0.35 0.005 240)",
-      progressColor: "oklch(0.80 0.14 75)",
-      cursorColor: "oklch(0.80 0.14 75)",
+      waveColor: "oklch(0.80 0.008 240)",
+      progressColor: "oklch(0.50 0.18 264)",
+      cursorColor: "oklch(0.50 0.18 264)",
       cursorWidth: 2,
       height: compact ? 36 : 48,
       barWidth: 2,

@@ -149,10 +149,15 @@ describe("tracks.list", () => {
 });
 
 describe("tracks.filterOptions", () => {
-  it("returns empty array when no tags exist", async () => {
+  it("returns grouped object with genres/moods/attributes arrays", async () => {
     const caller = appRouter.createCaller(makeCtx());
     const result = await caller.tracks.filterOptions();
-    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveProperty("genres");
+    expect(result).toHaveProperty("moods");
+    expect(result).toHaveProperty("attributes");
+    expect(Array.isArray(result.genres)).toBe(true);
+    expect(Array.isArray(result.moods)).toBe(true);
+    expect(Array.isArray(result.attributes)).toBe(true);
   });
 });
 

@@ -18,6 +18,7 @@ import AdminTrackEdit from "./pages/admin/TrackEdit";
 import AdminInvites from "./pages/admin/Invites";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminWatermark from "./pages/admin/Watermark";
+import AdminUsers from "./pages/admin/Users";
 
 function Router() {
   return (
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/admin/invites" component={AdminInvites} />
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/watermark" component={AdminWatermark} />
+      <Route path="/admin/users" component={AdminUsers} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -43,11 +45,11 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <CartProvider>
             <PlayerProvider>
-              <Toaster position="bottom-right" theme="dark" />
+              <Toaster position="bottom-right" theme="light" />
               <Router />
             </PlayerProvider>
           </CartProvider>

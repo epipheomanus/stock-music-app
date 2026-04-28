@@ -1,6 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Music2, LayoutDashboard, Music, Users, BarChart3, Mic2, LogOut, ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Music2, LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useEffect } from "react";
@@ -8,7 +7,8 @@ import { useEffect } from "react";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/tracks", label: "Tracks", icon: Music },
-  { href: "/admin/invites", label: "Invites", icon: Users },
+  { href: "/admin/users", label: "Users", icon: UserCog },
+  { href: "/admin/invites", label: "Invites", icon: Link2 },
   { href: "/admin/analytics", label: "Downloads", icon: BarChart3 },
   { href: "/admin/watermark", label: "Watermark", icon: Mic2 },
 ];
