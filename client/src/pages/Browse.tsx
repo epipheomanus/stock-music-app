@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, X, Download, ShoppingCart, Music, ChevronDown, Loader2, ArrowUpDown } from "lucide-react";
+import { Search, X, Download, ShoppingCart, Music, ChevronDown, Loader2, ArrowUpDown, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -311,6 +311,19 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
   // Use clean WAV for in-browser playback; watermarkedMp3Url is only for the Download Preview button
   const audioUrl = track.wavUrl ?? "";
 
+  // Add-to-Project state
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
+  const utils = trpc.useUtils();
+  const activeProjectsQuery = trpc.projects.getUserActiveProjects.useQuery(undefined, {
+    enabled: isAuthenticated && projectPickerOpen,
+  });
+  const activeProjects = activeProjectsQuery.data ?? [];
+
+  const addTrackMutation = trpc.projects.addTrack.useMutation({
+    onSuccess: () => { toast.success("Track added to playlist"); setProjectPickerOpen(false); },
+    onError: (err) => toast.error(err.message || "Failed to add track"),
+  });
+
   return (
     <div className={`group rounded-xl border transition-all ${isPlaying ? "border-primary/40 bg-primary/5" : "border-border/50 bg-card/50 hover:border-border hover:bg-card"}`}>
       <div className="p-4">
@@ -357,16 +370,63 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
                   </Button>
                 )}
                 {isAuthenticated ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                    onClick={onAddToCart}
-                    title="Add to cart"
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Add</span>
-                  </Button>
+                  <>
+                    {/* Add to Project */}
+                    <DropdownMenu open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                          title="Add to project playlist"
+                        >
+                          <FolderPlus className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Project</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56 max-h-72 overflow-y-auto">
+                        {activeProjectsQuery.isLoading ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        ) : activeProjects.length === 0 ? (
+                          <div className="px-3 py-3 text-xs text-muted-foreground text-center">
+                            No active projects.<br />Create one in My Projects.
+                          </div>
+                        ) : (
+                          activeProjects.flatMap((p: any) =>
+                            (p.playlists ?? []).length === 0 ? [
+                              <DropdownMenuItem key={`p-${p.id}-empty`} disabled className="text-xs text-muted-foreground">
+                                {p.name} — no playlists
+                              </DropdownMenuItem>
+                            ] : [
+                              <div key={`header-${p.id}`} className="px-2 pt-2 pb-0.5 text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">{p.name}</div>,
+                              ...(p.playlists ?? []).map((pl: any) => (
+                                <DropdownMenuItem
+                                  key={pl.id}
+                                  className="text-xs pl-4"
+                                  onClick={() => addTrackMutation.mutate({ playlistId: pl.id, trackId: track.id })}
+                                >
+                                  {pl.name}
+                                </DropdownMenuItem>
+                              ))
+                            ]
+                          )
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {/* Add to cart */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                      onClick={onAddToCart}
+                      title="Add to cart"
+                    >
+                      <ShoppingCart className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Add</span>
+                    </Button>
+                  </>
                 ) : null}
               </div>
             </div>

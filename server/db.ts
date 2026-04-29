@@ -1,17 +1,25 @@
-import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, like, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   CartItem,
   Download,
+  InsertPlaylist,
+  InsertProject,
   InsertTrack,
   InsertUser,
   Invite,
+  Playlist,
+  PlaylistTrack,
+  Project,
   Track,
   TrackTag,
   User,
   cartItems,
   downloads,
   invites,
+  playlistTracks,
+  playlists,
+  projects,
   trackTags,
   tracks,
   users,
@@ -331,9 +339,130 @@ export async function upsertWatermarkConfig(audioKey: string, audioUrl: string):
   }
 }
 
-// ─── User Management ──────────────────────────────────────────────────────────
-export async function deleteUser(userId: number): Promise<void> {
+// ─── Projects & Playlists ────────────────────────────────────────────────────────────
+export async function getUserProjects(userId: number): Promise<Project[]> {
   const db = await getDb();
+  if (!db) return [];
+  return db.select().from(projects).where(eq(projects.userId, userId)).orderBy(desc(projects.updatedAt));
+}
+export async function getProjectByShareToken(token: string): Promise<Project | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(projects).where(eq(projects.shareToken, token)).limit(1);
+  return rows[0] ?? null;
+}
+export async function createProject(data: InsertProject): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(projects).values(data).$returningId();
+  return result[0]?.id ?? 0;
+}
+export async function updateProject(id: number, userId: number, data: Partial<Pick<Project, "name" | "description" | "status">>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(projects).set(data).where(and(eq(projects.id, id), eq(projects.userId, userId)));
+}
+export async function deleteProject(id: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const pls = await db.select({ id: playlists.id }).from(playlists).where(eq(playlists.projectId, id));
+  if (pls.length > 0) {
+    const plIds = pls.map(p => p.id);
+    await db.delete(playlistTracks).where(inArray(playlistTracks.playlistId, plIds));
+    await db.delete(playlists).where(inArray(playlists.id, plIds));
+  }
+  await db.delete(projects).where(and(eq(projects.id, id), eq(projects.userId, userId)));
+}
+export async function getProjectPlaylists(projectId: number): Promise<Playlist[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(playlists).where(eq(playlists.projectId, projectId)).orderBy(asc(playlists.createdAt));
+}
+export async function createPlaylist(data: InsertPlaylist): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const result = await db.insert(playlists).values(data).$returningId();
+  return result[0]?.id ?? 0;
+}
+export async function updatePlaylist(id: number, name: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.update(playlists).set({ name }).where(eq(playlists.id, id));
+}
+export async function deletePlaylist(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(playlistTracks).where(eq(playlistTracks.playlistId, id));
+  await db.delete(playlists).where(eq(playlists.id, id));
+}
+export async function getPlaylistTracks(playlistId: number): Promise<(PlaylistTrack & { track: Track & { tags: TrackTag[] } })[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(playlistTracks)
+    .innerJoin(tracks, eq(playlistTracks.trackId, tracks.id))
+    .where(eq(playlistTracks.playlistId, playlistId))
+    .orderBy(asc(playlistTracks.sortOrder), asc(playlistTracks.addedAt));
+  const result = await Promise.all(
+    rows.map(async (r) => {
+      const tags = await db!.select().from(trackTags).where(eq(trackTags.trackId, r.tracks.id));
+      return { ...r.playlist_tracks, track: { ...r.tracks, tags } };
+    })
+  );
+  return result;
+}
+export async function addTrackToPlaylist(playlistId: number, trackId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const existing = await db.select().from(playlistTracks)
+    .where(and(eq(playlistTracks.playlistId, playlistId), eq(playlistTracks.trackId, trackId))).limit(1);
+  if (existing.length > 0) return;
+  const maxOrder = await db.select({ m: sql<number>`MAX(sort_order)` }).from(playlistTracks).where(eq(playlistTracks.playlistId, playlistId));
+  const nextOrder = (Number(maxOrder[0]?.m) || 0) + 1;
+  await db.insert(playlistTracks).values({ playlistId, trackId, sortOrder: nextOrder });
+}
+export async function removeTrackFromPlaylist(playlistId: number, trackId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await db.delete(playlistTracks).where(and(eq(playlistTracks.playlistId, playlistId), eq(playlistTracks.trackId, trackId)));
+}
+
+// ─── Dashboard Stats ───────────────────────────────────────────────────────────────
+export async function getQuarterlyDownloads(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const quarterStart = new Date(year, Math.floor(month / 3) * 3, 1);
+  const quarterEnd = new Date(year, Math.floor(month / 3) * 3 + 3, 1);
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(downloads)
+    .where(and(
+      eq(downloads.fileType, "clean_wav"),
+      gte(downloads.downloadedAt, quarterStart),
+      lte(downloads.downloadedAt, quarterEnd)
+    ));
+  return Number(rows[0]?.count ?? 0);
+}
+export async function getYtdDownloads(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(downloads)
+    .where(and(
+      eq(downloads.fileType, "clean_wav"),
+      gte(downloads.downloadedAt, yearStart)
+    ));
+  return Number(rows[0]?.count ?? 0);
+}
+
+// ─── User Management ───────────────────────────────────────────────────────────────
+export async function deleteUser(userId: number): Promise<void> {  const db = await getDb();
   if (!db) throw new Error("Database not available");
   // Remove dependent rows first, then the user
   await db.delete(cartItems).where(eq(cartItems.userId, userId));

@@ -39,6 +39,21 @@ vi.mock("./db", () => ({
   getAllDownloads: vi.fn().mockResolvedValue([]),
   getWatermarkConfig: vi.fn().mockResolvedValue(null),
   upsertWatermarkConfig: vi.fn().mockResolvedValue(undefined),
+  getQuarterlyDownloads: vi.fn().mockResolvedValue(0),
+  getYtdDownloads: vi.fn().mockResolvedValue(0),
+  getUserProjects: vi.fn().mockResolvedValue([]),
+  getProjectByShareToken: vi.fn().mockResolvedValue(null),
+  getProjectPlaylists: vi.fn().mockResolvedValue([]),
+  createProject: vi.fn().mockResolvedValue(1),
+  updateProject: vi.fn().mockResolvedValue(undefined),
+  deleteProject: vi.fn().mockResolvedValue(undefined),
+  createPlaylist: vi.fn().mockResolvedValue(1),
+  updatePlaylist: vi.fn().mockResolvedValue(undefined),
+  deletePlaylist: vi.fn().mockResolvedValue(undefined),
+  getPlaylistTracks: vi.fn().mockResolvedValue([]),
+  addTrackToPlaylist: vi.fn().mockResolvedValue(undefined),
+  removeTrackFromPlaylist: vi.fn().mockResolvedValue(undefined),
+  deleteUser: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ─── Context helpers ──────────────────────────────────────────────────────────
@@ -177,7 +192,8 @@ describe("admin procedures", () => {
     const caller = appRouter.createCaller(makeAdminCtx());
     const result = await caller.admin.stats();
     expect(result).toHaveProperty("totalTracks");
-    expect(result).toHaveProperty("totalDownloads");
+    expect(result).toHaveProperty("quarterlyDownloads");
+    expect(result).toHaveProperty("ytdDownloads");
     expect(result).toHaveProperty("totalUsers");
   });
 

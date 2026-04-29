@@ -11,14 +11,17 @@ import { signJwt, verifyJwt } from "./_core/jwt";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
-  addToCart, clearCart, createInvite, createLocalUser, deleteTrack,
-  deleteUser, getAllDownloads, getAllInvites, getAllTracks, getAllUsers, getCartItems,
-  getDb, getInviteByToken, getPublishedTracks, getTagsForTrack,
-  getTagsForTracks, getTrackById, getUserByEmail, getUserByOpenId,
-  getUserByResetToken, getUserByUsername, getWatermarkConfig, logDownload,
-  markInviteUsed, removeFromCart, replaceTrackTags, setResetToken,
-  updatePassword, updateTrack, upsertUser, upsertWatermarkConfig,
-  getAllDistinctTagValues, createTrack,
+  addToCart, addTrackToPlaylist, clearCart, createInvite, createLocalUser,
+  createPlaylist, createProject, createTrack, deletePlaylist, deleteProject,
+  deleteTrack, deleteUser, getAllDistinctTagValues, getAllDownloads, getAllInvites,
+  getAllTracks, getAllUsers, getCartItems, getDb, getInviteByToken,
+  getPlaylistTracks, getProjectByShareToken, getProjectPlaylists,
+  getPublishedTracks, getQuarterlyDownloads, getTagsForTrack, getTagsForTracks,
+  getTrackById, getUserByEmail, getUserByOpenId, getUserByResetToken,
+  getUserByUsername, getUserProjects, getWatermarkConfig, getYtdDownloads,
+  logDownload, markInviteUsed, removeFromCart, removeTrackFromPlaylist,
+  replaceTrackTags, setResetToken, updatePassword, updatePlaylist,
+  updateProject, updateTrack, upsertUser, upsertWatermarkConfig,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -327,6 +330,11 @@ export const appRouter = router({
         hiddenTags: z.array(z.string()).default([]),
       }))
       .mutation(async ({ input }) => {
+        // Duplicate title guard
+        const existing = await getAllTracks();
+        const titleLower = input.title.trim().toLowerCase();
+        const dup = existing.find(t => t.title.trim().toLowerCase() === titleLower);
+        if (dup) throw new TRPCError({ code: "CONFLICT", message: `A track named "${dup.title}" already exists.` });
         const id = await createTrack({
           title: input.title,
           composerName: input.composerName,
@@ -729,15 +737,82 @@ export const appRouter = router({
         return { success: true };
       }),
     stats: adminOnly.query(async () => {
-      const [allTracks, allDownloads, allUsers] = await Promise.all([
-        getAllTracks(), getAllDownloads(), getAllUsers(),
+      const [allTracks, allUsers, quarterlyDownloads, ytdDownloads] = await Promise.all([
+        getAllTracks(), getAllUsers(), getQuarterlyDownloads(), getYtdDownloads(),
       ]);
       return {
         totalTracks: allTracks.length,
         publishedTracks: allTracks.filter(t => t.isPublished).length,
-        totalDownloads: allDownloads.length,
+        quarterlyDownloads,
+        ytdDownloads,
         totalUsers: allUsers.length,
       };
+    }),
+  }),
+
+  // ─── Projects ────────────────────────────────────────────────────────────────
+  projects: router({
+    list: protectedProcedure.query(async ({ ctx }) => getUserProjects(ctx.user.id)),
+    create: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(256), description: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const shareToken = nanoid(32);
+        const id = await createProject({ userId: ctx.user.id, name: input.name, description: input.description, shareToken });
+        return { id, shareToken };
+      }),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().min(1).max(256).optional(), description: z.string().optional(), status: z.enum(["active", "archived"]).optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        await updateProject(id, ctx.user.id, data);
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteProject(input.id, ctx.user.id);
+        return { success: true };
+      }),
+    getByShareToken: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .query(async ({ input }) => {
+        const project = await getProjectByShareToken(input.token);
+        if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+        const pls = await getProjectPlaylists(project.id);
+        const playlistsWithTracks = await Promise.all(pls.map(async (pl) => ({ ...pl, tracks: await getPlaylistTracks(pl.id) })));
+        return { project, playlists: playlistsWithTracks };
+      }),
+    getPlaylists: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const owned = (await getUserProjects(ctx.user.id)).find(p => p.id === input.projectId);
+        if (!owned) throw new TRPCError({ code: "FORBIDDEN" });
+        const pls = await getProjectPlaylists(input.projectId);
+        return Promise.all(pls.map(async (pl) => ({ ...pl, tracks: await getPlaylistTracks(pl.id) })));
+      }),
+    createPlaylist: protectedProcedure
+      .input(z.object({ projectId: z.number(), name: z.string().min(1).max(256) }))
+      .mutation(async ({ ctx, input }) => {
+        if (!(await getUserProjects(ctx.user.id)).find(p => p.id === input.projectId)) throw new TRPCError({ code: "FORBIDDEN" });
+        const id = await createPlaylist({ projectId: input.projectId, name: input.name });
+        return { id };
+      }),
+    renamePlaylist: protectedProcedure
+      .input(z.object({ playlistId: z.number(), name: z.string().min(1).max(256) }))
+      .mutation(async ({ input }) => { await updatePlaylist(input.playlistId, input.name); return { success: true }; }),
+    deletePlaylist: protectedProcedure
+      .input(z.object({ playlistId: z.number() }))
+      .mutation(async ({ input }) => { await deletePlaylist(input.playlistId); return { success: true }; }),
+    addTrack: protectedProcedure
+      .input(z.object({ playlistId: z.number(), trackId: z.number() }))
+      .mutation(async ({ input }) => { await addTrackToPlaylist(input.playlistId, input.trackId); return { success: true }; }),
+    removeTrack: protectedProcedure
+      .input(z.object({ playlistId: z.number(), trackId: z.number() }))
+      .mutation(async ({ input }) => { await removeTrackFromPlaylist(input.playlistId, input.trackId); return { success: true }; }),
+    getUserActiveProjects: protectedProcedure.query(async ({ ctx }) => {
+      const all = await getUserProjects(ctx.user.id);
+      const active = all.filter(p => p.status === "active");
+      return Promise.all(active.map(async (p) => ({ ...p, playlists: await getProjectPlaylists(p.id) })));
     }),
   }),
 });

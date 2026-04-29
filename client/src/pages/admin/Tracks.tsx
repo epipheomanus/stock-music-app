@@ -1,11 +1,14 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Search, Filter, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 // Tag lists now come from the live DB via trpc.tracks.filterOptions
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -182,6 +185,16 @@ export default function AdminTracks() {
   const [stemsFiles, setStemsFiles] = useState<File[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Sort & filter state
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [filterComposer, setFilterComposer] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterStems, setFilterStems] = useState<"all" | "with" | "without">("all");
+  const [filterWatermark, setFilterWatermark] = useState<"all" | "pending" | "done" | "error" | "processing">("all");
+  const [filterGenre, setFilterGenre] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
   const tracksQuery = trpc.tracks.adminList.useQuery();
   const tracks = tracksQuery.data ?? [];
@@ -219,6 +232,42 @@ export default function AdminTracks() {
   });
 
   const stuckCount = tracks.filter((t: any) => t.watermarkStatus === "error" || t.watermarkStatus === "pending").length;
+
+  // Apply search, sort, and filters
+  const displayedTracks = useMemo(() => {
+    let result = [...tracks] as any[];
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter((t: any) => t.title.toLowerCase().includes(q) || (t.composerName ?? "").toLowerCase().includes(q));
+    }
+    if (filterComposer.trim()) {
+      const q = filterComposer.trim().toLowerCase();
+      result = result.filter((t: any) => (t.composerName ?? "").toLowerCase().includes(q));
+    }
+    if (filterDateFrom) {
+      const from = new Date(filterDateFrom).getTime();
+      result = result.filter((t: any) => new Date(t.createdAt).getTime() >= from);
+    }
+    if (filterDateTo) {
+      const to = new Date(filterDateTo).getTime() + 86400000;
+      result = result.filter((t: any) => new Date(t.createdAt).getTime() <= to);
+    }
+    if (filterStems === "with") result = result.filter((t: any) => t.hasStems);
+    if (filterStems === "without") result = result.filter((t: any) => !t.hasStems);
+    if (filterWatermark !== "all") result = result.filter((t: any) => t.watermarkStatus === filterWatermark);
+    if (filterGenre) {
+      const q = filterGenre.toLowerCase();
+      result = result.filter((t: any) => (t.tags?.genres ?? []).some((g: string) => g.toLowerCase() === q));
+    }
+    if (sortBy === "newest") result.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    else if (sortBy === "oldest") result.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    else if (sortBy === "az") result.sort((a: any, b: any) => a.title.localeCompare(b.title));
+    else if (sortBy === "za") result.sort((a: any, b: any) => b.title.localeCompare(a.title));
+    return result;
+  }, [tracks, search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterGenre]);
+
+  const activeFilterCount = [filterComposer, filterDateFrom, filterDateTo].filter(Boolean).length
+    + (filterStems !== "all" ? 1 : 0) + (filterWatermark !== "all" ? 1 : 0) + (filterGenre ? 1 : 0);
 
   const deleteGlobalTagMutation = trpc.tracks.deleteGlobalTag.useMutation({
     onSuccess: () => {
@@ -402,6 +451,95 @@ export default function AdminTracks() {
           </div>
         </div>
 
+        {/* Search, sort, filter bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by title or composer…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
+          </div>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+            <SelectTrigger className="w-40 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="az">A → Z</SelectItem>
+              <SelectItem value="za">Z → A</SelectItem>
+            </SelectContent>
+          </Select>
+          <Popover open={showFilters} onOpenChange={setShowFilters}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={`gap-1.5 ${activeFilterCount > 0 ? "border-primary text-primary" : ""}`}>
+                <Filter className="h-3.5 w-3.5" />
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4 space-y-4" align="end">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold">Filters</span>
+                {activeFilterCount > 0 && (
+                  <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setFilterComposer(""); setFilterDateFrom(""); setFilterDateTo(""); setFilterStems("all"); setFilterWatermark("all"); setFilterGenre(""); }}>Clear all</button>
+                )}
+              </div>
+              <Separator />
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Composer</label>
+                <input type="text" placeholder="Filter by composer…" value={filterComposer} onChange={e => setFilterComposer(e.target.value)} className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Date Added (from)</label>
+                <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Date Added (to)</label>
+                <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Stems</label>
+                <Select value={filterStems} onValueChange={(v) => setFilterStems(v as typeof filterStems)}>
+                  <SelectTrigger className="w-full text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All tracks</SelectItem>
+                    <SelectItem value="with">With stems</SelectItem>
+                    <SelectItem value="without">Without stems</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Watermark Status</label>
+                <Select value={filterWatermark} onValueChange={(v) => setFilterWatermark(v as typeof filterWatermark)}>
+                  <SelectTrigger className="w-full text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="done">Ready</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                    <SelectItem value="error">Error</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Genre</label>
+                <Select value={filterGenre || "_all"} onValueChange={(v) => setFilterGenre(v === "_all" ? "" : v)}>
+                  <SelectTrigger className="w-full text-sm"><SelectValue placeholder="All genres" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_all">All genres</SelectItem>
+                    {filterOptions.genres.map((g: string) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">{displayedTracks.length} of {tracks.length} track{tracks.length !== 1 ? "s" : ""}</p>
         {/* Track list */}
         {tracksQuery.isLoading ? (
           <div className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -412,7 +550,7 @@ export default function AdminTracks() {
           </div>
         ) : (
           <div className="space-y-2">
-            {tracks.map((track: any) => (
+            {displayedTracks.map((track: any) => (
               <div key={track.id} className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-card hover:border-border transition-colors">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                   {track.coverArtUrl ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" /> : <Music className="h-4 w-4 text-muted-foreground/40" />}

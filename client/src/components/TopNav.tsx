@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, LogOut, Settings, Menu, X } from "lucide-react";
+import { ShoppingCart, LogOut, Settings, Menu, X, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -109,6 +109,11 @@ export default function TopNav() {
                         <DropdownMenuSeparator />
                       </>
                     )}
+                    <DropdownMenuItem onClick={() => navigate("/projects")}>
+                      <FolderOpen className="h-4 w-4 mr-2" />
+                      My Projects
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => logoutMutation.mutate()}
                       className="text-destructive focus:text-destructive"
@@ -149,6 +154,13 @@ export default function TopNav() {
                 Browse Music
               </Button>
             </Link>
+            {isAuthenticated && (
+              <Link href="/projects" onClick={() => setMobileOpen(false)}>
+                <Button variant="ghost" size="sm" className="w-full justify-start font-display text-xs tracking-widest uppercase text-muted-foreground">
+                  My Projects
+                </Button>
+              </Link>
+            )}
           </div>
         )}
       </div>

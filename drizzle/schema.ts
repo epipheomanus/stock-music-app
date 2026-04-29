@@ -126,3 +126,38 @@ export const watermarkConfig = mysqlTable("watermark_config", {
 });
 
 export type WatermarkConfig = typeof watermarkConfig.$inferSelect;
+
+// ─── Projects ───────────────────────────────────────────────────────────────
+export const projects = mysqlTable("projects", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 256 }).notNull(),
+  description: text("description"),
+  status: mysqlEnum("status", ["active", "archived"]).default("active").notNull(),
+  shareToken: varchar("shareToken", { length: 64 }).notNull().unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = typeof projects.$inferInsert;
+
+// ─── Playlists ────────────────────────────────────────────────────────────────
+export const playlists = mysqlTable("playlists", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  name: varchar("name", { length: 256 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Playlist = typeof playlists.$inferSelect;
+export type InsertPlaylist = typeof playlists.$inferInsert;
+
+// ─── Playlist Tracks ──────────────────────────────────────────────────────────
+export const playlistTracks = mysqlTable("playlist_tracks", {
+  id: int("id").autoincrement().primaryKey(),
+  playlistId: int("playlistId").notNull(),
+  trackId: int("trackId").notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  addedAt: timestamp("addedAt").defaultNow().notNull(),
+});
+export type PlaylistTrack = typeof playlistTracks.$inferSelect;

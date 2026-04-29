@@ -1,12 +1,18 @@
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Music, Users, Download, Link2 } from "lucide-react";
+import { Music, Users, Download, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 
 export default function AdminDashboard() {
-  const tracksQuery = trpc.admin.stats.useQuery();
-  const stats = tracksQuery.data;
+  const statsQuery = trpc.admin.stats.useQuery();
+  const stats = statsQuery.data;
+
+  // Determine current quarter label
+  const now = new Date();
+  const quarter = Math.floor(now.getMonth() / 3) + 1;
+  const quarterLabel = `Q${quarter} ${now.getFullYear()} Downloads`;
+  const ytdLabel = `${now.getFullYear()} YTD Downloads`;
 
   return (
     <AdminLayout>
@@ -20,8 +26,8 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Music className="h-5 w-5" />} label="Total Tracks" value={stats?.totalTracks ?? 0} />
           <StatCard icon={<Users className="h-5 w-5" />} label="Registered Users" value={stats?.totalUsers ?? 0} />
-          <StatCard icon={<Download className="h-5 w-5" />} label="Total Downloads" value={stats?.totalDownloads ?? 0} />
-          <StatCard icon={<Link2 className="h-5 w-5" />} label="Published Tracks" value={stats?.publishedTracks ?? 0} />
+          <StatCard icon={<Download className="h-5 w-5" />} label={quarterLabel} value={stats?.quarterlyDownloads ?? 0} />
+          <StatCard icon={<TrendingUp className="h-5 w-5" />} label={ytdLabel} value={stats?.ytdDownloads ?? 0} />
         </div>
 
         {/* Quick actions */}
@@ -41,7 +47,7 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground mb-4">Generate an invite link to allow someone to create an account.</p>
             <Link href="/admin/invites">
               <Button size="sm" variant="outline" className="gap-2">
-                <Link2 className="h-4 w-4" />
+                <TrendingUp className="h-4 w-4" />
                 Manage Invites
               </Button>
             </Link>
