@@ -209,6 +209,17 @@ export default function AdminTracks() {
     onError: (err: { message?: string }) => toast.error(err.message || "Retry failed"),
   });
 
+  const retryAllStuckMutation = trpc.tracks.retryAllStuck.useMutation({
+    onSuccess: (data) => {
+      utils.tracks.adminList.invalidate();
+      if (data.count === 0) toast.info("No stuck tracks found");
+      else toast.success(`Queued watermark generation for ${data.count} track${data.count !== 1 ? "s" : ""} — refresh in a moment`);
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "Bulk retry failed"),
+  });
+
+  const stuckCount = tracks.filter((t: any) => t.watermarkStatus === "error" || t.watermarkStatus === "pending").length;
+
   const deleteGlobalTagMutation = trpc.tracks.deleteGlobalTag.useMutation({
     onSuccess: () => {
       utils.tracks.filterOptions.invalidate();
@@ -369,9 +380,26 @@ export default function AdminTracks() {
             <h1 className="text-2xl font-bold mb-1">Tracks</h1>
             <p className="text-sm text-muted-foreground">{tracks.length} track{tracks.length !== 1 ? "s" : ""} in library</p>
           </div>
-          <Button onClick={() => { setForm(DEFAULT_FORM); setWavFile(null); setStemsFiles([]); setCoverFile(null); setShowUploadDialog(true); }} className="gap-2">
-            <Plus className="h-4 w-4" /> Add Track
-          </Button>
+          <div className="flex items-center gap-2">
+            {stuckCount > 0 && (
+              <Button
+                variant="outline"
+                className="gap-2 border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                onClick={() => retryAllStuckMutation.mutate()}
+                disabled={retryAllStuckMutation.isPending}
+              >
+                {retryAllStuckMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Retry All Stuck ({stuckCount})
+              </Button>
+            )}
+            <Button onClick={() => { setForm(DEFAULT_FORM); setWavFile(null); setStemsFiles([]); setCoverFile(null); setShowUploadDialog(true); }} className="gap-2">
+              <Plus className="h-4 w-4" /> Add Track
+            </Button>
+          </div>
         </div>
 
         {/* Track list */}

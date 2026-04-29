@@ -20,8 +20,8 @@ import {
   updatePassword, updateTrack, upsertUser, upsertWatermarkConfig,
   getAllDistinctTagValues, createTrack,
 } from "./db";
-import { eq, and } from "drizzle-orm";
-import { trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
+import { eq, and, or } from "drizzle-orm";
+import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
 import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
 
@@ -481,6 +481,69 @@ export const appRouter = router({
 
         return { success: true, message: "Watermark generation started" };
       }),
+
+    // Admin: retry watermark generation for ALL stuck tracks (pending or error)
+    retryAllStuck: adminOnly
+      .mutation(async () => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const wmConfig = await getWatermarkConfig();
+        if (!wmConfig?.audioKey) throw new TRPCError({ code: "BAD_REQUEST", message: "No watermark audio configured" });
+
+        // Find all tracks with pending or error watermark status that have a WAV file
+        const stuckTracks = await db
+          .select()
+          .from(tracksTable)
+          .where(
+            or(
+              eq(tracksTable.watermarkStatus, "pending"),
+              eq(tracksTable.watermarkStatus, "error")
+            )
+          );
+
+        const eligible = stuckTracks.filter((t) => t.wavKey);
+        if (eligible.length === 0) return { count: 0, message: "No stuck tracks found" };
+
+        const wmAudioKey = wmConfig.audioKey!;
+
+        // Mark all as processing, then kick off async watermark jobs
+        for (const track of eligible) {
+          await updateTrack(track.id, { watermarkStatus: "processing" });
+
+          const realWavKey = track.wavUrl
+            ? track.wavUrl.replace(/^\/manus-storage\//, "")
+            : track.wavKey!;
+          const trackId = track.id;
+
+          (async () => {
+            let cleanPath: string | null = null;
+            let wmPath: string | null = null;
+            let outPath: string | null = null;
+            try {
+              const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
+              cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
+              const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
+              wmPath = await downloadToTemp(wmSignedUrl, ".wav");
+              outPath = await generateWatermarkedMp3(cleanPath, wmPath);
+              const buf = fs.readFileSync(outPath);
+              const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
+              const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
+              await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
+              console.log(`[Watermark] Bulk retry done for track ${trackId}: ${mp3Url}`);
+            } catch (err) {
+              console.error(`[Watermark] Bulk retry failed for track ${trackId}:`, err);
+              await updateTrack(trackId, { watermarkStatus: "error" });
+            } finally {
+              if (cleanPath && fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath);
+              if (wmPath && fs.existsSync(wmPath)) fs.unlinkSync(wmPath);
+              if (outPath && fs.existsSync(outPath)) fs.unlinkSync(outPath);
+            }
+          })();
+        }
+
+        return { count: eligible.length, message: `Queued watermark generation for ${eligible.length} track(s)` };
+      }),
+
     // Admin: delete a global tag value from all tracks
     deleteGlobalTag: adminOnly
       .input(z.object({ type: z.enum(["genre", "mood", "attribute"]), value: z.string() }))

@@ -134,5 +134,8 @@
 - [x] Browse page: play clean audio on waveform, keep watermarked file for Download Preview button
 
 ## Round 14 Improvements
-- [ ] Set RESEND_FROM to noreply@epipheo.com for verified domain email delivery
-- [ ] Update forgot-password email template with Epipheo Music branding
+- [x] Set RESEND_FROM to noreply@epipheo.com for verified domain email delivery (pending DNS verification of epipheo.com in Resend)
+- [x] Update forgot-password email template with Epipheo Music branding
+## Round 15 Improvements
+- [x] Add tracks.retryAllStuck admin tRPC procedure (queries all pending/error tracks, queues watermark generation for each, returns count)
+- [x] Add "Retry All Stuck (N)" button to admin Tracks page (amber styling, only visible when stuck tracks exist, invalidates list on success)
