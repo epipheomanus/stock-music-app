@@ -126,3 +126,6 @@
 - [x] Confirm invite one-time-use security (already implemented — verified: usedById check prevents reuse)
 - [x] Add admin-role invite option in admin Invites page (User/Admin toggle, role applied on registration)
 - [x] Wire Resend for forgot-password email delivery (API key validated, reset email sent via Resend)
+
+## Round 12 Bug Fixes
+- [x] Fix TypeError: Cannot read properties of null (reading 'toLowerCase') on /admin/analytics page

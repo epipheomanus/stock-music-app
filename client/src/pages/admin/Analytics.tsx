@@ -13,7 +13,7 @@ export default function AdminAnalytics() {
 
   const filtered = downloads.filter((d: any) => {
     const q = search.toLowerCase();
-    return !q || d.trackTitle.toLowerCase().includes(q) || (d.userName ?? "").toLowerCase().includes(q) || d.projectName.toLowerCase().includes(q);
+    return !q || (d.trackTitle ?? "").toLowerCase().includes(q) || (d.userName ?? "").toLowerCase().includes(q) || (d.projectName ?? "").toLowerCase().includes(q);
   });
 
   function formatDate(d: Date | string) {
