@@ -102,3 +102,7 @@
 - [x] Fixed tag taxonomy dropdown bar on Browse page (Genre / Mood / Attributes with preset tags)
 - [x] Hidden tags field in admin track create/edit form (custom tags invisible to users but searchable)
 - [x] DB migration: add hiddenTags column to track_tags table (type = "hidden")
+
+## Round 7 Improvements
+- [x] Fix multi-word search: typing "Orchestral Romantic Soft" must require ALL three tags to be present on a track
+- [x] Replace dynamic "previously used tags" suggestions in admin form with fixed taxonomy lists (same as Browse dropdowns)

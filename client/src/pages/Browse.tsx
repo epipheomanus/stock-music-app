@@ -180,7 +180,7 @@ export default function Browse() {
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by title, composer, or tags (e.g. Orchestral Romantic Soft)…"
+            placeholder="Search by title, composer, or tags — separate multiple tags with commas (e.g. Orchestral, Romantic, Soft)…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-10 bg-card border-border h-11"

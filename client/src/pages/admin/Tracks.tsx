@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { GENRE_TAGS, MOOD_TAGS, ATTRIBUTE_TAGS } from "@shared/taxonomy";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -320,26 +321,26 @@ export default function AdminTracks() {
         <TagField
           type="genre" label="Genre"
           selected={form.genres}
-          allOptions={filterOptions.genres ?? []}
+          allOptions={[...GENRE_TAGS]}
           onAdd={v => setForm(p => ({ ...p, genres: [...p.genres, v] }))}
           onRemove={v => setForm(p => ({ ...p, genres: p.genres.filter(x => x !== v) }))}
-          onDeleteGlobal={v => deleteGlobalTagMutation.mutate({ type: "genre", value: v })}
+          onDeleteGlobal={() => {}}
         />
         <TagField
           type="mood" label="Mood"
           selected={form.moods}
-          allOptions={filterOptions.moods ?? []}
+          allOptions={[...MOOD_TAGS]}
           onAdd={v => setForm(p => ({ ...p, moods: [...p.moods, v] }))}
           onRemove={v => setForm(p => ({ ...p, moods: p.moods.filter(x => x !== v) }))}
-          onDeleteGlobal={v => deleteGlobalTagMutation.mutate({ type: "mood", value: v })}
+          onDeleteGlobal={() => {}}
         />
         <TagField
           type="attribute" label="Attributes"
           selected={form.attributes}
-          allOptions={filterOptions.attributes ?? []}
+          allOptions={[...ATTRIBUTE_TAGS]}
           onAdd={v => setForm(p => ({ ...p, attributes: [...p.attributes, v] }))}
           onRemove={v => setForm(p => ({ ...p, attributes: p.attributes.filter(x => x !== v) }))}
-          onDeleteGlobal={v => deleteGlobalTagMutation.mutate({ type: "attribute", value: v })}
+          onDeleteGlobal={() => {}}
         />
         {/* Hidden tags — not shown publicly, only matched in search */}
         <div className="border-t border-border/50 pt-4">

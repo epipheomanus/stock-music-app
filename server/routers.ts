@@ -189,20 +189,20 @@ export const appRouter = router({
         const filtered = allTracks.filter(track => {
           const tags = tagMap.get(track.id) ?? { genres: [], moods: [], attributes: [], hidden: [] };
           if (input?.search) {
-            // Split on whitespace — every word must match at least one field.
-            // Tag matching is exact (whole tag equals the word, case-insensitive).
+            // Split on commas — every term must match at least one field.
+            // Tag matching is exact (whole tag equals the trimmed term, case-insensitive).
             // Title/composer matching allows substring so users can still search by name.
-            const words = input.search.toLowerCase().split(/\s+/).filter(Boolean);
+            const terms = input.search.split(",").map(t => t.trim().toLowerCase()).filter(Boolean);
             const allTagValues = [...tags.genres, ...tags.moods, ...tags.attributes, ...tags.hidden];
-            const everyWordMatches = words.every(word => {
+            const everyTermMatches = terms.every(term => {
               // Exact tag match (case-insensitive)
-              const matchesTag = allTagValues.some(v => v === word);
+              const matchesTag = allTagValues.some(v => v === term);
               // Substring match against title or composer (allows name searches)
-              const matchesTitle = track.title.toLowerCase().includes(word);
-              const matchesComposer = track.composerName?.toLowerCase().includes(word) ?? false;
+              const matchesTitle = track.title.toLowerCase().includes(term);
+              const matchesComposer = track.composerName?.toLowerCase().includes(term) ?? false;
               return matchesTag || matchesTitle || matchesComposer;
             });
-            if (!everyWordMatches) return false;
+            if (!everyTermMatches) return false;
           }
           if (input?.genres?.length) {
             const lc = input.genres.map(g => g.toLowerCase());
