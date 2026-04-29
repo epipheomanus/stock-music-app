@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 // Tag lists now come from the live DB via trpc.tracks.filterOptions
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 type TagType = "genre" | "mood" | "attribute" | "hidden";
@@ -195,6 +196,7 @@ export default function AdminTracks() {
   const [filterWatermark, setFilterWatermark] = useState<"all" | "pending" | "done" | "error" | "processing">("all");
   const [filterGenre, setFilterGenre] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [duplicateNameAlert, setDuplicateNameAlert] = useState<string | null>(null);
 
   const tracksQuery = trpc.tracks.adminList.useQuery();
   const tracks = tracksQuery.data ?? [];
@@ -327,7 +329,12 @@ export default function AdminTracks() {
       setForm(DEFAULT_FORM);
       setWavFile(null); setStemsFiles([]); setCoverFile(null);
     } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+      const msg: string = err.message || "Upload failed";
+      if (msg.toLowerCase().includes("already exists") || msg.toLowerCase().includes("duplicate")) {
+        setDuplicateNameAlert(msg);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setUploading(false);
     }
@@ -726,6 +733,23 @@ export default function AdminTracks() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Duplicate track name alert */}
+      <AlertDialog open={!!duplicateNameAlert} onOpenChange={(open) => { if (!open) setDuplicateNameAlert(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicate Track Name</AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateNameAlert}
+              <br /><br />
+              Please choose a different title before uploading.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setDuplicateNameAlert(null)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

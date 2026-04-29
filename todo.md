@@ -157,28 +157,28 @@
 ## Round 18 — Major Features
 
 ### Admin Track Manager Improvements
-- [ ] Add sort controls to admin Tracks page: Newest/Oldest, A-Z/Z-A
-- [ ] Add filter panel to admin Tracks page: by composer, date range added, has stems, no stems, watermark status, BPM range, tag (genre/mood/attribute), has cover art / missing cover art
+- [x] Add sort controls to admin Tracks page: Newest/Oldest, A-Z/Z-A
+- [x] Add filter panel to admin Tracks page: by composer, date range added, has stems, no stems, watermark status, BPM range, tag (genre/mood/attribute), has cover art / missing cover art
 
 ### Admin Dashboard Stat Updates
-- [ ] Change "Total Downloads" stat to "Quarterly Downloads" (clean track downloads, current calendar business quarter only)
-- [ ] Change "Published Tracks" stat to "Year To Date Downloads" (clean track downloads, current calendar year only)
+- [x] Change "Total Downloads" stat to "Quarterly Downloads" (clean track downloads, current calendar business quarter only)
+- [x] Change "Published Tracks" stat to "Year To Date Downloads" (clean track downloads, current calendar year only)
 
 ### My Projects Feature
-- [ ] Schema: add projects table (id, userId, name, description, status: active/archived, shareToken, createdAt, updatedAt)
-- [ ] Schema: add playlists table (id, projectId, name, createdAt)
-- [ ] Schema: add playlist_tracks table (id, playlistId, trackId, addedAt, sortOrder)
-- [ ] Run migration for new tables
-- [ ] Backend: projects CRUD procedures (create, list, archive, delete)
-- [ ] Backend: playlists CRUD procedures (create, rename, delete within a project)
-- [ ] Backend: playlist_tracks procedures (add track, remove track, reorder)
-- [ ] Backend: public share endpoint (read-only project view by shareToken)
-- [ ] Frontend: Add "My Projects" link to user dropdown in TopNav
-- [ ] Frontend: My Projects list page (/projects) — active projects grid, archive toggle
-- [ ] Frontend: Project detail page (/projects/:id) — playlists, tracks, share button
-- [ ] Frontend: Shareable read-only project page (/share/:token) — no login required
-- [ ] Frontend: Browse page — "Add to Project" button per track (opens project/playlist picker)
+- [x] Schema: add projects table (id, userId, name, description, status: active/archived, shareToken, createdAt, updatedAt)
+- [x] Schema: add playlists table (id, projectId, name, createdAt)
+- [x] Schema: add playlist_tracks table (id, playlistId, trackId, addedAt, sortOrder)
+- [x] Run migration for new tables
+- [x] Backend: projects CRUD procedures (create, list, archive, delete)
+- [x] Backend: playlists CRUD procedures (create, rename, delete within a project)
+- [x] Backend: playlist_tracks procedures (add track, remove track, reorder)
+- [x] Backend: public share endpoint (read-only project view by shareToken)
+- [x] Frontend: Add "My Projects" link to user dropdown in TopNav
+- [x] Frontend: My Projects list page (/projects) — active projects grid, archive toggle
+- [x] Frontend: Project detail page (/projects/:id) — playlists, tracks, share button
+- [x] Frontend: Shareable read-only project page (/share/:token) — no login required
+- [x] Frontend: Browse page — "Add to Project" button per track (opens project/playlist picker)
 
 ### Duplicate Track Name Prevention
-- [ ] Backend: duplicate title check in tracks.create and tracks.update procedures
-- [ ] Frontend: show alert dialog if admin attempts to upload a track with a duplicate name
+- [x] Backend: duplicate title check in tracks.create and tracks.update procedures
+- [x] Frontend: show alert dialog if admin attempts to upload a track with a duplicate name
