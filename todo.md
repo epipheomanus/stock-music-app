@@ -139,3 +139,8 @@
 ## Round 15 Improvements
 - [x] Add tracks.retryAllStuck admin tRPC procedure (queries all pending/error tracks, queues watermark generation for each, returns count)
 - [x] Add "Retry All Stuck (N)" button to admin Tracks page (amber styling, only visible when stuck tracks exist, invalidates list on success)
+
+## Round 16 Improvements
+- [x] Add deleteUser DB helper (cascades: cart_items, downloads, invites created by user)
+- [x] Add admin tRPC procedure users.delete (prevents deleting own account or other admins)
+- [x] Add "Remove User" button to admin Users page (red destructive style, confirmation dialog, disabled for own account)

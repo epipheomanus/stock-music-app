@@ -12,7 +12,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   addToCart, clearCart, createInvite, createLocalUser, deleteTrack,
-  getAllDownloads, getAllInvites, getAllTracks, getAllUsers, getCartItems,
+  deleteUser, getAllDownloads, getAllInvites, getAllTracks, getAllUsers, getCartItems,
   getDb, getInviteByToken, getPublishedTracks, getTagsForTrack,
   getTagsForTracks, getTrackById, getUserByEmail, getUserByOpenId,
   getUserByResetToken, getUserByUsername, getWatermarkConfig, logDownload,
@@ -707,6 +707,27 @@ export const appRouter = router({
       await db.update(usersTable).set({ isLocked: input.locked }).where(eq(usersTable.id, input.userId));
       return { success: true };
     }),
+    deleteUser: adminOnly
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        // Prevent admins from deleting their own account
+        if (ctx.user.id === input.userId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "You cannot delete your own account" });
+        }
+        // Prevent deleting other admin accounts
+        const target = await import("../drizzle/schema").then(async (schema) => {
+          const db = await getDb();
+          if (!db) return undefined;
+          const result = await db.select().from(schema.users).where(eq(schema.users.id, input.userId)).limit(1);
+          return result[0];
+        });
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+        if (target.role === "admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Cannot delete admin accounts" });
+        }
+        await deleteUser(input.userId);
+        return { success: true };
+      }),
     stats: adminOnly.query(async () => {
       const [allTracks, allDownloads, allUsers] = await Promise.all([
         getAllTracks(), getAllDownloads(), getAllUsers(),

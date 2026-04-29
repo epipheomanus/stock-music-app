@@ -330,3 +330,22 @@ export async function upsertWatermarkConfig(audioKey: string, audioUrl: string):
     await db.insert(watermarkConfig).values({ audioKey, audioUrl });
   }
 }
+
+// ─── User Management ──────────────────────────────────────────────────────────
+export async function deleteUser(userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Remove dependent rows first, then the user
+  await db.delete(cartItems).where(eq(cartItems.userId, userId));
+  await db.delete(downloads).where(eq(downloads.userId, userId));
+  // Preserve one-time-use semantics: invites already redeemed (usedAt is set) keep
+  // their usedAt timestamp so they cannot be reused. We only null the FK so the
+  // row doesn't violate referential integrity after the user row is deleted.
+  // Critically, we do NOT clear usedAt — markInviteUsed checks usedById IS NULL,
+  // so setting usedById = null on an invite that has usedAt set would allow reuse.
+  // Instead we delete those redeemed invites entirely to prevent any reuse.
+  await db.delete(invites).where(and(eq(invites.usedById, userId)));
+  // Delete invites created by this user that were never redeemed
+  await db.delete(invites).where(and(eq(invites.createdById, userId), isNull(invites.usedById)));
+  await db.delete(users).where(eq(users.id, userId));
+}

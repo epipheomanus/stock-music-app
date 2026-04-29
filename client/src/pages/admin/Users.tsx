@@ -1,15 +1,23 @@
 import { useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Loader2, Lock, Unlock, User, Search, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Loader2, Lock, Unlock, User, Search, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function AdminUsers() {
   const utils = trpc.useUtils();
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmDeleteName, setConfirmDeleteName] = useState("");
 
   const usersQuery = trpc.admin.users.useQuery();
   const users = usersQuery.data ?? [];
@@ -20,6 +28,18 @@ export default function AdminUsers() {
       toast.success(vars.locked ? "Account locked" : "Account unlocked");
     },
     onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.admin.deleteUser.useMutation({
+    onSuccess: () => {
+      utils.admin.users.invalidate();
+      setConfirmDeleteId(null);
+      toast.success("User removed");
+    },
+    onError: (err) => {
+      setConfirmDeleteId(null);
+      toast.error(err.message || "Failed to remove user");
+    },
   });
 
   const filtered = users.filter(u => {
@@ -42,6 +62,12 @@ export default function AdminUsers() {
 
   function formatDate(d: string | Date) {
     return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function openDeleteConfirm(user: any) {
+    const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.name || user.username || "this user";
+    setConfirmDeleteName(displayName);
+    setConfirmDeleteId(user.id);
   }
 
   return (
@@ -80,6 +106,7 @@ export default function AdminUsers() {
               const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.name || user.username || "Unknown";
               const isAdmin = user.role === "admin";
               const isLocked = user.isLocked;
+              const isSelf = currentUser?.id === user.id;
 
               return (
                 <div
@@ -97,6 +124,9 @@ export default function AdminUsers() {
                       <span className="font-medium text-sm">{displayName}</span>
                       {isAdmin && (
                         <Badge variant="secondary" className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">Admin</Badge>
+                      )}
+                      {isSelf && (
+                        <Badge variant="outline" className="text-[10px]">You</Badge>
                       )}
                       {isLocked && (
                         <Badge variant="destructive" className="text-[10px] gap-1">
@@ -124,23 +154,34 @@ export default function AdminUsers() {
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  {!isAdmin && (
-                    <Button
-                      variant={isLocked ? "outline" : "ghost"}
-                      size="sm"
-                      className={`gap-1.5 shrink-0 text-xs ${isLocked ? "border-green-300 text-green-700 hover:bg-green-50" : "text-muted-foreground hover:text-destructive"}`}
-                      onClick={() => lockMutation.mutate({ userId: user.id, locked: !isLocked })}
-                      disabled={lockMutation.isPending}
-                    >
-                      {lockMutation.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : isLocked ? (
-                        <><ShieldCheck className="h-3.5 w-3.5" /> Unlock</>
-                      ) : (
-                        <><ShieldAlert className="h-3.5 w-3.5" /> Lock</>
-                      )}
-                    </Button>
+                  {/* Actions — only for non-admin, non-self accounts */}
+                  {!isAdmin && !isSelf && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant={isLocked ? "outline" : "ghost"}
+                        size="sm"
+                        className={`gap-1.5 text-xs ${isLocked ? "border-green-300 text-green-700 hover:bg-green-50" : "text-muted-foreground hover:text-destructive"}`}
+                        onClick={() => lockMutation.mutate({ userId: user.id, locked: !isLocked })}
+                        disabled={lockMutation.isPending}
+                      >
+                        {lockMutation.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : isLocked ? (
+                          <><ShieldCheck className="h-3.5 w-3.5" /> Unlock</>
+                        ) : (
+                          <><ShieldAlert className="h-3.5 w-3.5" /> Lock</>
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        title="Remove user"
+                        onClick={() => openDeleteConfirm(user)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               );
@@ -148,6 +189,32 @@ export default function AdminUsers() {
           </div>
         )}
       </div>
+
+      {/* Confirm delete dialog */}
+      <Dialog open={confirmDeleteId !== null} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently remove <strong>{confirmDeleteName}</strong>? This will delete their account, cart, and download history. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)} disabled={deleteMutation.isPending}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => { if (confirmDeleteId !== null) deleteMutation.mutate({ userId: confirmDeleteId }); }}
+              disabled={deleteMutation.isPending}
+              className="gap-2"
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Remove User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
