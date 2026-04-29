@@ -106,3 +106,7 @@
 ## Round 7 Improvements
 - [x] Fix multi-word search: typing "Orchestral Romantic Soft" must require ALL three tags to be present on a track
 - [x] Replace dynamic "previously used tags" suggestions in admin form with fixed taxonomy lists (same as Browse dropdowns)
+
+## Round 8 Improvements
+- [x] Fix "Watermarked version not available yet" error on Browse page
+- [x] Fix watermark pipeline 403 error when downloading WAV/watermark audio from storage

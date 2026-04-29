@@ -311,16 +311,29 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
                 </p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                  onClick={onDownloadWatermarked}
-                  title="Download watermarked preview"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Preview</span>
-                </Button>
+                {track.watermarkStatus === "done" ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                    onClick={onDownloadWatermarked}
+                    title="Download watermarked preview"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1 text-muted-foreground/40 cursor-not-allowed"
+                    disabled
+                    title={track.watermarkStatus === "processing" ? "Watermark is being generated…" : track.watermarkStatus === "error" ? "Watermark generation failed — admin can retry" : "Watermark not yet generated"}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Preview</span>
+                  </Button>
+                )}
                 {isAuthenticated ? (
                   <Button
                     variant="ghost"

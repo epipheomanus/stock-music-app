@@ -408,7 +408,12 @@ export const appRouter = router({
         await updateTrack(input.id, { watermarkStatus: "processing" });
 
         // Run async — don't block the response
-        const wavKey = track.wavKey!;
+        // IMPORTANT: wavKey in DB is the pre-hash key; the actual S3 object uses the hashed key
+        // embedded in wavUrl (e.g. /manus-storage/tracks/wav/..._ed4cd96d.wav).
+        // Derive the real key from wavUrl so the signed URL request succeeds.
+        const realWavKey = track.wavUrl
+          ? track.wavUrl.replace(/^\/manus-storage\//, "")
+          : track.wavKey!;
         const wmAudioKey = wmConfig.audioKey!;
         const trackId = input.id;
         (async () => {
@@ -417,7 +422,7 @@ export const appRouter = router({
           let outPath: string | null = null;
           try {
             // Use signed URLs for server-side downloads — relative /manus-storage/ paths only work in the browser
-            const cleanSignedUrl = await storageGetSignedUrl(wavKey);
+            const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
             cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
             const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
             wmPath = await downloadToTemp(wmSignedUrl, ".wav");
