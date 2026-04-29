@@ -308,7 +308,8 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
   isAuthenticated: boolean; onAddToCart: () => void; onDownloadWatermarked: () => void;
 }) {
   const allTags = [...track.tags.genres, ...track.tags.moods, ...track.tags.attributes];
-  const audioUrl = track.watermarkedMp3Url ?? track.wavUrl ?? "";
+  // Use clean WAV for in-browser playback; watermarkedMp3Url is only for the Download Preview button
+  const audioUrl = track.wavUrl ?? "";
 
   return (
     <div className={`group rounded-xl border transition-all ${isPlaying ? "border-primary/40 bg-primary/5" : "border-border/50 bg-card/50 hover:border-border hover:bg-card"}`}>

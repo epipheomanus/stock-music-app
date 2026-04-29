@@ -129,3 +129,6 @@
 
 ## Round 12 Bug Fixes
 - [x] Fix TypeError: Cannot read properties of null (reading 'toLowerCase') on /admin/analytics page
+
+## Round 13 Improvements
+- [x] Browse page: play clean audio on waveform, keep watermarked file for Download Preview button

@@ -90,7 +90,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const queueIndexRef = useRef<number>(-1);
 
   const loadTrack = useCallback((track: GlobalTrack) => {
-    const url = track.watermarkedMp3Url ?? track.wavUrl ?? "";
+    // Use clean WAV for playback; watermarkedMp3Url is only for the Download Preview button
+    const url = track.wavUrl ?? "";
     if (!url) return;
 
     setActiveTrackState(track);
@@ -162,7 +163,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
 
     if (pendingTrackRef.current) {
-      const url = pendingTrackRef.current.watermarkedMp3Url ?? pendingTrackRef.current.wavUrl ?? "";
+      // Use clean WAV for playback
+      const url = pendingTrackRef.current.wavUrl ?? "";
       if (url) {
         currentUrlRef.current = url;
         ws.load(url);
