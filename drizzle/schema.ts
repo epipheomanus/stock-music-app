@@ -41,6 +41,7 @@ export const invites = mysqlTable("invites", {
   usedById: int("usedById"),
   usedAt: timestamp("usedAt"),
   expiresAt: timestamp("expiresAt").notNull(),
+  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

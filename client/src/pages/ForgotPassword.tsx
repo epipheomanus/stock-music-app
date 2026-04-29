@@ -18,7 +18,7 @@ export default function ForgotPassword() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    forgotMutation.mutate({ email });
+    forgotMutation.mutate({ email, origin: window.location.origin });
   }
 
   return (
@@ -29,7 +29,7 @@ export default function ForgotPassword() {
             <Music2 className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold text-lg tracking-tight">
-            Sound<span className="text-primary">Vault</span>
+            Epipheo Music
           </span>
         </Link>
       </header>

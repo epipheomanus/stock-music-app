@@ -121,3 +121,8 @@
 ## Round 10 Improvements
 - [x] Fix broken track playback on Browse page (tracks no longer play)
 - [x] Verify bottom playback bar features: volume slider, prev/next, collapse
+
+## Round 11 Improvements
+- [x] Confirm invite one-time-use security (already implemented — verified: usedById check prevents reuse)
+- [x] Add admin-role invite option in admin Invites page (User/Admin toggle, role applied on registration)
+- [x] Wire Resend for forgot-password email delivery (API key validated, reset email sent via Resend)

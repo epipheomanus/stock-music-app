@@ -1,7 +1,7 @@
 import { useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Copy, Check, Loader2, Link2, Clock, User } from "lucide-react";
+import { Plus, Copy, Check, Loader2, Link2, Clock, User, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -9,6 +9,7 @@ import { toast } from "sonner";
 export default function AdminInvites() {
   const utils = trpc.useUtils();
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [newRole, setNewRole] = useState<"user" | "admin">("user");
 
   const invitesQuery = trpc.invites.list.useQuery();
   const invites = invitesQuery.data ?? [];
@@ -17,7 +18,7 @@ export default function AdminInvites() {
     onSuccess: (data) => {
       utils.invites.list.invalidate();
       copyToClipboard(data.url, -1);
-      toast.success("Invite link created and copied to clipboard!");
+      toast.success(`${data.role === "admin" ? "Admin" : "User"} invite link created and copied to clipboard!`);
     },
     onError: (err: { message?: string }) => toast.error(err.message || "Failed to create invite"),
   });
@@ -40,15 +41,38 @@ export default function AdminInvites() {
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold mb-1">Invites</h1>
-            <p className="text-sm text-muted-foreground">Manage invite links for new user registration</p>
+            <p className="text-sm text-muted-foreground">Manage invite links for new user registration. Each link is one-time use only.</p>
           </div>
-          <Button onClick={() => createMutation.mutate({ origin: window.location.origin })} disabled={createMutation.isPending} className="gap-2">
-            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Generate Invite Link
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Role selector */}
+            <div className="flex rounded-lg border border-border overflow-hidden text-sm">
+              <button
+                onClick={() => setNewRole("user")}
+                className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${newRole === "user" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              >
+                <User className="h-3.5 w-3.5" />
+                User
+              </button>
+              <button
+                onClick={() => setNewRole("admin")}
+                className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${newRole === "admin" ? "bg-amber-500 text-white" : "bg-card text-muted-foreground hover:bg-muted"}`}
+              >
+                <Shield className="h-3.5 w-3.5" />
+                Admin
+              </button>
+            </div>
+            <Button
+              onClick={() => createMutation.mutate({ origin: window.location.origin, role: newRole })}
+              disabled={createMutation.isPending}
+              className="gap-2"
+            >
+              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Generate Invite Link
+            </Button>
+          </div>
         </div>
 
         {invitesQuery.isLoading ? (
@@ -109,6 +133,7 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
     used: "bg-muted text-muted-foreground",
     expired: "bg-red-500/15 text-red-400 border-red-500/30",
   };
+  const isAdmin = invite.role === "admin";
 
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl border border-border/50 bg-card/50">
@@ -116,6 +141,12 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
         <div className="flex items-center gap-2 mb-1">
           <code className="text-xs font-mono text-muted-foreground truncate max-w-xs">{invite.token}</code>
           <Badge className={`text-[10px] ${statusColors[status]}`}>{status}</Badge>
+          {isAdmin && (
+            <Badge className="text-[10px] bg-amber-500/15 text-amber-400 border-amber-500/30 gap-1">
+              <Shield className="h-2.5 w-2.5" />
+              Admin
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">

@@ -99,8 +99,10 @@ export const appRouter = router({
           firstName: input.firstName, lastName: input.lastName,
           email: input.email, company: input.company,
           username: input.username, passwordHash,
+          role: invite.role as "user" | "admin",
         });
-        await markInviteUsed(input.token, userId);
+        const claimed = await markInviteUsed(input.token, userId);
+        if (!claimed) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already used" });
         const user = await getUserById_local(userId);
         if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
         const token = await signJwt({ openId: user.openId, id: user.id });
@@ -111,16 +113,39 @@ export const appRouter = router({
 
     // Forgot password — generate reset token
     forgotPassword: publicProcedure
-      .input(z.object({ email: z.string().email() }))
+      .input(z.object({ email: z.string().email(), origin: z.string() }))
       .mutation(async ({ input }) => {
         const user = await getUserByEmail(input.email);
         if (!user) return { success: true }; // Don't reveal if email exists
         const token = nanoid(48);
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
         await setResetToken(user.id, token, expiresAt);
-        // In production, send email. For now, return token for admin use.
-        console.log(`[Password Reset] Token for ${input.email}: ${token}`);
-        return { success: true, resetToken: token }; // Token returned for dev convenience
+        const resetUrl = `${input.origin}/reset-password?token=${token}`;
+        // Send email via Resend
+        if (ENV.resendApiKey) {
+          try {
+            const { Resend } = await import("resend");
+            const resend = new Resend(ENV.resendApiKey);
+            await resend.emails.send({
+              from: ENV.resendFrom,
+              to: input.email,
+              subject: "Reset your Epipheo Music password",
+              html: `
+                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+                  <h2 style="margin:0 0 16px;">Reset your password</h2>
+                  <p style="color:#555;margin:0 0 24px;">Click the button below to reset your Epipheo Music password. This link expires in 1 hour.</p>
+                  <a href="${resetUrl}" style="display:inline-block;background:#000;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password</a>
+                  <p style="color:#999;font-size:12px;margin:24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
+                </div>
+              `,
+            });
+          } catch (e) {
+            console.error("[Resend] Failed to send reset email:", e);
+          }
+        } else {
+          console.log(`[Password Reset] Token for ${input.email}: ${token}`);
+        }
+        return { success: true };
       }),
 
     // Reset password with token
@@ -143,21 +168,19 @@ export const appRouter = router({
   // ─── Invites ───────────────────────────────────────────────────────────────
   invites: router({
     create: adminOnly
-      .input(z.object({ origin: z.string() }))
+      .input(z.object({ origin: z.string(), role: z.enum(["user", "admin"]).default("user") }))
       .mutation(async ({ ctx, input }) => {
         const token = nanoid(32);
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
-        await createInvite(token, ctx.user.id, expiresAt);
+        await createInvite(token, ctx.user.id, expiresAt, input.role);
         const url = `${input.origin}/register?token=${token}`;
-        return { token, url, expiresAt };
+        return { token, url, expiresAt, role: input.role };
       }),
-
     list: adminOnly.query(async () => {
       return getAllInvites();
     }),
   }),
-
-  // ─── Tracks ────────────────────────────────────────────────────────────────
+  // ─── Tracks ────────────────────────────────────────────────────────────────────────────
   tracks: router({
     // Public: list published tracks with optional filters
     list: publicProcedure

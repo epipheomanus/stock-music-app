@@ -36,6 +36,13 @@
       "when": 1777425433727,
       "tag": "0004_hesitant_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1777428895699,
+      "tag": "0005_fantastic_shooting_star",
+      "breakpoints": true
     }
   ]
 }

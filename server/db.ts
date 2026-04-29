@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   CartItem,
@@ -91,6 +91,7 @@ export async function getUserByUsername(username: string): Promise<User | undefi
 export async function createLocalUser(data: {
   firstName: string; lastName: string; email: string;
   company?: string; username: string; passwordHash: string;
+  role?: "user" | "admin";
 }): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -100,7 +101,7 @@ export async function createLocalUser(data: {
     firstName: data.firstName, lastName: data.lastName,
     email: data.email, company: data.company ?? null,
     username: data.username, passwordHash: data.passwordHash,
-    loginMethod: "local", role: "user", lastSignedIn: new Date(),
+    loginMethod: "local", role: data.role ?? "user", lastSignedIn: new Date(),
   });
   return (result as unknown as { insertId: number }).insertId;
 }
@@ -132,10 +133,10 @@ export async function getAllUsers(): Promise<User[]> {
 
 // ─── Invites ──────────────────────────────────────────────────────────────────
 
-export async function createInvite(token: string, createdById: number, expiresAt: Date): Promise<void> {
+export async function createInvite(token: string, createdById: number, expiresAt: Date, role: "user" | "admin" = "user"): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.insert(invites).values({ token, createdById, expiresAt });
+  await db.insert(invites).values({ token, createdById, expiresAt, role });
 }
 
 export async function getInviteByToken(token: string): Promise<Invite | undefined> {
@@ -145,10 +146,16 @@ export async function getInviteByToken(token: string): Promise<Invite | undefine
   return result[0];
 }
 
-export async function markInviteUsed(token: string, userId: number): Promise<void> {
+export async function markInviteUsed(token: string, userId: number): Promise<boolean> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(invites).set({ usedById: userId, usedAt: new Date() }).where(eq(invites.token, token));
+  // Atomic: only update if not yet used (prevents concurrent redemption)
+  const result = await db.update(invites)
+    .set({ usedById: userId, usedAt: new Date() })
+    .where(and(eq(invites.token, token), isNull(invites.usedById)));
+  const affectedRows = (result as unknown as { rowsAffected?: number; affectedRows?: number }).affectedRows
+    ?? (result as unknown as { rowsAffected?: number }).rowsAffected ?? 1;
+  return affectedRows > 0;
 }
 
 export async function getAllInvites(): Promise<Invite[]> {
