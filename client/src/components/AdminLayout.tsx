@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Music2, LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2, Tags } from "lucide-react";
+import { LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2, Tags } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useEffect } from "react";
@@ -37,15 +37,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="w-56 shrink-0 border-r border-border/50 bg-card/30 flex flex-col">
         {/* Logo */}
         <div className="px-4 py-5 border-b border-border/50">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-              <Music2 className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-sm tracking-tight">
-              Epipheo<span className="text-primary"> Music</span>
-            </span>
+          <Link href="/" className="inline-flex items-center">
+            <img
+              src="/manus-storage/epipheo-logo-black-transparent_5380d099.png"
+              alt="Epipheo"
+              className="h-7 w-auto object-contain dark:hidden"
+            />
+            <img
+              src="/manus-storage/epipheo-logo-white-transparent_1da09ee5.png"
+              alt="Epipheo"
+              className="h-7 w-auto object-contain hidden dark:block"
+            />
           </Link>
-          <div className="mt-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Admin</div>
+          <div className="mt-2 text-[10px] text-muted-foreground font-display font-medium uppercase tracking-[0.2em]">Admin Panel</div>
         </div>
 
         {/* Nav */}

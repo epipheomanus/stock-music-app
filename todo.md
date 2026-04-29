@@ -144,3 +144,12 @@
 - [x] Add deleteUser DB helper (cascades: cart_items, downloads, invites created by user)
 - [x] Add admin tRPC procedure users.delete (prevents deleting own account or other admins)
 - [x] Add "Remove User" button to admin Users page (red destructive style, confirmation dialog, disabled for own account)
+
+## Round 17 — Epipheo Branding
+- [x] Extract Epipheo logo from brand PDF (black + white transparent PNG variants)
+- [x] Upload logo variants as webdev static assets
+- [x] Add Oswald + Noticia Text Google Fonts to index.html
+- [x] Rewrite index.css with Epipheo color palette (Aqua #33ebc6 primary, Orange #ff6340 destructive, neutral-dominant backgrounds)
+- [x] Update TopNav to use Epipheo logo image (dark/light variants)
+- [x] Update Home page hero with Oswald headings, Aqua accent, brand tagline, Epipheo logo in footer
+- [x] Update AdminLayout sidebar to use Epipheo logo image

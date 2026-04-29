@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, LogOut, User, Settings, Music2, Search, Menu, X } from "lucide-react";
+import { ShoppingCart, LogOut, Settings, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,17 +8,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useCart } from "@/contexts/CartContext";
-import { toast } from "sonner";
 import { useState } from "react";
 
 export default function TopNav() {
   const [location, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
-  const { toggleCart, itemCount } = useCart();
+  const { toggleCart } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -34,17 +32,21 @@ export default function TopNav() {
   const cartCount = cartQuery.data?.length ?? 0;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur-md">
       <div className="container">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Music2 className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg tracking-tight text-foreground">
-              Epipheo <span className="text-primary">Music</span>
-            </span>
+          {/* Epipheo Logo */}
+          <Link href="/" className="flex items-center shrink-0">
+            <img
+              src="/manus-storage/epipheo-logo-black-transparent_5380d099.png"
+              alt="Epipheo"
+              className="h-8 w-auto object-contain dark:hidden"
+            />
+            <img
+              src="/manus-storage/epipheo-logo-white-transparent_1da09ee5.png"
+              alt="Epipheo"
+              className="h-8 w-auto object-contain hidden dark:block"
+            />
           </Link>
 
           {/* Center nav links */}
@@ -53,7 +55,7 @@ export default function TopNav() {
               <Button
                 variant="ghost"
                 size="sm"
-                className={`text-sm ${location === "/browse" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                className={`font-display text-xs tracking-widest uppercase ${location === "/browse" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
               >
                 Browse Music
               </Button>
@@ -84,17 +86,17 @@ export default function TopNav() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
-                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold">
+                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold font-display">
                         {(user?.firstName?.[0] ?? user?.name?.[0] ?? "U").toUpperCase()}
                       </div>
-                      <span className="hidden sm:inline text-sm">
+                      <span className="hidden sm:inline text-sm font-display tracking-wide">
                         {user?.firstName ?? user?.name ?? "Account"}
                       </span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <div className="px-2 py-1.5">
-                      <p className="text-sm font-medium">{user?.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : user?.name}</p>
+                      <p className="text-sm font-medium font-display">{user?.firstName ? `${user.firstName} ${user.lastName ?? ""}`.trim() : user?.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                     </div>
                     <DropdownMenuSeparator />
@@ -120,7 +122,7 @@ export default function TopNav() {
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <Button variant="ghost" size="sm" className="font-display text-xs tracking-widest uppercase text-muted-foreground hover:text-foreground">
                     Sign in
                   </Button>
                 </Link>
@@ -143,7 +145,7 @@ export default function TopNav() {
         {mobileOpen && (
           <div className="md:hidden border-t border-border/50 py-3 space-y-1">
             <Link href="/browse" onClick={() => setMobileOpen(false)}>
-              <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground">
+              <Button variant="ghost" size="sm" className="w-full justify-start font-display text-xs tracking-widest uppercase text-muted-foreground">
                 Browse Music
               </Button>
             </Link>
