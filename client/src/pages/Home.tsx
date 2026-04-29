@@ -20,11 +20,6 @@ export default function Home() {
 
         <div className="container relative py-24 md:py-40">
           <div className="max-w-2xl">
-            {/* Epipheo tagline in Oswald */}
-            <p className="font-display text-xs tracking-[0.25em] uppercase text-muted-foreground mb-6">
-              Truth. Story. Love.
-            </p>
-
             {/* Main headline — Oswald Medium, 90% Black */}
             <h1 className="font-display font-medium text-5xl md:text-7xl uppercase leading-[1.0] tracking-tight mb-6 text-foreground">
               Epipheo's
