@@ -107,6 +107,15 @@ export const downloads = mysqlTable("downloads", {
 
 export type Download = typeof downloads.$inferSelect;
 
+// ─── Taxonomy Tags ──────────────────────────────────────────────────────────
+// Stores the canonical list of tags shown in Browse dropdowns (admin-managed)
+export const taxonomyTags = mysqlTable("taxonomy_tags", {
+  id: int("id").autoincrement().primaryKey(),
+  type: mysqlEnum("type", ["genre", "mood", "attribute"]).notNull(),
+  value: varchar("value", { length: 128 }).notNull(),
+});
+export type TaxonomyTag = typeof taxonomyTags.$inferSelect;
+
 // ─── Watermark Config ─────────────────────────────────────────────────────────
 export const watermarkConfig = mysqlTable("watermark_config", {
   id: int("id").autoincrement().primaryKey(),

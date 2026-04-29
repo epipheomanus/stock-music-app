@@ -110,3 +110,10 @@
 ## Round 8 Improvements
 - [x] Fix "Watermarked version not available yet" error on Browse page
 - [x] Fix watermark pipeline 403 error when downloading WAV/watermark audio from storage
+
+## Round 9 Improvements
+- [x] Rebrand: change "SoundVault" to "Epipheo Music" throughout the app
+- [x] Homepage: change headline to "Epipheo's Music Resource"
+- [x] Homepage: remove "Private Music Library" badge and three feature boxes
+- [x] Browse page: add alphabetical A-Z / Z-A sort options
+- [x] Admin: taxonomy editor page to add/remove Genre, Mood, Attribute tags

@@ -44,7 +44,7 @@ export default function AdminAnalytics() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `soundvault_downloads_${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `epipheo_music_downloads_${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

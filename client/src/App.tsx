@@ -20,6 +20,7 @@ import AdminInvites from "./pages/admin/Invites";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminWatermark from "./pages/admin/Watermark";
 import AdminUsers from "./pages/admin/Users";
+import AdminTaxonomy from "./pages/admin/Taxonomy";
 
 function Router() {
   return (
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/admin/analytics" component={AdminAnalytics} />
       <Route path="/admin/watermark" component={AdminWatermark} />
       <Route path="/admin/users" component={AdminUsers} />
+      <Route path="/admin/taxonomy" component={AdminTaxonomy} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

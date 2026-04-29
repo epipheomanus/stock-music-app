@@ -13,7 +13,7 @@ export default function AdminDashboard() {
       <div className="p-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-1">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Overview of your SoundVault library</p>
+          <p className="text-sm text-muted-foreground">Overview of your Epipheo Music library</p>
         </div>
 
         {/* Stats grid */}

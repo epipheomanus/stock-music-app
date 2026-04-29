@@ -1,6 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Search, X, Download, ShoppingCart, Music, ChevronDown, Loader2, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import TopNav from "@/components/TopNav";
@@ -100,7 +106,7 @@ export default function Browse() {
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za">("newest");
 
   const utils = trpc.useUtils();
 
@@ -115,6 +121,8 @@ export default function Browse() {
   const tracks = useMemo(() => {
     const arr = [...rawTracks];
     if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    else if (sortOrder === "az") arr.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sortOrder === "za") arr.sort((a, b) => b.title.localeCompare(a.title));
     else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return arr;
   }, [rawTracks, sortOrder]);
@@ -163,16 +171,29 @@ export default function Browse() {
                 {activeFilterCount > 0 && " matching your filters"}
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 gap-1.5 text-xs h-8"
-              onClick={() => setSortOrder(o => o === "newest" ? "oldest" : "newest")}
-              title={sortOrder === "newest" ? "Showing newest first — click to show oldest first" : "Showing oldest first — click to show newest first"}
-            >
-              <ArrowUpDown className="h-3.5 w-3.5" />
-              {sortOrder === "newest" ? "Newest first" : "Oldest first"}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="shrink-0 gap-1.5 text-xs h-8">
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : "Z → A"}
+                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-36">
+                <DropdownMenuItem onClick={() => setSortOrder("newest")} className={sortOrder === "newest" ? "font-medium text-primary" : ""}>
+                  Newest first
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOrder("oldest")} className={sortOrder === "oldest" ? "font-medium text-primary" : ""}>
+                  Oldest first
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOrder("az")} className={sortOrder === "az" ? "font-medium text-primary" : ""}>
+                  A → Z
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOrder("za")} className={sortOrder === "za" ? "font-medium text-primary" : ""}>
+                  Z → A
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

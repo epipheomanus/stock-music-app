@@ -43,7 +43,7 @@ export default function TopNav() {
               <Music2 className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="font-semibold text-lg tracking-tight text-foreground">
-              Sound<span className="text-primary">Vault</span>
+              Epipheo <span className="text-primary">Music</span>
             </span>
           </Link>
 

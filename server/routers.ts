@@ -21,7 +21,7 @@ import {
   getAllDistinctTagValues, createTrack,
 } from "./db";
 import { eq, and } from "drizzle-orm";
-import { trackTags as trackTagsTable } from "../drizzle/schema";
+import { trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
 import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
 
@@ -245,9 +245,11 @@ export const appRouter = router({
         return { ...track, tags };
       }),
 
-    // Public: get all distinct tag values for filter UI
+    // Public: get all tag values for filter UI (from admin-managed taxonomy_tags table)
     filterOptions: publicProcedure.query(async () => {
-      const rows = await getAllDistinctTagValues();
+      const db = await getDb();
+      if (!db) return { genres: [], moods: [], attributes: [] };
+      const rows = await db.select().from(taxonomyTagsTable);
       const genres: string[] = [];
       const moods: string[] = [];
       const attributes: string[] = [];
@@ -256,7 +258,7 @@ export const appRouter = router({
         else if (row.type === "mood") moods.push(row.value);
         else if (row.type === "attribute") attributes.push(row.value);
       }
-      return { genres, moods, attributes };
+      return { genres: genres.sort(), moods: moods.sort(), attributes: attributes.sort() };
     }),
 
     // Admin: list all tracks
@@ -452,6 +454,45 @@ export const appRouter = router({
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
         await db.delete(trackTagsTable).where(
           and(eq(trackTagsTable.type, input.type), eq(trackTagsTable.value, input.value))
+        );
+        return { success: true };
+      }),
+    // Admin: get taxonomy tags (canonical list for Browse dropdowns)
+    getTaxonomy: adminOnly.query(async () => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const rows = await db.select().from(taxonomyTagsTable);
+      const genres: string[] = [];
+      const moods: string[] = [];
+      const attributes: string[] = [];
+      for (const r of rows) {
+        if (r.type === "genre") genres.push(r.value);
+        else if (r.type === "mood") moods.push(r.value);
+        else if (r.type === "attribute") attributes.push(r.value);
+      }
+      return { genres: genres.sort(), moods: moods.sort(), attributes: attributes.sort() };
+    }),
+    // Admin: add a tag to the taxonomy
+    addTaxonomyTag: adminOnly
+      .input(z.object({ type: z.enum(["genre", "mood", "attribute"]), value: z.string().min(1).max(128) }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Check for duplicate
+        const existing = await db.select().from(taxonomyTagsTable)
+          .where(and(eq(taxonomyTagsTable.type, input.type), eq(taxonomyTagsTable.value, input.value)));
+        if (existing.length > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Tag already exists" });
+        await db.insert(taxonomyTagsTable).values({ type: input.type, value: input.value });
+        return { success: true };
+      }),
+    // Admin: remove a tag from the taxonomy (does NOT remove from existing tracks)
+    removeTaxonomyTag: adminOnly
+      .input(z.object({ type: z.enum(["genre", "mood", "attribute"]), value: z.string() }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        await db.delete(taxonomyTagsTable).where(
+          and(eq(taxonomyTagsTable.type, input.type), eq(taxonomyTagsTable.value, input.value))
         );
         return { success: true };
       }),

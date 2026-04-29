@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { GENRE_TAGS, MOOD_TAGS, ATTRIBUTE_TAGS } from "@shared/taxonomy";
+// Tag lists now come from the live DB via trpc.tracks.filterOptions
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -321,7 +321,7 @@ export default function AdminTracks() {
         <TagField
           type="genre" label="Genre"
           selected={form.genres}
-          allOptions={[...GENRE_TAGS]}
+          allOptions={filterOptions.genres}
           onAdd={v => setForm(p => ({ ...p, genres: [...p.genres, v] }))}
           onRemove={v => setForm(p => ({ ...p, genres: p.genres.filter(x => x !== v) }))}
           onDeleteGlobal={() => {}}
@@ -329,7 +329,7 @@ export default function AdminTracks() {
         <TagField
           type="mood" label="Mood"
           selected={form.moods}
-          allOptions={[...MOOD_TAGS]}
+          allOptions={filterOptions.moods}
           onAdd={v => setForm(p => ({ ...p, moods: [...p.moods, v] }))}
           onRemove={v => setForm(p => ({ ...p, moods: p.moods.filter(x => x !== v) }))}
           onDeleteGlobal={() => {}}
@@ -337,7 +337,7 @@ export default function AdminTracks() {
         <TagField
           type="attribute" label="Attributes"
           selected={form.attributes}
-          allOptions={[...ATTRIBUTE_TAGS]}
+          allOptions={filterOptions.attributes}
           onAdd={v => setForm(p => ({ ...p, attributes: [...p.attributes, v] }))}
           onRemove={v => setForm(p => ({ ...p, attributes: p.attributes.filter(x => x !== v) }))}
           onDeleteGlobal={() => {}}

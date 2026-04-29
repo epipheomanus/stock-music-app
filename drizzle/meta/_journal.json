@@ -29,6 +29,13 @@
       "when": 1777422406563,
       "tag": "0003_material_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1777425433727,
+      "tag": "0004_hesitant_vindicator",
+      "breakpoints": true
     }
   ]
 }

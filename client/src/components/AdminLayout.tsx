@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Music2, LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2 } from "lucide-react";
+import { Music2, LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2, Tags } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useEffect } from "react";
@@ -11,6 +11,7 @@ const navItems = [
   { href: "/admin/invites", label: "Invites", icon: Link2 },
   { href: "/admin/analytics", label: "Downloads", icon: BarChart3 },
   { href: "/admin/watermark", label: "Watermark", icon: Mic2 },
+  { href: "/admin/taxonomy", label: "Taxonomy", icon: Tags },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Music2 className="h-3.5 w-3.5 text-primary-foreground" />
             </div>
             <span className="font-semibold text-sm tracking-tight">
-              Sound<span className="text-primary">Vault</span>
+              Epipheo<span className="text-primary"> Music</span>
             </span>
           </Link>
           <div className="mt-1 text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Admin</div>

@@ -37,7 +37,7 @@ export default function Login() {
             <Music2 className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold text-lg tracking-tight">
-            Sound<span className="text-primary">Vault</span>
+            Epipheo <span className="text-primary">Music</span>
           </span>
         </Link>
       </header>
@@ -45,7 +45,7 @@ export default function Login() {
         <div className="w-full max-w-sm">
           <div className="mb-8 text-center">
             <h1 className="text-2xl font-bold mb-2">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your SoundVault account</p>
+            <p className="text-sm text-muted-foreground">Sign in to your Epipheo Music account</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
