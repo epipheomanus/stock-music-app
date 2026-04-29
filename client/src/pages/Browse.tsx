@@ -383,7 +383,7 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
             )}
           </div>
         </div>
-        {isPlaying && audioUrl && (
+        {audioUrl && (
           <div className="mt-3">
             <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
           </div>

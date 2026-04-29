@@ -117,3 +117,7 @@
 - [x] Homepage: remove "Private Music Library" badge and three feature boxes
 - [x] Browse page: add alphabetical A-Z / Z-A sort options
 - [x] Admin: taxonomy editor page to add/remove Genre, Mood, Attribute tags
+
+## Round 10 Improvements
+- [x] Fix broken track playback on Browse page (tracks no longer play)
+- [x] Verify bottom playback bar features: volume slider, prev/next, collapse
