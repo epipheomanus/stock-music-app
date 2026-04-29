@@ -132,3 +132,7 @@
 
 ## Round 13 Improvements
 - [x] Browse page: play clean audio on waveform, keep watermarked file for Download Preview button
+
+## Round 14 Improvements
+- [ ] Set RESEND_FROM to noreply@epipheo.com for verified domain email delivery
+- [ ] Update forgot-password email template with Epipheo Music branding

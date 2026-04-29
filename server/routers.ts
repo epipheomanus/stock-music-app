@@ -131,12 +131,24 @@ export const appRouter = router({
               to: input.email,
               subject: "Reset your Epipheo Music password",
               html: `
-                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
-                  <h2 style="margin:0 0 16px;">Reset your password</h2>
-                  <p style="color:#555;margin:0 0 24px;">Click the button below to reset your Epipheo Music password. This link expires in 1 hour.</p>
-                  <a href="${resetUrl}" style="display:inline-block;background:#000;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Reset Password</a>
-                  <p style="color:#999;font-size:12px;margin:24px 0 0;">If you didn't request this, you can safely ignore this email.</p>
-                </div>
+                <!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:40px 16px;"><tr><td align="center">
+                    <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                      <tr><td style="background:#1a1a2e;padding:28px 36px;">
+                        <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Epipheo <span style="color:#818cf8;">Music</span></p>
+                      </td></tr>
+                      <tr><td style="padding:40px 36px;">
+                        <h1 style="margin:0 0 14px;font-size:24px;font-weight:700;color:#111827;">Reset your password</h1>
+                        <p style="margin:0 0 28px;font-size:15px;color:#6b7280;line-height:1.65;">We received a request to reset the password for your Epipheo Music account. Click the button below to choose a new password.</p>
+                        <a href="${resetUrl}" style="display:inline-block;background:#6366f1;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;letter-spacing:0.1px;">Reset Password</a>
+                        <p style="margin:28px 0 0;font-size:13px;color:#9ca3af;line-height:1.6;">This link expires in <strong>1 hour</strong>. If you didn't request a password reset, you can safely ignore this email &#8212; your password will remain unchanged.</p>
+                      </td></tr>
+                      <tr><td style="background:#f9fafb;padding:20px 36px;border-top:1px solid #e5e7eb;">
+                        <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} Epipheo Music &middot; This is an automated message, please do not reply.</p>
+                      </td></tr>
+                    </table>
+                  </td></tr></table>
+                </body></html>
               `,
             });
           } catch (e) {
