@@ -176,23 +176,33 @@ export const appRouter = router({
         const allTagRows = await getTagsForTracks(allTracks.map(t => t.id));
 
         // Group tags by trackId
-        const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[] }>();
+        const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[]; hidden: string[] }>();
         for (const tag of allTagRows) {
-          if (!tagMap.has(tag.trackId)) tagMap.set(tag.trackId, { genres: [], moods: [], attributes: [] });
+          if (!tagMap.has(tag.trackId)) tagMap.set(tag.trackId, { genres: [], moods: [], attributes: [], hidden: [] });
           const entry = tagMap.get(tag.trackId)!;
           if (tag.type === "genre") entry.genres.push(tag.value.toLowerCase());
           else if (tag.type === "mood") entry.moods.push(tag.value.toLowerCase());
           else if (tag.type === "attribute") entry.attributes.push(tag.value.toLowerCase());
+          else if (tag.type === "hidden") entry.hidden.push(tag.value.toLowerCase());
         }
 
         const filtered = allTracks.filter(track => {
-          const tags = tagMap.get(track.id) ?? { genres: [], moods: [], attributes: [] };
+          const tags = tagMap.get(track.id) ?? { genres: [], moods: [], attributes: [], hidden: [] };
           if (input?.search) {
-            const q = input.search.toLowerCase();
-            const matchesTitle = track.title.toLowerCase().includes(q);
-            const matchesComposer = track.composerName?.toLowerCase().includes(q);
-            const matchesTags = [...tags.genres, ...tags.moods, ...tags.attributes].some(v => v.includes(q));
-            if (!matchesTitle && !matchesComposer && !matchesTags) return false;
+            // Split on whitespace — every word must match at least one field.
+            // Tag matching is exact (whole tag equals the word, case-insensitive).
+            // Title/composer matching allows substring so users can still search by name.
+            const words = input.search.toLowerCase().split(/\s+/).filter(Boolean);
+            const allTagValues = [...tags.genres, ...tags.moods, ...tags.attributes, ...tags.hidden];
+            const everyWordMatches = words.every(word => {
+              // Exact tag match (case-insensitive)
+              const matchesTag = allTagValues.some(v => v === word);
+              // Substring match against title or composer (allows name searches)
+              const matchesTitle = track.title.toLowerCase().includes(word);
+              const matchesComposer = track.composerName?.toLowerCase().includes(word) ?? false;
+              return matchesTag || matchesTitle || matchesComposer;
+            });
+            if (!everyWordMatches) return false;
           }
           if (input?.genres?.length) {
             const lc = input.genres.map(g => g.toLowerCase());
@@ -220,7 +230,8 @@ export const appRouter = router({
 
         return filtered.map(track => ({
           ...track,
-          tags: tagMap.get(track.id) ?? { genres: [], moods: [], attributes: [] },
+          // Don't expose hidden tags to the public
+          tags: (() => { const t = tagMap.get(track.id); return { genres: t?.genres ?? [], moods: t?.moods ?? [], attributes: t?.attributes ?? [] }; })(),
         }));
       }),
 
@@ -253,15 +264,16 @@ export const appRouter = router({
       const allTracks = await getAllTracks();
       if (!allTracks.length) return [];
       const allTagRows = await getTagsForTracks(allTracks.map(t => t.id));
-      const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[] }>();
+      const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[]; hidden: string[] }>();
       for (const tag of allTagRows) {
-        if (!tagMap.has(tag.trackId)) tagMap.set(tag.trackId, { genres: [], moods: [], attributes: [] });
+        if (!tagMap.has(tag.trackId)) tagMap.set(tag.trackId, { genres: [], moods: [], attributes: [], hidden: [] });
         const entry = tagMap.get(tag.trackId)!;
         if (tag.type === "genre") entry.genres.push(tag.value);
         else if (tag.type === "mood") entry.moods.push(tag.value);
         else if (tag.type === "attribute") entry.attributes.push(tag.value);
+        else if (tag.type === "hidden") entry.hidden.push(tag.value);
       }
-      return allTracks.map(t => ({ ...t, tags: tagMap.get(t.id) ?? { genres: [], moods: [], attributes: [] } }));
+      return allTracks.map(t => ({ ...t, tags: tagMap.get(t.id) ?? { genres: [], moods: [], attributes: [], hidden: [] } }));
     }),
 
     // Admin: create track (metadata only, files uploaded separately)
@@ -275,6 +287,7 @@ export const appRouter = router({
         genres: z.array(z.string()).default([]),
         moods: z.array(z.string()).default([]),
         attributes: z.array(z.string()).default([]),
+        hiddenTags: z.array(z.string()).default([]),
       }))
       .mutation(async ({ input }) => {
         const id = await createTrack({
@@ -291,6 +304,7 @@ export const appRouter = router({
           ...input.genres.map(v => ({ type: "genre" as const, value: v })),
           ...input.moods.map(v => ({ type: "mood" as const, value: v })),
           ...input.attributes.map(v => ({ type: "attribute" as const, value: v })),
+          ...input.hiddenTags.map(v => ({ type: "hidden" as const, value: v })),
         ];
         await replaceTrackTags(id, tags);
         return { id };
@@ -309,15 +323,17 @@ export const appRouter = router({
         genres: z.array(z.string()).optional(),
         moods: z.array(z.string()).optional(),
         attributes: z.array(z.string()).optional(),
+        hiddenTags: z.array(z.string()).optional(),
       }))
       .mutation(async ({ input }) => {
-        const { id, genres, moods, attributes, ...data } = input;
+        const { id, genres, moods, attributes, hiddenTags, ...data } = input;
         await updateTrack(id, data);
-        if (genres !== undefined || moods !== undefined || attributes !== undefined) {
+        if (genres !== undefined || moods !== undefined || attributes !== undefined || hiddenTags !== undefined) {
           const tags = [
             ...(genres ?? []).map(v => ({ type: "genre" as const, value: v })),
             ...(moods ?? []).map(v => ({ type: "mood" as const, value: v })),
             ...(attributes ?? []).map(v => ({ type: "attribute" as const, value: v })),
+            ...(hiddenTags ?? []).map(v => ({ type: "hidden" as const, value: v })),
           ];
           await replaceTrackTags(id, tags);
         }

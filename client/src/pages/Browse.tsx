@@ -1,9 +1,8 @@
-import { useState, useMemo } from "react";
-import { Search, X, Download, ShoppingCart, Music, ChevronDown, ChevronUp, Loader2, ArrowUpDown } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Search, X, Download, ShoppingCart, Music, ChevronDown, Loader2, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import TopNav from "@/components/TopNav";
 import CartDrawer from "@/components/CartDrawer";
 import WaveformPlayer from "@/components/WaveformPlayer";
@@ -13,6 +12,14 @@ import { useCart } from "@/contexts/CartContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { toast } from "sonner";
 
+// ─── Fixed taxonomy ────────────────────────────────────────────────────────────
+const TAXONOMY = {
+  Genre: ["Ambient","Country","Dance","Disco","Electronic","Folk","Funk","Hip Hop","Indie","Jazz","Jingle","Oldies","Orchestral","Pop","Religious","Rock","Techno","World"],
+  Mood: ["Angry","Carefree","Chill","Eerie","Emotional","Happy","Heartwarming","Hopeful","Love","Peaceful","Sad","Serious","Silly","Somber","Uplifting"],
+  Attributes: ["Adventurous","Aggressive","Badass","Bubbly","Calming","Cinematic","Comedic","Corporate","Cute","Dark","Digital","Energetic","Epic","Fast","Fun","Funky","Inspirational","Intense","Motivational","Nerdy","Professional","Retro","Sexy","Technology","Whimsical"],
+} as const;
+
+type TaxonomyKey = keyof typeof TAXONOMY;
 type FilterState = { genres: string[]; moods: string[]; attributes: string[] };
 
 function formatDuration(seconds: number | null | undefined): string {
@@ -22,23 +29,80 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+// ─── Taxonomy Dropdown ─────────────────────────────────────────────────────────
+function TaxonomyDropdown({ label, items, selected, onToggle }: {
+  label: TaxonomyKey;
+  items: readonly string[];
+  selected: string[];
+  onToggle: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const activeCount = selected.length;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-colors select-none ${
+          activeCount > 0
+            ? "bg-primary text-primary-foreground border-primary"
+            : "bg-card border-border text-foreground hover:bg-muted"
+        }`}
+      >
+        {label}
+        {activeCount > 0 && (
+          <span className="bg-primary-foreground/20 text-primary-foreground rounded-full text-xs px-1.5 py-0.5 leading-none">
+            {activeCount}
+          </span>
+        )}
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-2 z-50 bg-card border border-border rounded-xl shadow-lg p-3 min-w-[200px] max-h-72 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-1">
+            {items.map(item => {
+              const isSelected = selected.includes(item);
+              return (
+                <button
+                  key={item}
+                  onClick={() => onToggle(item)}
+                  className={`text-left text-xs px-2.5 py-1.5 rounded-md transition-colors ${
+                    isSelected
+                      ? "bg-primary/15 text-primary font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Browse Page ───────────────────────────────────────────────────────────────
 export default function Browse() {
   const { isAuthenticated } = useAuth();
   const { openCart } = useCart();
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    genre: true, mood: true, attribute: true,
-  });
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   const utils = trpc.useUtils();
-  const filterOptionsQuery = trpc.tracks.filterOptions.useQuery();
-  const filterOptions = filterOptionsQuery.data ?? { genres: [], moods: [], attributes: [] };
-
-  const genres = useMemo(() => [...(filterOptions.genres as string[] ?? [])].sort(), [filterOptions.genres]);
-  const moods = useMemo(() => [...(filterOptions.moods as string[] ?? [])].sort(), [filterOptions.moods]);
-  const attributes = useMemo(() => [...(filterOptions.attributes as string[] ?? [])].sort(), [filterOptions.attributes]);
 
   const tracksQuery = trpc.tracks.list.useQuery({
     search: search || undefined,
@@ -46,7 +110,7 @@ export default function Browse() {
     moods: filters.moods.length ? filters.moods : undefined,
     attributes: filters.attributes.length ? filters.attributes : undefined,
   });
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+
   const rawTracks = tracksQuery.data ?? [];
   const tracks = useMemo(() => {
     const arr = [...rawTracks];
@@ -89,7 +153,8 @@ export default function Browse() {
       <TopNav />
       <CartDrawer />
       <div className="container py-8">
-        <div className="mb-6">
+        {/* Header */}
+        <div className="mb-5">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold mb-1">Browse Music</h1>
@@ -111,10 +176,11 @@ export default function Browse() {
           </div>
         </div>
 
-        <div className="relative mb-6">
+        {/* Search bar */}
+        <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by title, composer, genre, mood…"
+            placeholder="Search by title, composer, or tags (e.g. Orchestral Romantic Soft)…"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-10 bg-card border-border h-11"
@@ -126,6 +192,34 @@ export default function Browse() {
           )}
         </div>
 
+        {/* Taxonomy tag bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-5 pb-4 border-b border-border/50">
+          <TaxonomyDropdown
+            label="Genre"
+            items={TAXONOMY.Genre}
+            selected={filters.genres}
+            onToggle={v => toggleFilter("genres", v)}
+          />
+          <TaxonomyDropdown
+            label="Mood"
+            items={TAXONOMY.Mood}
+            selected={filters.moods}
+            onToggle={v => toggleFilter("moods", v)}
+          />
+          <TaxonomyDropdown
+            label="Attributes"
+            items={TAXONOMY.Attributes}
+            selected={filters.attributes}
+            onToggle={v => toggleFilter("attributes", v)}
+          />
+          {activeFilterCount > 0 && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground ml-1" onClick={clearFilters}>
+              <X className="h-3 w-3 mr-1" /> Clear all
+            </Button>
+          )}
+        </div>
+
+        {/* Active filter badges */}
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {filters.genres.map(v => (
@@ -143,89 +237,40 @@ export default function Browse() {
                 {v} <X className="h-3 w-3" />
               </Badge>
             ))}
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={clearFilters}>Clear all</Button>
           </div>
         )}
 
-        <div className="flex gap-6">
-          {/* Filter sidebar */}
-          <aside className="hidden lg:block w-52 shrink-0">
-            <div className="sticky top-24">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold">Filters</span>
-                {activeFilterCount > 0 && (
-                  <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground p-0" onClick={clearFilters}>Clear</Button>
-                )}
-              </div>
-              <FilterSection title="Genre" values={genres} selected={filters.genres} onToggle={v => toggleFilter("genres", v)} expanded={expandedSections.genre} onToggleExpand={() => setExpandedSections(p => ({ ...p, genre: !p.genre }))} />
-              <Separator className="my-3" />
-              <FilterSection title="Mood" values={moods} selected={filters.moods} onToggle={v => toggleFilter("moods", v)} expanded={expandedSections.mood} onToggleExpand={() => setExpandedSections(p => ({ ...p, mood: !p.mood }))} />
-              <Separator className="my-3" />
-              <FilterSection title="Attributes" values={attributes} selected={filters.attributes} onToggle={v => toggleFilter("attributes", v)} expanded={expandedSections.attribute} onToggleExpand={() => setExpandedSections(p => ({ ...p, attribute: !p.attribute }))} />
+        {/* Track list */}
+        <div className="flex-1 min-w-0">
+          {tracksQuery.isLoading ? (
+            <div className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : tracks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-center">
+              <Music className="h-10 w-10 text-muted-foreground/30 mb-3" />
+              <p className="text-muted-foreground">No tracks found.</p>
+              {(activeFilterCount > 0 || search) && (
+                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={clearFilters}>Clear filters</Button>
+              )}
             </div>
-          </aside>
-
-          {/* Track list */}
-          <div className="flex-1 min-w-0">
-            {tracksQuery.isLoading ? (
-              <div className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-            ) : tracks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-center">
-                <Music className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                <p className="text-muted-foreground">No tracks found.</p>
-                {activeFilterCount > 0 && <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={clearFilters}>Clear filters</Button>}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {tracks.map((track) => (
-                  <TrackRow
-                    key={track.id}
-                    track={track}
-                    isPlaying={activeTrackId === track.id}
-                    onPlay={(track) => {
-                      setQueue(tracks, tracks.findIndex(t => t.id === track.id));
-                    }}
-                    isAuthenticated={isAuthenticated}
-                    onAddToCart={() => addToCartMutation.mutate({ trackId: track.id })}
-                    onDownloadWatermarked={() => watermarkedDownloadMutation.mutate({ trackId: track.id })}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="space-y-2">
+              {tracks.map((track) => (
+                <TrackRow
+                  key={track.id}
+                  track={track}
+                  isPlaying={activeTrackId === track.id}
+                  onPlay={(track) => {
+                    setQueue(tracks, tracks.findIndex(t => t.id === track.id));
+                  }}
+                  isAuthenticated={isAuthenticated}
+                  onAddToCart={() => addToCartMutation.mutate({ trackId: track.id })}
+                  onDownloadWatermarked={() => watermarkedDownloadMutation.mutate({ trackId: track.id })}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function FilterSection({ title, values, selected, onToggle, expanded, onToggleExpand }: {
-  title: string; values: string[]; selected: string[]; onToggle: (v: string) => void;
-  expanded: boolean; onToggleExpand: () => void;
-}) {
-  if (values.length === 0) return null;
-  return (
-    <div>
-      <button className="flex items-center justify-between w-full text-sm font-medium mb-2 hover:text-primary transition-colors" onClick={onToggleExpand}>
-        {title}
-        {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-      </button>
-      {expanded && (
-        <div className="space-y-1">
-          {values.map(v => (
-            <button key={v} onClick={() => onToggle(v)} className={`flex items-center gap-2 w-full text-left text-sm px-2 py-1 rounded-md transition-colors ${selected.includes(v) ? "bg-primary/15 text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
-              <span className={`w-3 h-3 rounded-sm border flex items-center justify-center shrink-0 ${selected.includes(v) ? "bg-primary border-primary" : "border-muted-foreground/40"}`}>
-                {selected.includes(v) && (
-                  <svg viewBox="0 0 8 8" className="w-2 h-2 fill-primary-foreground">
-                    <path d="M1 4l2 2 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </span>
-              {v}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -233,7 +278,7 @@ function FilterSection({ title, values, selected, onToggle, expanded, onToggleEx
 type TrackData = {
   id: number; title: string; composerName: string | null; durationSeconds: number | null;
   coverArtUrl: string | null; watermarkedMp3Url: string | null; wavUrl: string | null;
-  hasStems: boolean; watermarkStatus: string;
+  hasStems: boolean; watermarkStatus: string; createdAt: Date;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
 };
 
@@ -269,42 +314,46 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 gap-1.5 text-xs px-2 text-muted-foreground hover:text-foreground"
+                  className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
                   onClick={onDownloadWatermarked}
-                  disabled={!track.watermarkedMp3Url}
-                  title={track.watermarkedMp3Url ? "Download watermarked preview (MP3)" : track.watermarkStatus === "processing" ? "Watermark generating…" : "Preview not available"}
+                  title="Download watermarked preview"
                 >
                   <Download className="h-3.5 w-3.5" />
-                  Preview
+                  <span className="hidden sm:inline">Preview</span>
                 </Button>
                 {isAuthenticated ? (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={onAddToCart} title="Add to cart">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                    onClick={onAddToCart}
+                    title="Add to cart"
+                  >
                     <ShoppingCart className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Add</span>
                   </Button>
-                ) : (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40" title="Sign in to add to cart" onClick={() => toast.info("Sign in to add tracks to your cart")}>
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                ) : null}
               </div>
             </div>
-            {audioUrl ? (
-              <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
-            ) : (
-              <div className="h-12 flex items-center text-xs text-muted-foreground/40">Audio not available</div>
-            )}
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {allTags.slice(0, 6).map(tag => (
-                  <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{tag}</span>
+                {allTags.slice(0, 8).map(tag => (
+                  <span key={tag} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
+                    {tag}
+                  </span>
                 ))}
-                {allTags.length > 6 && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">+{allTags.length - 6}</span>
+                {allTags.length > 8 && (
+                  <span className="text-xs text-muted-foreground/60">+{allTags.length - 8}</span>
                 )}
               </div>
             )}
           </div>
         </div>
+        {isPlaying && audioUrl && (
+          <div className="mt-3">
+            <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
+          </div>
+        )}
       </div>
     </div>
   );

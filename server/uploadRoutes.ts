@@ -71,7 +71,7 @@ export function registerUploadRoutes(app: any) {
           return;
         }
 
-        const tags: { type: "genre" | "mood" | "attribute"; value: string }[] =
+        const tags: { type: "genre" | "mood" | "attribute" | "hidden"; value: string }[] =
           req.body.tags ? JSON.parse(req.body.tags) : [];
 
         // 1. Upload clean WAV to storage

@@ -203,7 +203,7 @@ export async function getAllTracks(): Promise<Track[]> {
 
 // ─── Track Tags ───────────────────────────────────────────────────────────────
 
-export async function addTrackTag(trackId: number, type: "genre" | "mood" | "attribute", value: string): Promise<void> {
+export async function addTrackTag(trackId: number, type: "genre" | "mood" | "attribute" | "hidden", value: string): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.insert(trackTags).values({ trackId, type, value });
@@ -228,7 +228,7 @@ export async function getTagsForTracks(trackIds: number[]): Promise<TrackTag[]> 
   return db.select().from(trackTags).where(inArray(trackTags.trackId, trackIds));
 }
 
-export async function replaceTrackTags(trackId: number, tags: { type: "genre" | "mood" | "attribute"; value: string }[]): Promise<void> {
+export async function replaceTrackTags(trackId: number, tags: { type: "genre" | "mood" | "attribute" | "hidden"; value: string }[]): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(trackTags).where(eq(trackTags.trackId, trackId));
@@ -240,7 +240,9 @@ export async function replaceTrackTags(trackId: number, tags: { type: "genre" | 
 export async function getAllDistinctTagValues(): Promise<{ type: string; value: string }[]> {
   const db = await getDb();
   if (!db) return [];
-  return db.selectDistinct({ type: trackTags.type, value: trackTags.value }).from(trackTags).orderBy(trackTags.type, trackTags.value);
+  // Exclude hidden tags from the public filter options
+  const { ne } = await import("drizzle-orm");
+  return db.selectDistinct({ type: trackTags.type, value: trackTags.value }).from(trackTags).where(ne(trackTags.type, "hidden")).orderBy(trackTags.type, trackTags.value);
 }
 
 // ─── Cart ─────────────────────────────────────────────────────────────────────

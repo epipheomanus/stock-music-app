@@ -1,0 +1,1 @@
+ALTER TABLE `track_tags` MODIFY COLUMN `type` enum('genre','mood','attribute','hidden') NOT NULL;

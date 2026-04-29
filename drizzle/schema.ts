@@ -79,7 +79,7 @@ export type InsertTrack = typeof tracks.$inferInsert;
 export const trackTags = mysqlTable("track_tags", {
   id: int("id").autoincrement().primaryKey(),
   trackId: int("trackId").notNull(),
-  type: mysqlEnum("type", ["genre", "mood", "attribute"]).notNull(),
+  type: mysqlEnum("type", ["genre", "mood", "attribute", "hidden"]).notNull(),
   value: varchar("value", { length: 128 }).notNull(),
 });
 

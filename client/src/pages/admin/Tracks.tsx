@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-type TagType = "genre" | "mood" | "attribute";
+type TagType = "genre" | "mood" | "attribute" | "hidden";
 
 interface TrackFormData {
   title: string;
@@ -20,12 +20,13 @@ interface TrackFormData {
   genres: string[];
   moods: string[];
   attributes: string[];
+  hiddenTags: string[];
   isPublished: boolean;
 }
 
 const DEFAULT_FORM: TrackFormData = {
   title: "", composerName: "", description: "", bpm: "", keySignature: "",
-  genres: [], moods: [], attributes: [], isPublished: true,
+  genres: [], moods: [], attributes: [], hiddenTags: [], isPublished: true,
 };
 
 // ─── Drag-and-drop file zone ───────────────────────────────────────────────
@@ -101,6 +102,7 @@ function TagField({
     genre: { pill: "bg-blue-100 text-blue-700 border-blue-200", ghost: "bg-blue-50/60 text-blue-500 border-blue-200/60" },
     mood: { pill: "bg-purple-100 text-purple-700 border-purple-200", ghost: "bg-purple-50/60 text-purple-500 border-purple-200/60" },
     attribute: { pill: "bg-amber-100 text-amber-700 border-amber-200", ghost: "bg-amber-50/60 text-amber-500 border-amber-200/60" },
+    hidden: { pill: "bg-slate-100 text-slate-600 border-slate-200", ghost: "bg-slate-50/60 text-slate-500 border-slate-200/60" },
   };
   const c = colorMap[type];
 
@@ -242,6 +244,7 @@ export default function AdminTracks() {
         ...form.genres.map(v => ({ type: "genre", value: v })),
         ...form.moods.map(v => ({ type: "mood", value: v })),
         ...form.attributes.map(v => ({ type: "attribute", value: v })),
+        ...form.hiddenTags.map(v => ({ type: "hidden", value: v })),
       ]));
       fd.append("wav", wavFile);
       if (coverFile) fd.append("cover", coverFile);
@@ -280,6 +283,7 @@ export default function AdminTracks() {
       genres: track.tags?.genres ?? [],
       moods: track.tags?.moods ?? [],
       attributes: track.tags?.attributes ?? [],
+      hiddenTags: track.tags?.hidden ?? [],
       isPublished: track.isPublished,
     });
   }
@@ -297,6 +301,7 @@ export default function AdminTracks() {
       genres: form.genres,
       moods: form.moods,
       attributes: form.attributes,
+      hiddenTags: form.hiddenTags,
     });
   }
 
@@ -336,6 +341,21 @@ export default function AdminTracks() {
           onRemove={v => setForm(p => ({ ...p, attributes: p.attributes.filter(x => x !== v) }))}
           onDeleteGlobal={v => deleteGlobalTagMutation.mutate({ type: "attribute", value: v })}
         />
+        {/* Hidden tags — not shown publicly, only matched in search */}
+        <div className="border-t border-border/50 pt-4">
+          <p className="text-xs text-muted-foreground mb-2">
+            <span className="font-semibold text-foreground">Hidden Tags</span>
+            {" "}— searchable by users but not displayed on the browse page
+          </p>
+          <TagField
+            type="hidden" label="Hidden Tags"
+            selected={form.hiddenTags}
+            allOptions={[]}
+            onAdd={v => setForm(p => ({ ...p, hiddenTags: [...p.hiddenTags, v] }))}
+            onRemove={v => setForm(p => ({ ...p, hiddenTags: p.hiddenTags.filter(x => x !== v) }))}
+            onDeleteGlobal={() => {}}
+          />
+        </div>
       </div>
     );
   }
@@ -386,7 +406,7 @@ export default function AdminTracks() {
                       ...(track.tags?.moods ?? []).map((v: string) => ({ type: "mood" as TagType, v })),
                       ...(track.tags?.attributes ?? []).map((v: string) => ({ type: "attribute" as TagType, v })),
                     ].slice(0, 6).map((tag) => {
-                      const clrMap: Record<TagType, string> = { genre: "bg-blue-100 text-blue-700", mood: "bg-purple-100 text-purple-700", attribute: "bg-amber-100 text-amber-700" };
+                      const clrMap: Record<TagType, string> = { genre: "bg-blue-100 text-blue-700", mood: "bg-purple-100 text-purple-700", attribute: "bg-amber-100 text-amber-700", hidden: "bg-slate-100 text-slate-600" };
                       const clr = clrMap[tag.type as TagType] ?? "";
                       return <span key={`${tag.type}-${tag.v}`} className={`text-[10px] px-1.5 py-0.5 rounded-full ${clr}`}>{tag.v}</span>;
                     })}

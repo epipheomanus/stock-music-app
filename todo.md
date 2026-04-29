@@ -96,3 +96,9 @@
 ## Round 5 Improvements
 - [x] Fix watermark generation pipeline errors (investigate ffmpeg/storage issue)
 - [x] Add sort-by-date to Browse page (newest first / oldest first toggle)
+
+## Round 6 Improvements
+- [x] Multi-word tag search: searching "Orchestral romantic soft" returns tracks tagged with ALL those words
+- [x] Fixed tag taxonomy dropdown bar on Browse page (Genre / Mood / Attributes with preset tags)
+- [x] Hidden tags field in admin track create/edit form (custom tags invisible to users but searchable)
+- [x] DB migration: add hiddenTags column to track_tags table (type = "hidden")
