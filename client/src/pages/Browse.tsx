@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from "react";
-import { Search, X, Download, ShoppingCart, Music, ChevronDown, Loader2, ArrowUpDown, FolderPlus } from "lucide-react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { Search, X, Download, ShoppingCart, Music, ChevronDown, Loader2, ArrowUpDown, FolderPlus, Plus, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,9 +131,19 @@ export default function Browse() {
   const activeProjectsQuery = trpc.projects.listActive.useQuery(undefined, { enabled: isAuthenticated });
   const activeProjects = activeProjectsQuery.data ?? [];
   const addTrackToPlaylistMutation = trpc.projects.addTrack.useMutation({
-    onSuccess: () => toast.success("Added to playlist"),
+    onSuccess: () => { toast.success("Added to playlist"); activeProjectsQuery.refetch(); },
     onError: (err) => toast.error(err.message || "Failed to add to playlist"),
   });
+  const createPlaylistMutation = trpc.projects.createPlaylist.useMutation({
+    onSuccess: () => activeProjectsQuery.refetch(),
+    onError: (err) => toast.error(err.message || "Failed to create playlist"),
+  });
+  const handleCreatePlaylistAndAdd = useCallback(async (projectId: number, name: string, trackId: number) => {
+    try {
+      const { id: playlistId } = await createPlaylistMutation.mutateAsync({ projectId, name });
+      await addTrackToPlaylistMutation.mutateAsync({ playlistId, trackId });
+    } catch { /* errors handled by individual mutations */ }
+  }, [createPlaylistMutation, addTrackToPlaylistMutation]);
 
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { utils.cart.list.invalidate(); toast.success("Added to cart"); },
@@ -296,6 +306,7 @@ export default function Browse() {
                   onDownloadWatermarked={() => watermarkedDownloadMutation.mutate({ trackId: track.id })}
                   activeProjects={activeProjects}
                   onAddToPlaylist={(playlistId) => addTrackToPlaylistMutation.mutate({ playlistId, trackId: track.id })}
+                  onCreatePlaylistAndAdd={handleCreatePlaylistAndAdd}
                 />
               ))}
             </div>
@@ -313,10 +324,11 @@ type TrackData = {
   tags: { genres: string[]; moods: string[]; attributes: string[] };
 };
 
-function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDownloadWatermarked, activeProjects, onAddToPlaylist }: {
+function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDownloadWatermarked, activeProjects, onAddToPlaylist, onCreatePlaylistAndAdd }: {
   track: TrackData; isPlaying: boolean; onPlay: (track: TrackData) => void;
   isAuthenticated: boolean; onAddToCart: () => void; onDownloadWatermarked: () => void;
   activeProjects: any[]; onAddToPlaylist: (playlistId: number) => void;
+  onCreatePlaylistAndAdd: (projectId: number, name: string, trackId: number) => void;
 }) {
   const allTags = [...track.tags.genres, ...track.tags.moods, ...track.tags.attributes];
   // Use clean WAV for in-browser playback; watermarkedMp3Url is only for the Download Preview button
@@ -369,32 +381,12 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
                 )}
                 {isAuthenticated ? (
                   <>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground" title="Add to project">
-                          <FolderPlus className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Project</span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-60 p-2">
-                        {activeProjects.length === 0 ? (
-                          <p className="text-xs text-muted-foreground text-center py-2">No active projects. <a href="/projects" className="underline">Create one</a>.</p>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <p className="text-xs font-medium text-muted-foreground px-2 pb-1 pt-0.5">Add to playlist</p>
-                            {activeProjects.map((proj: any) => (
-                              proj.playlists?.length > 0 ? proj.playlists.map((pl: any) => (
-                                <button key={pl.id} className="w-full text-left text-xs px-2 py-1.5 rounded-md hover:bg-muted transition-colors" onClick={() => onAddToPlaylist(pl.id)}>
-                                  <span className="text-muted-foreground">{proj.name} / </span>{pl.name}
-                                </button>
-                              )) : (
-                                <div key={proj.id} className="px-2 py-1.5 text-xs text-muted-foreground/60 italic">{proj.name} — no playlists yet</div>
-                              )
-                            ))}
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
+                    <AddToProjectPopover
+                      trackId={track.id}
+                      activeProjects={activeProjects}
+                      onAddToPlaylist={onAddToPlaylist}
+                      onCreatePlaylistAndAdd={onCreatePlaylistAndAdd}
+                    />
                     <Button
                       variant="ghost"
                       size="sm"
@@ -430,5 +422,105 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Add-to-Project Popover ────────────────────────────────────────────────────
+// Self-contained popover that handles both selecting an existing playlist and
+// creating a new one inline, so users never have to leave the Browse page.
+function AddToProjectPopover({
+  trackId, activeProjects, onAddToPlaylist, onCreatePlaylistAndAdd,
+}: {
+  trackId: number;
+  activeProjects: any[];
+  onAddToPlaylist: (playlistId: number) => void;
+  onCreatePlaylistAndAdd: (projectId: number, name: string, trackId: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [creatingFor, setCreatingFor] = useState<number | null>(null);
+  const [newName, setNewName] = useState("");
+
+  function handleAdd(playlistId: number) {
+    onAddToPlaylist(playlistId);
+    setOpen(false);
+  }
+
+  function handleCreate(projectId: number) {
+    if (!newName.trim()) return;
+    onCreatePlaylistAndAdd(projectId, newName.trim(), trackId);
+    setNewName("");
+    setCreatingFor(null);
+    setOpen(false);
+  }
+
+  return (
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCreatingFor(null); setNewName(""); } }}>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground" title="Add to project">
+          <FolderPlus className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Project</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-2">
+        {activeProjects.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            No active projects.{" "}
+            <a href="/projects" className="underline text-primary">Create one</a>.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground px-2 pb-1 pt-0.5">Add to playlist</p>
+            {activeProjects.map((proj: any) => (
+              <div key={proj.id}>
+                {/* Existing playlists */}
+                {proj.playlists?.map((pl: any) => (
+                  <button
+                    key={pl.id}
+                    className="w-full text-left text-xs px-2 py-1.5 rounded-md hover:bg-muted transition-colors flex items-center gap-1.5"
+                    onClick={() => handleAdd(pl.id)}
+                  >
+                    <Check className="h-3 w-3 text-transparent group-hover:text-primary shrink-0" />
+                    <span className="text-muted-foreground">{proj.name} /</span>
+                    <span className="truncate">{pl.name}</span>
+                  </button>
+                ))}
+
+                {/* Inline new-playlist creator */}
+                {creatingFor === proj.id ? (
+                  <div className="flex items-center gap-1 px-2 py-1">
+                    <input
+                      autoFocus
+                      className="flex-1 text-xs bg-muted rounded px-2 py-1 outline-none border border-border/60 focus:border-primary"
+                      placeholder="Playlist name…"
+                      value={newName}
+                      onChange={e => setNewName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleCreate(proj.id);
+                        if (e.key === "Escape") { setCreatingFor(null); setNewName(""); }
+                      }}
+                    />
+                    <button
+                      className="p-1 rounded text-primary hover:bg-primary/10 disabled:opacity-40"
+                      disabled={!newName.trim()}
+                      onClick={() => handleCreate(proj.id)}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    className="w-full text-left text-xs px-2 py-1.5 rounded-md hover:bg-muted transition-colors flex items-center gap-1.5 text-muted-foreground/70"
+                    onClick={() => { setCreatingFor(proj.id); setNewName(""); }}
+                  >
+                    <Plus className="h-3 w-3 shrink-0" />
+                    <span className="italic">New playlist in {proj.name}</span>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

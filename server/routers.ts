@@ -24,6 +24,7 @@ import {
   getProjectByShareToken, getProjectById, getUserActiveProjects,
   getProjectPlaylists, createPlaylist, renamePlaylist, deletePlaylist,
   getPlaylistTracks, addTrackToPlaylist, removeTrackFromPlaylist,
+  getTrackDownloadCounts,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -305,7 +306,10 @@ export const appRouter = router({
     adminList: adminOnly.query(async () => {
       const allTracks = await getAllTracks();
       if (!allTracks.length) return [];
-      const allTagRows = await getTagsForTracks(allTracks.map(t => t.id));
+      const [allTagRows, downloadCounts] = await Promise.all([
+        getTagsForTracks(allTracks.map(t => t.id)),
+        getTrackDownloadCounts(),
+      ]);
       const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[]; hidden: string[] }>();
       for (const tag of allTagRows) {
         if (!tagMap.has(tag.trackId)) tagMap.set(tag.trackId, { genres: [], moods: [], attributes: [], hidden: [] });
@@ -315,7 +319,11 @@ export const appRouter = router({
         else if (tag.type === "attribute") entry.attributes.push(tag.value);
         else if (tag.type === "hidden") entry.hidden.push(tag.value);
       }
-      return allTracks.map(t => ({ ...t, tags: tagMap.get(t.id) ?? { genres: [], moods: [], attributes: [], hidden: [] } }));
+      return allTracks.map(t => ({
+        ...t,
+        tags: tagMap.get(t.id) ?? { genres: [], moods: [], attributes: [], hidden: [] },
+        downloadCount: downloadCounts.get(t.id) ?? 0,
+      }));
     }),
 
     // Admin: create track (metadata only, files uploaded separately)

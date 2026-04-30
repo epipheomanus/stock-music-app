@@ -157,3 +157,8 @@
 ## Round 19
 - [x] Persist admin Tracks sort/filter state to localStorage (survives navigation away and back)
 - [x] Enable watermarked preview player on public /share/:token page (no login required)
+
+## Round 20
+- [ ] Fix Add-to-Project greyed-out bug in Browse (project names disabled, cannot add track)
+- [ ] Add download count badge per track in admin Tracks list
+- [ ] Add Most Downloaded > Least Downloaded and Least Downloaded > Most Downloaded sort options to admin Tracks

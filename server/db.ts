@@ -487,3 +487,17 @@ export async function deleteUser(userId: number): Promise<void> {
   await db.delete(invites).where(and(eq(invites.createdById, userId), isNull(invites.usedById)));
   await db.delete(users).where(eq(users.id, userId));
 }
+
+// ─── Track Download Counts ─────────────────────────────────────────────────────
+export async function getTrackDownloadCounts(): Promise<Map<number, number>> {
+  const db = await getDb();
+  if (!db) return new Map();
+  const rows = await db
+    .select({ trackId: downloads.trackId, count: sql`COUNT(*)` })
+    .from(downloads)
+    .where(eq(downloads.fileType, 'clean_wav'))
+    .groupBy(downloads.trackId);
+  const map = new Map<number, number>();
+  for (const row of rows) map.set(row.trackId, Number(row.count));
+  return map;
+}

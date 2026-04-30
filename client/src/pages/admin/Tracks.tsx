@@ -201,7 +201,7 @@ export default function AdminTracks() {
   }
   const saved = loadFilters();
   const [search, setSearch] = useState(saved?.search ?? "");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za">((saved?.sortBy as any) ?? "newest");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za" | "most_dl" | "least_dl">((saved?.sortBy as any) ?? "newest");
   const [showFilters, setShowFilters] = useState(saved?.showFilters ?? false);
   const [filterComposer, setFilterComposer] = useState(saved?.filterComposer ?? "");
   const [filterDateFrom, setFilterDateFrom] = useState(saved?.filterDateFrom ?? "");
@@ -291,6 +291,8 @@ export default function AdminTracks() {
       if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       if (sortBy === "az") return a.title.localeCompare(b.title);
       if (sortBy === "za") return b.title.localeCompare(a.title);
+      if (sortBy === "most_dl") return (b.downloadCount ?? 0) - (a.downloadCount ?? 0);
+      if (sortBy === "least_dl") return (a.downloadCount ?? 0) - (b.downloadCount ?? 0);
       return 0;
     });
     return result;
@@ -497,6 +499,8 @@ export default function AdminTracks() {
               <SelectItem value="oldest">Oldest First</SelectItem>
               <SelectItem value="az">A → Z</SelectItem>
               <SelectItem value="za">Z → A</SelectItem>
+              <SelectItem value="most_dl">Most Downloaded</SelectItem>
+              <SelectItem value="least_dl">Least Downloaded</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setShowFilters(f => !f)}>
@@ -599,6 +603,11 @@ export default function AdminTracks() {
                     <h3 className="font-medium text-sm">{track.title}</h3>
                     {!track.isPublished && <Badge variant="secondary" className="text-[10px]">Draft</Badge>}
                     {track.hasStems && <Badge variant="outline" className="text-[10px]">Stems</Badge>}
+                    {(track.downloadCount ?? 0) > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium" title="Clean WAV downloads">
+                        ↓ {track.downloadCount}
+                      </span>
+                    )}
                     {track.watermarkStatus && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${tagStatusColor[track.watermarkStatus] ?? ""}`}>
                         {track.watermarkStatus === "done" ? "✓ Ready" : track.watermarkStatus === "error" ? "⚠ WM Error" : track.watermarkStatus === "processing" ? "⟳ Processing…" : "⏳ Pending"}
