@@ -159,6 +159,11 @@
 - [x] Enable watermarked preview player on public /share/:token page (no login required)
 
 ## Round 20
-- [ ] Fix Add-to-Project greyed-out bug in Browse (project names disabled, cannot add track)
-- [ ] Add download count badge per track in admin Tracks list
-- [ ] Add Most Downloaded > Least Downloaded and Least Downloaded > Most Downloaded sort options to admin Tracks
+- [x] Fix Add-to-Project greyed-out bug in Browse (project names disabled, cannot add track)
+- [x] Add download count badge per track in admin Tracks list
+- [x] Add Most Downloaded > Least Downloaded and Least Downloaded > Most Downloaded sort options to admin Tracks
+
+## Round 21
+- [ ] Fix playlist "unknown track" bug on My Projects detail page (tracks show as Unknown and won't play)
+- [ ] Add date range filter (start date, end date) to admin Downloads CSV export (quarterly/annual use)
+- [ ] Update home page subtitle copy

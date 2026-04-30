@@ -32,8 +32,7 @@ export default function Home() {
 
             {/* Body copy — Noticia Text */}
             <p className="text-base md:text-lg text-muted-foreground max-w-md mb-10 leading-relaxed">
-              A curated library of high-quality music tracks for your projects.
-              Stream, preview, and download exactly what you need.
+              A curated library of music tracks, where you can listen, build playlists, and download exactly what you need for your projects.
             </p>
 
             <div className="flex flex-wrap gap-3">

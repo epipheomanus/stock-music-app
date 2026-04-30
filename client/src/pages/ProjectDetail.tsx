@@ -74,20 +74,23 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
     });
   }
 
-  function playAll(tracks: any[]) {
-    if (!tracks.length) return;
-    const queue: GlobalTrack[] = tracks.map(t => ({
-      id: t.id,
-      title: t.title,
-      composerName: t.composerName ?? null,
-      durationSeconds: t.durationSeconds ?? null,
-      coverArtUrl: t.coverArtUrl ?? null,
-      watermarkedMp3Url: t.watermarkedMp3Url ?? null,
-      wavUrl: t.wavUrl ?? null,
-      hasStems: t.hasStems ?? false,
-      watermarkStatus: t.watermarkStatus ?? "pending",
-      tags: t.tags ?? { genres: [], moods: [], attributes: [] },
-    }));
+  function playAll(playlistItems: any[]) {
+    if (!playlistItems.length) return;
+    const queue: GlobalTrack[] = playlistItems.map(pt => {
+      const t = pt.track ?? pt;
+      return {
+        id: t.id,
+        title: t.title,
+        composerName: t.composerName ?? null,
+        durationSeconds: t.durationSeconds ?? null,
+        coverArtUrl: t.coverArtUrl ?? null,
+        watermarkedMp3Url: t.watermarkedMp3Url ?? null,
+        wavUrl: t.wavUrl ?? null,
+        hasStems: t.hasStems ?? false,
+        watermarkStatus: t.watermarkStatus ?? "pending",
+        tags: t.tags ?? { genres: [], moods: [], attributes: [] },
+      };
+    });
     setQueue(queue, 0);
   }
 
@@ -195,38 +198,41 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
                   </div>
                 ) : (
                   <div className="divide-y divide-border/30">
-                    {playlist.tracks.map((track: any, idx: number) => (
-                      <div key={`${playlist.id}-${track.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors group">
-                        <span className="text-xs text-muted-foreground/50 w-5 text-right shrink-0">{idx + 1}</span>
-                        <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                          {track.coverArtUrl ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" /> : <Music className="h-3.5 w-3.5 text-muted-foreground/40" />}
+                    {playlist.tracks.map((pt: any, idx: number) => {
+                      const track = pt.track ?? pt;
+                      return (
+                        <div key={`${playlist.id}-${pt.id ?? track.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors group">
+                          <span className="text-xs text-muted-foreground/50 w-5 text-right shrink-0">{idx + 1}</span>
+                          <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                            {track.coverArtUrl ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" /> : <Music className="h-3.5 w-3.5 text-muted-foreground/40" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{track.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown Composer"}</p>
+                          </div>
+                          <button
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+                            title="Play track"
+                            onClick={() => setActiveTrack({
+                              id: track.id, title: track.title, composerName: track.composerName ?? null,
+                              durationSeconds: track.durationSeconds ?? null, coverArtUrl: track.coverArtUrl ?? null,
+                              watermarkedMp3Url: track.watermarkedMp3Url ?? null, wavUrl: track.wavUrl ?? null,
+                              hasStems: track.hasStems ?? false, watermarkStatus: track.watermarkStatus ?? "pending",
+                              tags: track.tags ?? { genres: [], moods: [], attributes: [] },
+                            })}
+                          >
+                            <Play className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
+                            title="Remove from playlist"
+                            onClick={() => removeTrackMutation.mutate({ playlistId: playlist.id, trackId: track.id })}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{track.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown"}</p>
-                        </div>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                          title="Play track"
-                          onClick={() => setActiveTrack({
-                            id: track.id, title: track.title, composerName: track.composerName ?? null,
-                            durationSeconds: track.durationSeconds ?? null, coverArtUrl: track.coverArtUrl ?? null,
-                            watermarkedMp3Url: track.watermarkedMp3Url ?? null, wavUrl: track.wavUrl ?? null,
-                            hasStems: track.hasStems ?? false, watermarkStatus: track.watermarkStatus ?? "pending",
-                            tags: track.tags ?? { genres: [], moods: [], attributes: [] },
-                          })}
-                        >
-                          <Play className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
-                          title="Remove from playlist"
-                          onClick={() => removeTrackMutation.mutate({ playlistId: playlist.id, trackId: track.id })}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
