@@ -202,6 +202,8 @@ export default function AdminTracks() {
   const saved = loadFilters();
   const [search, setSearch] = useState(saved?.search ?? "");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za" | "most_dl" | "least_dl">((saved?.sortBy as any) ?? "newest");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
   const [showFilters, setShowFilters] = useState(saved?.showFilters ?? false);
   const [filterComposer, setFilterComposer] = useState(saved?.filterComposer ?? "");
   const [filterDateFrom, setFilterDateFrom] = useState(saved?.filterDateFrom ?? "");
@@ -297,6 +299,10 @@ export default function AdminTracks() {
     });
     return result;
   }, [tracks, search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
+  const totalAdminPages = Math.max(1, Math.ceil(displayedTracks.length / perPage));
+  const pagedAdminTracks = useMemo(() => displayedTracks.slice((page - 1) * perPage, page * perPage), [displayedTracks, page, perPage]);
+  // Reset to page 1 when search or filters change
+  useEffect(() => { setPage(1); }, [search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
 
   const deleteGlobalTagMutation = trpc.tracks.deleteGlobalTag.useMutation({
     onSuccess: () => {
@@ -461,6 +467,15 @@ export default function AdminTracks() {
           <div>
             <h1 className="text-2xl font-bold mb-1">Tracks</h1>
             <p className="text-sm text-muted-foreground">{displayedTracks.length} of {tracks.length} track{tracks.length !== 1 ? "s" : ""}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="text-xs text-muted-foreground">Show:</span>
+              {([10, 25, 50] as const).map(n => (
+                <button key={n} onClick={() => { setPerPage(n); setPage(1); }}
+                  className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                    perPage === n ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                  }`}>{n}</button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {stuckCount > 0 && (
@@ -593,7 +608,7 @@ export default function AdminTracks() {
           </div>
         ) : (
           <div className="space-y-2">
-            {displayedTracks.map((track: any) => (
+            {pagedAdminTracks.map((track: any) => (
               <div key={track.id} className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-card hover:border-border transition-colors">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
                   {track.coverArtUrl ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" /> : <Music className="h-4 w-4 text-muted-foreground/40" />}
@@ -648,6 +663,27 @@ export default function AdminTracks() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {displayedTracks.length > 0 && totalAdminPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
+            <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</Button>
+            {Array.from({ length: totalAdminPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalAdminPages || Math.abs(p - page) <= 2)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, i) => p === "..." ? (
+                <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-1">…</span>
+              ) : (
+                <button key={p} onClick={() => setPage(p as number)}
+                  className={`h-8 w-8 text-xs rounded border transition-colors ${
+                    page === p ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                  }`}>{p}</button>
+              ))}
+            <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === totalAdminPages} onClick={() => setPage(p => Math.min(totalAdminPages, p + 1))}>Next</Button>
           </div>
         )}
       </div>

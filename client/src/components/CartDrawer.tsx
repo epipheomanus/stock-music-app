@@ -17,15 +17,13 @@ import { trpc } from "@/lib/trpc";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 
-const LEGAL_DISCLAIMER = `By downloading these tracks, you acknowledge and agree that:
-
-1. These audio files are provided for internal project use only and may not be redistributed, sublicensed, or made publicly available without prior written authorization.
+const LEGAL_DISCLAIMER = `1. These audio files are provided for official company use only and may not be redistributed, sublicensed, or made publicly available without prior written authorization.
 
 2. You are responsible for ensuring that your use of these tracks complies with all applicable laws and any agreements in place with your organization.
 
 3. Unauthorized distribution or commercial exploitation of these files is strictly prohibited.
 
-4. All tracks remain the intellectual property of their respective composers and rights holders.
+4. All tracks remain the intellectual property of Epipheo.
 
 Please confirm that you have read and understood these terms before proceeding with your download.`;
 

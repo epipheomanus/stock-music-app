@@ -164,6 +164,13 @@
 - [x] Add Most Downloaded > Least Downloaded and Least Downloaded > Most Downloaded sort options to admin Tracks
 
 ## Round 21
-- [ ] Fix playlist "unknown track" bug on My Projects detail page (tracks show as Unknown and won't play)
-- [ ] Add date range filter (start date, end date) to admin Downloads CSV export (quarterly/annual use)
-- [ ] Update home page subtitle copy
+- [x] Fix playlist "unknown track" bug on My Projects detail page (tracks show as Unknown and won't play)
+- [x] Add date range filter (start date, end date) to admin Downloads CSV export (quarterly/annual use)
+- [x] Update home page subtitle copy
+
+## Round 22
+- [x] Update checkout legal disclaimer to new Epipheo-specific language (4 numbered clauses + confirmation prompt)
+- [x] Add cart buttons to playlist track rows in ProjectDetail page
+- [x] Add cart buttons to playlist track rows in SharedProject page (only when user is logged in)
+- [x] Add pagination to Browse page (10/25/50 per page, default 25, page numbers at bottom)
+- [x] Add pagination to admin Track Manager (10/25/50 per page, default 25, page numbers at bottom)

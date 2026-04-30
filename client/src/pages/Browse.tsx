@@ -108,6 +108,8 @@ export default function Browse() {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
 
   const utils = trpc.useUtils();
 
@@ -171,8 +173,12 @@ export default function Browse() {
     });
   }
 
-  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); }
+  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); setPage(1); }
   const activeFilterCount = filters.genres.length + filters.moods.length + filters.attributes.length;
+  const totalPages = Math.max(1, Math.ceil(tracks.length / perPage));
+  const pagedTracks = useMemo(() => tracks.slice((page - 1) * perPage, page * perPage), [tracks, page, perPage]);
+  // Reset to page 1 when search or filters change
+  useEffect(() => { setPage(1); }, [search, filters]);
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-28">
@@ -188,6 +194,15 @@ export default function Browse() {
                 {tracks.length} track{tracks.length !== 1 ? "s" : ""} available
                 {activeFilterCount > 0 && " matching your filters"}
               </p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-xs text-muted-foreground">Show:</span>
+                {([10, 25, 50] as const).map(n => (
+                  <button key={n} onClick={() => { setPerPage(n); setPage(1); }}
+                    className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                      perPage === n ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                    }`}>{n}</button>
+                ))}
+              </div>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -293,7 +308,7 @@ export default function Browse() {
             </div>
           ) : (
             <div className="space-y-2">
-              {tracks.map((track) => (
+              {pagedTracks.map((track) => (
                 <TrackRow
                   key={track.id}
                   track={track}
@@ -309,6 +324,27 @@ export default function Browse() {
                   onCreatePlaylistAndAdd={handleCreatePlaylistAndAdd}
                 />
               ))}
+            </div>
+          )}
+          {tracks.length > 0 && totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
+              <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) => p === "..." ? (
+                  <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-1">…</span>
+                ) : (
+                  <button key={p} onClick={() => setPage(p as number)}
+                    className={`h-8 w-8 text-xs rounded border transition-colors ${
+                      page === p ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
+                    }`}>{p}</button>
+                ))}
+              <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button>
             </div>
           )}
         </div>

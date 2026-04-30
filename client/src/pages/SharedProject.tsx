@@ -1,9 +1,12 @@
 import { trpc } from "@/lib/trpc";
 import TopNav from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
-import { Loader2, Music, Play, Pause, ListMusic, Volume2 } from "lucide-react";
+import { Loader2, Music, Play, Pause, ListMusic, Volume2, ShoppingCart } from "lucide-react";
 import { Link } from "wouter";
 import { usePlayer, GlobalTrack } from "@/contexts/PlayerContext";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "sonner";
 
 interface SharedProjectProps {
   params: { token: string };
@@ -11,6 +14,14 @@ interface SharedProjectProps {
 
 export default function SharedProject({ params }: SharedProjectProps) {
   const { setActiveTrack, setQueue, activeTrack, isPlaying, togglePlayPause } = usePlayer();
+  const { user } = useAuth();
+  const { openCart } = useCart();
+  const utils = trpc.useUtils();
+
+  const addToCartMutation = trpc.cart.add.useMutation({
+    onSuccess: () => { utils.cart.list.invalidate(); openCart(); },
+    onError: (err: any) => toast.error(err.message || "Failed to add to cart"),
+  });
 
   const projectQuery = trpc.projects.getByShareToken.useQuery(
     { token: params.token },
@@ -169,6 +180,16 @@ export default function SharedProject({ params }: SharedProjectProps) {
                             <p className="text-xs text-muted-foreground truncate">{t.composerName ?? "Unknown"}</p>
                           </div>
 
+                          {/* Cart button — only for logged-in users */}
+                          {user && (
+                            <button
+                              className="p-1.5 rounded-md bg-muted/50 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors shrink-0"
+                              title="Add to cart"
+                              onClick={e => { e.stopPropagation(); addToCartMutation.mutate({ trackId: t.id }); }}
+                            >
+                              <ShoppingCart className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           {/* Always-visible play/pause button */}
                           <button
                             className={`p-2 rounded-full transition-colors shrink-0

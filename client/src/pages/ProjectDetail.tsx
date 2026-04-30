@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Loader2, Music, Link2, Check, Pencil, ArrowLeft, Play, ListMusic } from "lucide-react";
+import { Plus, Trash2, Loader2, Music, Link2, Check, Pencil, ArrowLeft, Play, ListMusic, ShoppingCart } from "lucide-react";
+import { useCart } from "@/contexts/CartContext";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { usePlayer, GlobalTrack } from "@/contexts/PlayerContext";
@@ -28,6 +29,12 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
   const [editingPlaylistId, setEditingPlaylistId] = useState<number | null>(null);
   const [editingPlaylistName, setEditingPlaylistName] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const { openCart } = useCart();
+
+  const addToCartMutation = trpc.cart.add.useMutation({
+    onSuccess: () => { utils.cart.list.invalidate(); openCart(); },
+    onError: (err) => toast.error(err.message || "Failed to add to cart"),
+  });
 
   const projectQuery = trpc.projects.getById.useQuery(
     { id: projectId },
@@ -223,6 +230,15 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
                           >
                             <Play className="h-3.5 w-3.5" />
                           </button>
+                          {user && (
+                            <button
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
+                              title="Add to cart"
+                              onClick={() => addToCartMutation.mutate({ trackId: track.id })}
+                            >
+                              <ShoppingCart className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
                             title="Remove from playlist"
