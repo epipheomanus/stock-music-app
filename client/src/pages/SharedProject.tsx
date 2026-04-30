@@ -1,7 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import TopNav from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
-import { Loader2, Music, Play, ListMusic } from "lucide-react";
+import { Loader2, Music, Play, Pause, ListMusic, Volume2 } from "lucide-react";
 import { Link } from "wouter";
 import { usePlayer, GlobalTrack } from "@/contexts/PlayerContext";
 
@@ -10,7 +10,7 @@ interface SharedProjectProps {
 }
 
 export default function SharedProject({ params }: SharedProjectProps) {
-  const { setActiveTrack, setQueue } = usePlayer();
+  const { setActiveTrack, setQueue, activeTrack, isPlaying, togglePlayPause } = usePlayer();
 
   const projectQuery = trpc.projects.getByShareToken.useQuery(
     { token: params.token },
@@ -19,16 +19,37 @@ export default function SharedProject({ params }: SharedProjectProps) {
   const project = projectQuery.data?.project;
   const playlists = projectQuery.data?.playlists ?? [];
 
+  // Normalise a row from getPlaylistTracks — the DB join returns { ...playlist_tracks, track: Track }
+  function toGlobalTrack(row: any): GlobalTrack {
+    const t = row.track ?? row;
+    return {
+      id: t.id,
+      title: t.title,
+      composerName: t.composerName ?? null,
+      durationSeconds: t.durationSeconds ?? null,
+      coverArtUrl: t.coverArtUrl ?? null,
+      watermarkedMp3Url: t.watermarkedMp3Url ?? null,
+      wavUrl: t.wavUrl ?? null,
+      hasStems: t.hasStems ?? false,
+      watermarkStatus: t.watermarkStatus ?? "pending",
+      tags: t.tags ?? { genres: [], moods: [], attributes: [] },
+    };
+  }
+
   function playAll(tracks: any[]) {
     if (!tracks.length) return;
-    const queue: GlobalTrack[] = tracks.map(t => ({
-      id: t.id, title: t.title, composerName: t.composerName ?? null,
-      durationSeconds: t.durationSeconds ?? null, coverArtUrl: t.coverArtUrl ?? null,
-      watermarkedMp3Url: t.watermarkedMp3Url ?? null, wavUrl: t.wavUrl ?? null,
-      hasStems: t.hasStems ?? false, watermarkStatus: t.watermarkStatus ?? "pending",
-      tags: t.tags ?? { genres: [], moods: [], attributes: [] },
-    }));
-    setQueue(queue, 0);
+    setQueue(tracks.map(toGlobalTrack), 0);
+  }
+
+  function handlePlayRow(row: any, allRows: any[]) {
+    const gt = toGlobalTrack(row);
+    if (activeTrack?.id === gt.id) {
+      togglePlayPause();
+    } else {
+      const queue = allRows.map(toGlobalTrack);
+      const idx = queue.findIndex(q => q.id === gt.id);
+      setQueue(queue, idx >= 0 ? idx : 0);
+    }
   }
 
   if (projectQuery.isLoading) {
@@ -58,15 +79,23 @@ export default function SharedProject({ params }: SharedProjectProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <TopNav />
-      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-10">
+      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-10 pb-32">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full mb-4">
             <ListMusic className="h-3 w-3" /> Shared Music Project
           </div>
           <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
           {project.description && <p className="text-muted-foreground mt-1 text-sm">{project.description}</p>}
-          <p className="text-xs text-muted-foreground/60 mt-1">{playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {totalTracks} track{totalTracks !== 1 ? "s" : ""}</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            {playlists.length} playlist{playlists.length !== 1 ? "s" : ""} · {totalTracks} track{totalTracks !== 1 ? "s" : ""}
+          </p>
+        </div>
+
+        {/* Watermark notice */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border/50 rounded-lg px-3.5 py-2.5 mb-6">
+          <Volume2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span>All previews are watermarked. Click any track or <strong>Play All</strong> to listen in the player below.</span>
         </div>
 
         {playlists.length === 0 ? (
@@ -78,46 +107,89 @@ export default function SharedProject({ params }: SharedProjectProps) {
           <div className="space-y-6">
             {playlists.map((playlist: any) => (
               <div key={playlist.id} className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                {/* Playlist header */}
                 <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border/40">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-sm">{playlist.name}</h3>
-                    <span className="text-xs text-muted-foreground">{playlist.tracks?.length ?? 0} track{(playlist.tracks?.length ?? 0) !== 1 ? "s" : ""}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {playlist.tracks?.length ?? 0} track{(playlist.tracks?.length ?? 0) !== 1 ? "s" : ""}
+                    </span>
                   </div>
                   {(playlist.tracks?.length ?? 0) > 0 && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => playAll(playlist.tracks)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => playAll(playlist.tracks)}
+                    >
                       <Play className="h-3.5 w-3.5" /> Play All
                     </Button>
                   )}
                 </div>
+
+                {/* Track list */}
                 {(playlist.tracks?.length ?? 0) === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-muted-foreground/60">No tracks in this playlist.</div>
                 ) : (
                   <div className="divide-y divide-border/30">
-                    {playlist.tracks.map((track: any, idx: number) => (
-                      <div key={`${playlist.id}-${track.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors group">
-                        <span className="text-xs text-muted-foreground/50 w-5 text-right shrink-0">{idx + 1}</span>
-                        <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                          {track.coverArtUrl ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" /> : <Music className="h-3.5 w-3.5 text-muted-foreground/40" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{track.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown"}</p>
-                        </div>
-                        <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                          title="Play track"
-                          onClick={() => setActiveTrack({
-                            id: track.id, title: track.title, composerName: track.composerName ?? null,
-                            durationSeconds: track.durationSeconds ?? null, coverArtUrl: track.coverArtUrl ?? null,
-                            watermarkedMp3Url: track.watermarkedMp3Url ?? null, wavUrl: track.wavUrl ?? null,
-                            hasStems: track.hasStems ?? false, watermarkStatus: track.watermarkStatus ?? "pending",
-                            tags: track.tags ?? { genres: [], moods: [], attributes: [] },
-                          })}
+                    {playlist.tracks.map((row: any, idx: number) => {
+                      const t = row.track ?? row;
+                      const isActive = activeTrack?.id === t.id;
+                      const canPlay = !!t.watermarkedMp3Url;
+                      return (
+                        <div
+                          key={`${playlist.id}-${t.id}`}
+                          className={`flex items-center gap-3 px-5 py-3 transition-colors select-none
+                            ${canPlay ? "cursor-pointer" : "cursor-default"}
+                            ${isActive ? "bg-primary/5 border-l-2 border-primary" : "hover:bg-muted/30"}`}
+                          onClick={() => canPlay && handlePlayRow(row, playlist.tracks)}
                         >
-                          <Play className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                          {/* Index / playing indicator */}
+                          <div className="w-5 shrink-0 flex items-center justify-center">
+                            {isActive && isPlaying ? (
+                              <Pause className="h-3.5 w-3.5 text-primary" />
+                            ) : isActive ? (
+                              <Play className="h-3.5 w-3.5 text-primary" />
+                            ) : (
+                              <span className="text-xs text-muted-foreground/50">{idx + 1}</span>
+                            )}
+                          </div>
+
+                          {/* Cover art */}
+                          <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                            {t.coverArtUrl
+                              ? <img src={t.coverArtUrl} alt={t.title} className="w-full h-full object-cover" />
+                              : <Music className="h-3.5 w-3.5 text-muted-foreground/40" />
+                            }
+                          </div>
+
+                          {/* Title + composer */}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${isActive ? "text-primary" : ""}`}>{t.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{t.composerName ?? "Unknown"}</p>
+                          </div>
+
+                          {/* Always-visible play/pause button */}
+                          <button
+                            className={`p-2 rounded-full transition-colors shrink-0
+                              ${!canPlay
+                                ? "opacity-25 cursor-not-allowed bg-muted text-muted-foreground"
+                                : isActive
+                                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                  : "bg-muted hover:bg-primary hover:text-primary-foreground text-muted-foreground"
+                              }`}
+                            title={canPlay ? (isActive && isPlaying ? "Pause" : "Play preview") : "Preview not available yet"}
+                            disabled={!canPlay}
+                            onClick={e => { e.stopPropagation(); canPlay && handlePlayRow(row, playlist.tracks); }}
+                          >
+                            {isActive && isPlaying
+                              ? <Pause className="h-3.5 w-3.5" />
+                              : <Play className="h-3.5 w-3.5" />
+                            }
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

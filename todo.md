@@ -153,3 +153,7 @@
 - [x] Update TopNav to use Epipheo logo image (dark/light variants)
 - [x] Update Home page hero with Oswald headings, Aqua accent, brand tagline, Epipheo logo in footer
 - [x] Update AdminLayout sidebar to use Epipheo logo image
+
+## Round 19
+- [x] Persist admin Tracks sort/filter state to localStorage (survives navigation away and back)
+- [x] Enable watermarked preview player on public /share/:token page (no login required)

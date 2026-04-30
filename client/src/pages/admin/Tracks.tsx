@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
 import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Filter, ChevronDown } from "lucide-react";
@@ -184,19 +184,42 @@ export default function AdminTracks() {
   const [stemsFiles, setStemsFiles] = useState<File[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  // Sort & filter state
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za">("newest");
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterComposer, setFilterComposer] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterStems, setFilterStems] = useState<"all" | "has" | "none">("all");
-  const [filterWatermark, setFilterWatermark] = useState<"all" | "done" | "pending" | "error" | "processing">("all");
-  const [filterBpmMin, setFilterBpmMin] = useState("");
-  const [filterBpmMax, setFilterBpmMax] = useState("");
-  const [filterTag, setFilterTag] = useState("");
-  const [filterCoverArt, setFilterCoverArt] = useState<"all" | "has" | "missing">("all");
+  // Sort & filter state — persisted to localStorage
+  const LS_KEY = "admin-tracks-filters";
+  function loadFilters() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as {
+        search: string; sortBy: string; showFilters: boolean;
+        filterComposer: string; filterDateFrom: string; filterDateTo: string;
+        filterStems: string; filterWatermark: string;
+        filterBpmMin: string; filterBpmMax: string;
+        filterTag: string; filterCoverArt: string;
+      };
+    } catch { return null; }
+  }
+  const saved = loadFilters();
+  const [search, setSearch] = useState(saved?.search ?? "");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za">((saved?.sortBy as any) ?? "newest");
+  const [showFilters, setShowFilters] = useState(saved?.showFilters ?? false);
+  const [filterComposer, setFilterComposer] = useState(saved?.filterComposer ?? "");
+  const [filterDateFrom, setFilterDateFrom] = useState(saved?.filterDateFrom ?? "");
+  const [filterDateTo, setFilterDateTo] = useState(saved?.filterDateTo ?? "");
+  const [filterStems, setFilterStems] = useState<"all" | "has" | "none">((saved?.filterStems as any) ?? "all");
+  const [filterWatermark, setFilterWatermark] = useState<"all" | "done" | "pending" | "error" | "processing">((saved?.filterWatermark as any) ?? "all");
+  const [filterBpmMin, setFilterBpmMin] = useState(saved?.filterBpmMin ?? "");
+  const [filterBpmMax, setFilterBpmMax] = useState(saved?.filterBpmMax ?? "");
+  const [filterTag, setFilterTag] = useState(saved?.filterTag ?? "");
+  const [filterCoverArt, setFilterCoverArt] = useState<"all" | "has" | "missing">((saved?.filterCoverArt as any) ?? "all");
+  // Persist to localStorage whenever filter state changes
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      search, sortBy, showFilters, filterComposer, filterDateFrom, filterDateTo,
+      filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt,
+    }));
+  }, [search, sortBy, showFilters, filterComposer, filterDateFrom, filterDateTo,
+      filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
   // Duplicate name alert
   const [duplicateAlertMsg, setDuplicateAlertMsg] = useState<string | null>(null);
 
