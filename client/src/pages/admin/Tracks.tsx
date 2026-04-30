@@ -1,17 +1,15 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Search, Filter, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Filter, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
 // Tag lists now come from the live DB via trpc.tracks.filterOptions
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 type TagType = "genre" | "mood" | "attribute" | "hidden";
@@ -189,14 +187,18 @@ export default function AdminTracks() {
   // Sort & filter state
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [showFilters, setShowFilters] = useState(false);
   const [filterComposer, setFilterComposer] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [filterStems, setFilterStems] = useState<"all" | "with" | "without">("all");
-  const [filterWatermark, setFilterWatermark] = useState<"all" | "pending" | "done" | "error" | "processing">("all");
-  const [filterGenre, setFilterGenre] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [duplicateNameAlert, setDuplicateNameAlert] = useState<string | null>(null);
+  const [filterStems, setFilterStems] = useState<"all" | "has" | "none">("all");
+  const [filterWatermark, setFilterWatermark] = useState<"all" | "done" | "pending" | "error" | "processing">("all");
+  const [filterBpmMin, setFilterBpmMin] = useState("");
+  const [filterBpmMax, setFilterBpmMax] = useState("");
+  const [filterTag, setFilterTag] = useState("");
+  const [filterCoverArt, setFilterCoverArt] = useState<"all" | "has" | "missing">("all");
+  // Duplicate name alert
+  const [duplicateAlertMsg, setDuplicateAlertMsg] = useState<string | null>(null);
 
   const tracksQuery = trpc.tracks.adminList.useQuery();
   const tracks = tracksQuery.data ?? [];
@@ -235,41 +237,41 @@ export default function AdminTracks() {
 
   const stuckCount = tracks.filter((t: any) => t.watermarkStatus === "error" || t.watermarkStatus === "pending").length;
 
-  // Apply search, sort, and filters
+  // Filtered + sorted tracks
   const displayedTracks = useMemo(() => {
     let result = [...tracks] as any[];
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      result = result.filter((t: any) => t.title.toLowerCase().includes(q) || (t.composerName ?? "").toLowerCase().includes(q));
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(t => t.title?.toLowerCase().includes(q) || t.composerName?.toLowerCase().includes(q));
     }
-    if (filterComposer.trim()) {
-      const q = filterComposer.trim().toLowerCase();
-      result = result.filter((t: any) => (t.composerName ?? "").toLowerCase().includes(q));
+    if (filterComposer) {
+      const q = filterComposer.toLowerCase();
+      result = result.filter(t => t.composerName?.toLowerCase().includes(q));
     }
-    if (filterDateFrom) {
-      const from = new Date(filterDateFrom).getTime();
-      result = result.filter((t: any) => new Date(t.createdAt).getTime() >= from);
+    if (filterDateFrom) result = result.filter(t => new Date(t.createdAt) >= new Date(filterDateFrom));
+    if (filterDateTo) result = result.filter(t => new Date(t.createdAt) <= new Date(filterDateTo + "T23:59:59"));
+    if (filterStems === "has") result = result.filter(t => t.hasStems);
+    if (filterStems === "none") result = result.filter(t => !t.hasStems);
+    if (filterWatermark !== "all") result = result.filter(t => t.watermarkStatus === filterWatermark);
+    if (filterBpmMin) result = result.filter(t => t.bpm != null && t.bpm >= Number(filterBpmMin));
+    if (filterBpmMax) result = result.filter(t => t.bpm != null && t.bpm <= Number(filterBpmMax));
+    if (filterTag) {
+      const q = filterTag.toLowerCase();
+      result = result.filter(t => [
+        ...(t.tags?.genres ?? []), ...(t.tags?.moods ?? []), ...(t.tags?.attributes ?? []),
+      ].some((v: string) => v.toLowerCase().includes(q)));
     }
-    if (filterDateTo) {
-      const to = new Date(filterDateTo).getTime() + 86400000;
-      result = result.filter((t: any) => new Date(t.createdAt).getTime() <= to);
-    }
-    if (filterStems === "with") result = result.filter((t: any) => t.hasStems);
-    if (filterStems === "without") result = result.filter((t: any) => !t.hasStems);
-    if (filterWatermark !== "all") result = result.filter((t: any) => t.watermarkStatus === filterWatermark);
-    if (filterGenre) {
-      const q = filterGenre.toLowerCase();
-      result = result.filter((t: any) => (t.tags?.genres ?? []).some((g: string) => g.toLowerCase() === q));
-    }
-    if (sortBy === "newest") result.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    else if (sortBy === "oldest") result.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    else if (sortBy === "az") result.sort((a: any, b: any) => a.title.localeCompare(b.title));
-    else if (sortBy === "za") result.sort((a: any, b: any) => b.title.localeCompare(a.title));
+    if (filterCoverArt === "has") result = result.filter(t => !!t.coverArtUrl);
+    if (filterCoverArt === "missing") result = result.filter(t => !t.coverArtUrl);
+    result.sort((a, b) => {
+      if (sortBy === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sortBy === "az") return a.title.localeCompare(b.title);
+      if (sortBy === "za") return b.title.localeCompare(a.title);
+      return 0;
+    });
     return result;
-  }, [tracks, search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterGenre]);
-
-  const activeFilterCount = [filterComposer, filterDateFrom, filterDateTo].filter(Boolean).length
-    + (filterStems !== "all" ? 1 : 0) + (filterWatermark !== "all" ? 1 : 0) + (filterGenre ? 1 : 0);
+  }, [tracks, search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
 
   const deleteGlobalTagMutation = trpc.tracks.deleteGlobalTag.useMutation({
     onSuccess: () => {
@@ -329,11 +331,10 @@ export default function AdminTracks() {
       setForm(DEFAULT_FORM);
       setWavFile(null); setStemsFiles([]); setCoverFile(null);
     } catch (err: any) {
-      const msg: string = err.message || "Upload failed";
-      if (msg.toLowerCase().includes("already exists") || msg.toLowerCase().includes("duplicate")) {
-        setDuplicateNameAlert(msg);
+      if (err.message?.includes("already exists")) {
+        setDuplicateAlertMsg(err.message);
       } else {
-        toast.error(msg);
+        toast.error(err.message || "Upload failed");
       }
     } finally {
       setUploading(false);
@@ -431,10 +432,10 @@ export default function AdminTracks() {
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold mb-1">Tracks</h1>
-            <p className="text-sm text-muted-foreground">{tracks.length} track{tracks.length !== 1 ? "s" : ""} in library</p>
+            <p className="text-sm text-muted-foreground">{displayedTracks.length} of {tracks.length} track{tracks.length !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex items-center gap-2">
             {stuckCount > 0 && (
@@ -458,95 +459,98 @@ export default function AdminTracks() {
           </div>
         </div>
 
-        {/* Search, sort, filter bar */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by title or composer…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </div>
-          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-            <SelectTrigger className="w-40 text-sm">
-              <SelectValue />
-            </SelectTrigger>
+        {/* Search + Sort + Filter bar */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Input
+            placeholder="Search by title or composer…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 min-w-[200px] max-w-sm h-9"
+          />
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+            <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest first</SelectItem>
-              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
               <SelectItem value="az">A → Z</SelectItem>
               <SelectItem value="za">Z → A</SelectItem>
             </SelectContent>
           </Select>
-          <Popover open={showFilters} onOpenChange={setShowFilters}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className={`gap-1.5 ${activeFilterCount > 0 ? "border-primary text-primary" : ""}`}>
-                <Filter className="h-3.5 w-3.5" />
-                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-4 space-y-4" align="end">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">Filters</span>
-                {activeFilterCount > 0 && (
-                  <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => { setFilterComposer(""); setFilterDateFrom(""); setFilterDateTo(""); setFilterStems("all"); setFilterWatermark("all"); setFilterGenre(""); }}>Clear all</button>
-                )}
-              </div>
-              <Separator />
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Composer</label>
-                <input type="text" placeholder="Filter by composer…" value={filterComposer} onChange={e => setFilterComposer(e.target.value)} className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Date Added (from)</label>
-                <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Date Added (to)</label>
-                <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Stems</label>
-                <Select value={filterStems} onValueChange={(v) => setFilterStems(v as typeof filterStems)}>
-                  <SelectTrigger className="w-full text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All tracks</SelectItem>
-                    <SelectItem value="with">With stems</SelectItem>
-                    <SelectItem value="without">Without stems</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Watermark Status</label>
-                <Select value={filterWatermark} onValueChange={(v) => setFilterWatermark(v as typeof filterWatermark)}>
-                  <SelectTrigger className="w-full text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    <SelectItem value="done">Ready</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="error">Error</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Genre</label>
-                <Select value={filterGenre || "_all"} onValueChange={(v) => setFilterGenre(v === "_all" ? "" : v)}>
-                  <SelectTrigger className="w-full text-sm"><SelectValue placeholder="All genres" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_all">All genres</SelectItem>
-                    {filterOptions.genres.map((g: string) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={() => setShowFilters(f => !f)}>
+            <Filter className="h-3.5 w-3.5" /> Filters <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showFilters ? "rotate-180" : ""}`} />
+          </Button>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">{displayedTracks.length} of {tracks.length} track{tracks.length !== 1 ? "s" : ""}</p>
+        {/* Collapsible filter panel */}
+        {showFilters && (
+          <div className="mb-5 p-4 rounded-xl border border-border/60 bg-muted/20 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Composer</Label>
+              <Input placeholder="Filter by composer" value={filterComposer} onChange={e => setFilterComposer(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Added From</Label>
+              <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Added To</Label>
+              <Input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Stems</Label>
+              <Select value={filterStems} onValueChange={(v) => setFilterStems(v as any)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="has">Has Stems</SelectItem>
+                  <SelectItem value="none">No Stems</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Watermark Status</Label>
+              <Select value={filterWatermark} onValueChange={(v) => setFilterWatermark(v as any)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="done">Ready</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="error">Error</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">BPM Min</Label>
+              <Input type="number" placeholder="e.g. 80" value={filterBpmMin} onChange={e => setFilterBpmMin(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">BPM Max</Label>
+              <Input type="number" placeholder="e.g. 140" value={filterBpmMax} onChange={e => setFilterBpmMax(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Tag</Label>
+              <Input placeholder="Genre, mood, attribute" value={filterTag} onChange={e => setFilterTag(e.target.value)} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Cover Art</Label>
+              <Select value={filterCoverArt} onValueChange={(v) => setFilterCoverArt(v as any)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="has">Has Cover Art</SelectItem>
+                  <SelectItem value="missing">Missing Cover Art</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="col-span-full flex justify-end">
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
+                setFilterComposer(""); setFilterDateFrom(""); setFilterDateTo("");
+                setFilterStems("all"); setFilterWatermark("all"); setFilterBpmMin("");
+                setFilterBpmMax(""); setFilterTag(""); setFilterCoverArt("all");
+              }}>Clear Filters</Button>
+            </div>
+          </div>
+        )}
         {/* Track list */}
         {tracksQuery.isLoading ? (
           <div className="flex items-center justify-center h-48"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -554,6 +558,11 @@ export default function AdminTracks() {
           <div className="flex flex-col items-center justify-center h-48 text-center">
             <Music className="h-10 w-10 text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground">No tracks yet. Add your first track.</p>
+          </div>
+        ) : displayedTracks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-center">
+            <Filter className="h-10 w-10 text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground">No tracks match the current filters.</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -733,20 +742,15 @@ export default function AdminTracks() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* Duplicate track name alert */}
-      <AlertDialog open={!!duplicateNameAlert} onOpenChange={(open) => { if (!open) setDuplicateNameAlert(null); }}>
+      {/* Duplicate name alert */}
+      <AlertDialog open={duplicateAlertMsg !== null} onOpenChange={(open) => { if (!open) setDuplicateAlertMsg(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Duplicate Track Name</AlertDialogTitle>
-            <AlertDialogDescription>
-              {duplicateNameAlert}
-              <br /><br />
-              Please choose a different title before uploading.
-            </AlertDialogDescription>
+            <AlertDialogDescription>{duplicateAlertMsg}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setDuplicateNameAlert(null)}>OK</AlertDialogAction>
+            <AlertDialogAction onClick={() => setDuplicateAlertMsg(null)}>OK</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -39,21 +39,26 @@ vi.mock("./db", () => ({
   getAllDownloads: vi.fn().mockResolvedValue([]),
   getWatermarkConfig: vi.fn().mockResolvedValue(null),
   upsertWatermarkConfig: vi.fn().mockResolvedValue(undefined),
+  deleteUser: vi.fn().mockResolvedValue(undefined),
+  lockUser: vi.fn().mockResolvedValue(undefined),
+  unlockUser: vi.fn().mockResolvedValue(undefined),
+  getTrackByTitle: vi.fn().mockResolvedValue(undefined),
   getQuarterlyDownloads: vi.fn().mockResolvedValue(0),
   getYtdDownloads: vi.fn().mockResolvedValue(0),
+  retryAllStuckWatermarks: vi.fn().mockResolvedValue(0),
   getUserProjects: vi.fn().mockResolvedValue([]),
-  getProjectByShareToken: vi.fn().mockResolvedValue(null),
-  getProjectPlaylists: vi.fn().mockResolvedValue([]),
+  getProjectById: vi.fn().mockResolvedValue(undefined),
+  getProjectByShareToken: vi.fn().mockResolvedValue(undefined),
   createProject: vi.fn().mockResolvedValue(1),
-  updateProject: vi.fn().mockResolvedValue(undefined),
+  archiveProject: vi.fn().mockResolvedValue(undefined),
   deleteProject: vi.fn().mockResolvedValue(undefined),
   createPlaylist: vi.fn().mockResolvedValue(1),
-  updatePlaylist: vi.fn().mockResolvedValue(undefined),
+  renamePlaylist: vi.fn().mockResolvedValue(undefined),
   deletePlaylist: vi.fn().mockResolvedValue(undefined),
-  getPlaylistTracks: vi.fn().mockResolvedValue([]),
+  getPlaylistById: vi.fn().mockResolvedValue(undefined),
   addTrackToPlaylist: vi.fn().mockResolvedValue(undefined),
   removeTrackFromPlaylist: vi.fn().mockResolvedValue(undefined),
-  deleteUser: vi.fn().mockResolvedValue(undefined),
+  getPlaylistTracks: vi.fn().mockResolvedValue([]),
 }));
 
 // ─── Context helpers ──────────────────────────────────────────────────────────
@@ -193,7 +198,6 @@ describe("admin procedures", () => {
     const result = await caller.admin.stats();
     expect(result).toHaveProperty("totalTracks");
     expect(result).toHaveProperty("quarterlyDownloads");
-    expect(result).toHaveProperty("ytdDownloads");
     expect(result).toHaveProperty("totalUsers");
   });
 

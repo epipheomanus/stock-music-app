@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "3508a2f8-d279-460c-98d0-56099986b50e",
+  "id": "bfc9e205-539d-4f4a-9dd2-76d4c1b13bfa",
   "prevId": "db1587c0-f5f6-4b45-93fc-025b4d845e01",
   "tables": {
     "cart_items": {
@@ -277,15 +277,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "(now())"
-        },
-        "updatedAt": {
-          "name": "updatedAt",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "onUpdate": true,
           "default": "(now())"
         }
       },

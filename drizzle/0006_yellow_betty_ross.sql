@@ -12,7 +12,6 @@ CREATE TABLE `playlists` (
 	`projectId` int NOT NULL,
 	`name` varchar(256) NOT NULL,
 	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
 	CONSTRAINT `playlists_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint

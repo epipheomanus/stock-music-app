@@ -1,18 +1,22 @@
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Music, Users, Download, TrendingUp } from "lucide-react";
+import { Music, Users, Download, TrendingUp, Link2 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+
+function getCurrentQuarterLabel() {
+  const now = new Date();
+  const q = Math.floor(now.getMonth() / 3) + 1;
+  return `Q${q} ${now.getFullYear()}`;
+}
+
+function getCurrentYearLabel() {
+  return `${new Date().getFullYear()} YTD`;
+}
 
 export default function AdminDashboard() {
   const statsQuery = trpc.admin.stats.useQuery();
   const stats = statsQuery.data;
-
-  // Determine current quarter label
-  const now = new Date();
-  const quarter = Math.floor(now.getMonth() / 3) + 1;
-  const quarterLabel = `Q${quarter} ${now.getFullYear()} Downloads`;
-  const ytdLabel = `${now.getFullYear()} YTD Downloads`;
 
   return (
     <AdminLayout>
@@ -26,8 +30,18 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Music className="h-5 w-5" />} label="Total Tracks" value={stats?.totalTracks ?? 0} />
           <StatCard icon={<Users className="h-5 w-5" />} label="Registered Users" value={stats?.totalUsers ?? 0} />
-          <StatCard icon={<Download className="h-5 w-5" />} label={quarterLabel} value={stats?.quarterlyDownloads ?? 0} />
-          <StatCard icon={<TrendingUp className="h-5 w-5" />} label={ytdLabel} value={stats?.ytdDownloads ?? 0} />
+          <StatCard
+            icon={<Download className="h-5 w-5" />}
+            label={`Quarterly Downloads (${getCurrentQuarterLabel()})`}
+            value={stats?.quarterlyDownloads ?? 0}
+            sublabel="Clean track downloads only"
+          />
+          <StatCard
+            icon={<TrendingUp className="h-5 w-5" />}
+            label={`Downloads (${getCurrentYearLabel()})`}
+            value={stats?.ytdDownloads ?? 0}
+            sublabel="Clean track downloads only"
+          />
         </div>
 
         {/* Quick actions */}
@@ -47,7 +61,7 @@ export default function AdminDashboard() {
             <p className="text-sm text-muted-foreground mb-4">Generate an invite link to allow someone to create an account.</p>
             <Link href="/admin/invites">
               <Button size="sm" variant="outline" className="gap-2">
-                <TrendingUp className="h-4 w-4" />
+                <Link2 className="h-4 w-4" />
                 Manage Invites
               </Button>
             </Link>
@@ -58,7 +72,17 @@ export default function AdminDashboard() {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  sublabel,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  sublabel?: string;
+}) {
   return (
     <div className="p-5 rounded-xl border border-border/50 bg-card/50">
       <div className="flex items-center gap-2 text-muted-foreground mb-2">
@@ -66,6 +90,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <span className="text-xs font-medium">{label}</span>
       </div>
       <div className="text-3xl font-bold">{value.toLocaleString()}</div>
+      {sublabel && <p className="text-[11px] text-muted-foreground/60 mt-1">{sublabel}</p>}
     </div>
   );
 }

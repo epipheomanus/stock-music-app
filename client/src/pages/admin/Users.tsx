@@ -10,7 +10,7 @@ import {
   DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { useAuth } from "@/_core/hooks/useAuth";
+import { useAuth } from "../../_core/hooks/useAuth";
 
 export default function AdminUsers() {
   const utils = trpc.useUtils();

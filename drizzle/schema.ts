@@ -127,7 +127,7 @@ export const watermarkConfig = mysqlTable("watermark_config", {
 
 export type WatermarkConfig = typeof watermarkConfig.$inferSelect;
 
-// ─── Projects ───────────────────────────────────────────────────────────────
+// ─── Projects ─────────────────────────────────────────────────────────────────
 export const projects = mysqlTable("projects", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -147,7 +147,6 @@ export const playlists = mysqlTable("playlists", {
   projectId: int("projectId").notNull(),
   name: varchar("name", { length: 256 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type Playlist = typeof playlists.$inferSelect;
 export type InsertPlaylist = typeof playlists.$inferInsert;

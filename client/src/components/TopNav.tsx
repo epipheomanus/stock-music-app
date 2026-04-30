@@ -149,18 +149,16 @@ export default function TopNav() {
         {/* Mobile nav */}
         {mobileOpen && (
           <div className="md:hidden border-t border-border/50 py-3 space-y-1">
+            <Link href="/projects" onClick={() => setMobileOpen(false)}>
+              <Button variant="ghost" size="sm" className="w-full justify-start font-display text-xs tracking-widest uppercase text-muted-foreground">
+                My Projects
+              </Button>
+            </Link>
             <Link href="/browse" onClick={() => setMobileOpen(false)}>
               <Button variant="ghost" size="sm" className="w-full justify-start font-display text-xs tracking-widest uppercase text-muted-foreground">
                 Browse Music
               </Button>
             </Link>
-            {isAuthenticated && (
-              <Link href="/projects" onClick={() => setMobileOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start font-display text-xs tracking-widest uppercase text-muted-foreground">
-                  My Projects
-                </Button>
-              </Link>
-            )}
           </div>
         )}
       </div>
