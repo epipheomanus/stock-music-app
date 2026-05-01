@@ -21,6 +21,7 @@ import AdminAnalytics from "./pages/admin/Analytics";
 import AdminWatermark from "./pages/admin/Watermark";
 import AdminUsers from "./pages/admin/Users";
 import AdminTaxonomy from "./pages/admin/Taxonomy";
+import AdminBulkImport from "./pages/admin/BulkImport";
 import MyProjects from "./pages/MyProjects";
 import ProjectDetail from "./pages/ProjectDetail";
 import SharedProject from "./pages/SharedProject";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/admin/watermark" component={AdminWatermark} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/taxonomy" component={AdminTaxonomy} />
+      <Route path="/admin/import" component={AdminBulkImport} />
       <Route path="/projects" component={MyProjects} />
       <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/shared/:token" component={SharedProject} />

@@ -174,3 +174,11 @@
 - [x] Add cart buttons to playlist track rows in SharedProject page (only when user is logged in)
 - [x] Add pagination to Browse page (10/25/50 per page, default 25, page numbers at bottom)
 - [x] Add pagination to admin Track Manager (10/25/50 per page, default 25, page numbers at bottom)
+
+## Round 23 — Bulk Import from Airtable CSV
+- [x] Add server-side bulk import tRPC procedure (admin only): accepts array of track rows, downloads each WAV from Dropbox direct-download URL, uploads to storage, triggers watermark generation, inserts track record
+- [x] Add CSV parsing utility on the frontend: map Airtable columns (Track Name, Composer, BPM, Key, Genre, Mood, Attributes, Dropbox Link) to import row schema
+- [x] Add admin Bulk Import page (/admin/import): CSV file upload, column-mapping UI, preview table, import progress with per-row status
+- [x] Register /admin/import route in App.tsx and add link in AdminLayout sidebar
+- [x] Handle Dropbox share links → convert to direct-download URLs (replace ?dl=0 with ?dl=1 / raw=1)
+- [x] Show per-row import result (success / skipped duplicate / error) in results table

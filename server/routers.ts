@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import fs from "fs";
+import os from "os";
 import { nanoid } from "nanoid";
 import path from "path";
 import { z } from "zod";
@@ -612,6 +613,116 @@ export const appRouter = router({
           and(eq(taxonomyTagsTable.type, input.type), eq(taxonomyTagsTable.value, input.value))
         );
         return { success: true };
+      }),
+    // Admin: bulk import tracks from CSV rows (downloads WAV from URL, uploads to storage, queues watermark)
+    bulkImport: adminOnly
+      .input(z.object({
+        rows: z.array(z.object({
+          title: z.string(),
+          composerName: z.string().optional(),
+          description: z.string().optional(),
+          bpm: z.number().optional(),
+          keySignature: z.string().optional(),
+          genres: z.array(z.string()).default([]),
+          moods: z.array(z.string()).default([]),
+          attributes: z.array(z.string()).default([]),
+          hiddenTags: z.array(z.string()).default([]),
+          wavUrl: z.string().url(),
+          isPublished: z.boolean().default(true),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        const results: { title: string; status: "success" | "skipped" | "error"; trackId?: number; error?: string }[] = [];
+        const dbConn = await getDb();
+        if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        for (const row of input.rows) {
+          try {
+            // Check for duplicate title
+            const existing = await dbConn.select({ id: tracksTable.id }).from(tracksTable).where(eq(tracksTable.title, row.title)).limit(1);
+            if (existing.length > 0) {
+              results.push({ title: row.title, status: "skipped", error: "Duplicate title" });
+              continue;
+            }
+            // Convert Dropbox share URL to direct download URL
+            let downloadUrl = row.wavUrl;
+            if (downloadUrl.includes("dropbox.com")) {
+              downloadUrl = downloadUrl
+                .replace(/[?&]dl=0/, "")
+                .replace(/[?&]raw=0/, "")
+                .replace(/dropbox\.com\//, "dropbox.com/")
+                + (downloadUrl.includes("?") ? "&dl=1" : "?dl=1");
+            }
+            // Download WAV file
+            const response = await fetch(downloadUrl, { redirect: "follow" });
+            if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
+            const contentType = response.headers.get("content-type") ?? "audio/wav";
+            const arrayBuffer = await response.arrayBuffer();
+            const wavBuffer = Buffer.from(arrayBuffer);
+            const safeTitle = row.title.replace(/[^a-zA-Z0-9_-]/g, "_");
+            // Get duration via ffprobe
+            let durationSeconds: number | undefined;
+            try {
+              const tmpWavPath = path.join(os.tmpdir(), `import_dur_${Date.now()}.wav`);
+              fs.writeFileSync(tmpWavPath, wavBuffer);
+              const { execFile } = await import("child_process");
+              const { promisify } = await import("util");
+              const execFileAsync = promisify(execFile);
+              const { stdout } = await execFileAsync("ffprobe", ["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",tmpWavPath]);
+              durationSeconds = Math.round(parseFloat(stdout.trim()));
+              fs.unlinkSync(tmpWavPath);
+            } catch { /* non-critical */ }
+            // Upload WAV to storage
+            const wavKey = `tracks/wav/${Date.now()}_${safeTitle}.wav`;
+            const { url: wavStorageUrl } = await storagePut(wavKey, wavBuffer, "audio/wav");
+            // Create track record
+            const trackId = await createTrack({
+              title: row.title,
+              composerName: row.composerName,
+              description: row.description,
+              bpm: row.bpm,
+              durationSeconds,
+              wavKey,
+              wavUrl: wavStorageUrl,
+              hasStems: false,
+              isPublished: row.isPublished,
+              watermarkStatus: "pending",
+            });
+            // Save tags (keySignature stored as hidden tag)
+            const tags = [
+              ...row.genres.map(v => ({ type: "genre" as const, value: v })),
+              ...row.moods.map(v => ({ type: "mood" as const, value: v })),
+              ...row.attributes.map(v => ({ type: "attribute" as const, value: v })),
+              ...row.hiddenTags.map(v => ({ type: "hidden" as const, value: v })),
+              ...(row.keySignature ? [{ type: "hidden" as const, value: `key:${row.keySignature}` }] : []),
+            ];
+            if (tags.length > 0) await replaceTrackTags(trackId, tags);
+            // Kick off watermark generation in background (non-blocking)
+            (async () => {
+              try {
+                const wmConfig = await getWatermarkConfig();
+                if (!wmConfig?.audioKey) {
+                  await updateTrack(trackId, { watermarkStatus: "error" }).catch(() => {});
+                  return;
+                }
+                await updateTrack(trackId, { watermarkStatus: "processing" });
+                const wmSignedUrl = await storageGetSignedUrl(wmConfig.audioKey);
+                const wmTmpPath = await downloadToTemp(wmSignedUrl, ".wav");
+                const tmpWavPath2 = path.join(os.tmpdir(), `import_clean_${trackId}_${Date.now()}.wav`);
+                fs.writeFileSync(tmpWavPath2, wavBuffer);
+                const mp3TmpPath = await generateWatermarkedMp3(tmpWavPath2, wmTmpPath);
+                const mp3Buffer = fs.readFileSync(mp3TmpPath);
+                const mp3Key = `tracks/watermarked/${trackId}_${Date.now()}.mp3`;
+                const { key: mp3Key2, url: mp3Url } = await storagePut(mp3Key, mp3Buffer, "audio/mpeg");
+                await updateTrack(trackId, { watermarkedMp3Key: mp3Key2, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
+                fs.unlinkSync(tmpWavPath2); fs.unlinkSync(wmTmpPath); fs.unlinkSync(mp3TmpPath);
+              } catch { await updateTrack(trackId, { watermarkStatus: "error" }).catch(() => {}); }
+            })();
+            results.push({ title: row.title, status: "success", trackId });
+          } catch (err: any) {
+            results.push({ title: row.title, status: "error", error: err.message ?? "Unknown error" });
+          }
+        }
+        return { results };
       }),
   }),
   // ─── Watermark Config ──────────────────────────────────────────────────────
