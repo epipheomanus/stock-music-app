@@ -77,6 +77,14 @@ function StatusBadge({ status }: { status: ImportStatus | "pending" | "running" 
 
 // ─── Batch size for chunked imports ──────────────────────────────────────────
 const BATCH_SIZE = 10;
+// Small delay between batches to avoid cookie race conditions
+const BATCH_DELAY_MS = 300;
+// Max retries for transient 403 errors
+const MAX_RETRIES = 2;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function AdminBulkImport() {
@@ -220,6 +228,9 @@ export default function AdminBulkImport() {
 
     // Process in batches so we can update per-row status live
     for (let i = 0; i < importRows.length; i += BATCH_SIZE) {
+      // Add a small delay between batches to avoid cookie race conditions
+      if (i > 0) await sleep(BATCH_DELAY_MS);
+
       const batch = importRows.slice(i, i + BATCH_SIZE);
       // Mark this batch as "running"
       setRowStatuses((prev) => {
@@ -227,10 +238,34 @@ export default function AdminBulkImport() {
         for (let j = i; j < i + batch.length; j++) next[j] = "running";
         return next;
       });
-      try {
-        const { results: batchResults } = await bulkImportMutation.mutateAsync({
-          rows: batch,
-        });
+
+      let lastErr: any = null;
+      let batchResults: ImportResult[] | null = null;
+
+      // Retry up to MAX_RETRIES times for transient 403 / auth errors
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0) {
+            // Wait a bit longer before retrying
+            await sleep(500 * attempt);
+          }
+          const res = await bulkImportMutation.mutateAsync({ rows: batch });
+          batchResults = res.results;
+          lastErr = null;
+          break;
+        } catch (err: any) {
+          lastErr = err;
+          // Only retry on permission / auth errors (transient cookie issues)
+          const isAuthError =
+            err?.message?.includes("10002") ||
+            err?.message?.includes("10001") ||
+            err?.data?.code === "FORBIDDEN" ||
+            err?.data?.code === "UNAUTHORIZED";
+          if (!isAuthError) break; // Non-auth errors: fail immediately
+        }
+      }
+
+      if (batchResults) {
         batchResults.forEach((r, j) => {
           allResults.push(r);
           setRowStatuses((prev) => {
@@ -239,13 +274,13 @@ export default function AdminBulkImport() {
             return next;
           });
         });
-      } catch (err: any) {
-        // Mark entire batch as error
+      } else {
+        // All retries exhausted — mark batch as error
         batch.forEach((row, j) => {
           const errResult: ImportResult = {
             title: row.title,
             status: "error",
-            error: err.message ?? "Batch failed",
+            error: lastErr?.message ?? "Batch failed",
           };
           allResults.push(errResult);
           setRowStatuses((prev) => {
