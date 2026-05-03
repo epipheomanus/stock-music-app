@@ -366,7 +366,9 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
   activeProjects: any[]; onAddToPlaylist: (playlistId: number) => void;
   onCreatePlaylistAndAdd: (projectId: number, name: string, trackId: number) => void;
 }) {
-  const allTags = [...track.tags.genres, ...track.tags.moods, ...track.tags.attributes];
+  // Deduplicate tags to prevent React duplicate-key warnings (a track can have the same
+  // value in multiple tag categories, e.g. "hopeful" as both a mood and an attribute).
+  const allTags = Array.from(new Set([...track.tags.genres, ...track.tags.moods, ...track.tags.attributes]));
   // Use clean WAV for in-browser playback; watermarkedMp3Url is only for the Download Preview button
   const audioUrl = track.wavUrl ?? "";
 
@@ -439,8 +441,8 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
             </div>
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {allTags.slice(0, 8).map(tag => (
-                  <span key={tag} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
+                {allTags.slice(0, 8).map((tag, i) => (
+                  <span key={`${tag}-${i}`} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
                     {tag}
                   </span>
                 ))}

@@ -50,6 +50,34 @@
       "when": 1777508859421,
       "tag": "0006_yellow_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1777826024875,
+      "tag": "0007_freezing_toro",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1777836593973,
+      "tag": "0008_short_loa",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1777839078163,
+      "tag": "0009_smiling_fenris",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1777840534192,
+      "tag": "0010_supreme_revanche",
+      "breakpoints": true
     }
   ]
 }
