@@ -110,6 +110,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     currentUrlRef.current = url;
     setIsLoading(true);
+    // Seek to 0 before loading so the new track always starts from the beginning,
+    // not from the timecode the previous track was paused at.
+    try { wavesurferRef.current.seekTo(0); } catch { /* ignore if no audio loaded yet */ }
     wavesurferRef.current.load(url);
   }, []);
 
