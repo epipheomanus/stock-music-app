@@ -1,6 +1,7 @@
 import {
   boolean,
   int,
+  mediumtext,
   mysqlEnum,
   mysqlTable,
   text,
@@ -70,7 +71,8 @@ export const tracks = mysqlTable("tracks", {
     .notNull(),
   isPublished: boolean("isPublished").default(false).notNull(),
   // Pre-computed waveform peaks JSON array (~200 values) for instant waveform rendering
-  waveformPeaks: text("waveformPeaks"),
+  // MEDIUMTEXT supports up to 16 MB; TEXT (65 KB) is too small for long tracks
+  waveformPeaks: mediumtext("waveformPeaks"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

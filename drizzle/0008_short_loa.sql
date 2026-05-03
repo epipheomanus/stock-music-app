@@ -1,0 +1,1 @@
+ALTER TABLE `tracks` MODIFY COLUMN `waveformPeaks` mediumtext;

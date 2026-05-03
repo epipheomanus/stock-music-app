@@ -192,11 +192,27 @@ export async function generateWaveformPeaks(
   const tmpOut = path.join(os.tmpdir(), `peaks_out_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);
   try {
     fs.writeFileSync(tmpIn, wavBuffer);
-    // Downsample to mono at exactly numSamples frames (f32le raw PCM)
+
+    // First get the duration so we can compute the correct sample rate
+    const { stdout: durationOut } = await execFileAsync("ffprobe", [
+      "-v", "error",
+      "-show_entries", "format=duration",
+      "-of", "default=noprint_wrappers=1:nokey=1",
+      tmpIn,
+    ]);
+    const duration = parseFloat(durationOut.trim());
+    if (isNaN(duration) || duration <= 0) return null;
+
+    // Compute sample rate that yields exactly numSamples output frames.
+    // e.g. 200 samples over 180s → rate = 200/180 ≈ 1.11 Hz
+    // We clamp to at least 1 Hz to avoid ffmpeg errors on very long tracks.
+    const targetRate = Math.max(1, numSamples / duration);
+
+    // Downsample to mono at targetRate Hz → exactly ~numSamples frames (f32le raw PCM)
     await execFileAsync("ffmpeg", [
       "-y", "-i", tmpIn,
       "-ac", "1",
-      "-ar", String(numSamples),
+      "-ar", String(Math.ceil(targetRate)),
       "-f", "f32le",
       tmpOut,
     ]);

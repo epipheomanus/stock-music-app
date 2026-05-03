@@ -2,12 +2,18 @@
  * WaveformPlayer — per-track row component.
  *
  * Responsibilities:
- *  - Renders a WaveSurfer waveform for visual display (loads audio to draw shape)
+ *  - Renders a WaveSurfer waveform for visual display
  *  - When pre-computed peaks are provided, renders instantly without fetching the audio file
  *  - Uses IntersectionObserver to lazy-initialise off-screen waveforms
  *  - When the user clicks Play, it calls onPlay(track) to hand off to the GlobalPlayerBar
  *  - When this track IS the active global track, it mirrors the global progress bar
  *  - Does NOT output audio itself — audio comes from the GlobalPlayerBar's WaveSurfer instance
+ *
+ * Loading strategy:
+ *  - If peaks + duration are available: render immediately, no audio fetch needed
+ *  - If no peaks: show play button immediately (not stuck behind loading), load audio lazily
+ *    for waveform drawing. Use the <audio> element's loadedmetadata event for duration
+ *    (fires quickly from the file header, unlike WaveSurfer's "ready" which needs buffering).
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import WaveSurfer from "wavesurfer.js";
@@ -48,8 +54,10 @@ export default function WaveformPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  // isReady: waveform is drawn (peaks supplied or audio loaded)
   const [isReady, setIsReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // isWaveformLoading: waveform is actively being fetched (no peaks, audio loading)
+  const [isWaveformLoading, setIsWaveformLoading] = useState(false);
   const [localDuration, setLocalDuration] = useState(durationSeconds ?? 0);
   const [isVisible, setIsVisible] = useState(false);
 
@@ -81,6 +89,8 @@ export default function WaveformPlayer({
       try { return JSON.parse(waveformPeaks); } catch { return null; }
     })();
 
+    const hasPeaksAndDuration = !!(parsedPeaks && durationSeconds);
+
     const ws = WaveSurfer.create({
       container: containerRef.current,
       waveColor: "oklch(0.80 0.008 240)",
@@ -92,50 +102,86 @@ export default function WaveformPlayer({
       barGap: 1,
       barRadius: 2,
       normalize: true,
-      interact: false, // clicks handled by the container div below
-      // MediaElement backend supports 24-bit/32-bit float WAV files;
-      // WebAudio's decodeAudioData() rejects them and leaves isLoading stuck.
+      interact: false,
+      // MediaElement backend supports 24-bit/32-bit float WAV files
       backend: "MediaElement",
-      // Pre-supply peaks so WaveSurfer renders the waveform shape without
-      // fetching the full audio file (the audio is only loaded on first play).
-      ...(parsedPeaks && durationSeconds ? { peaks: [parsedPeaks], duration: durationSeconds } : {}),
+      ...(hasPeaksAndDuration ? { peaks: [parsedPeaks!], duration: durationSeconds! } : {}),
     });
 
     wavesurferRef.current = ws;
     ws.setVolume(0); // Mute — audio output is handled by GlobalPlayerBar
 
-    if (parsedPeaks && durationSeconds) {
-      // Peaks supplied — render instantly without fetching audio
+    if (hasPeaksAndDuration) {
+      // Peaks + duration supplied — render instantly, no audio fetch needed
       setIsReady(true);
-      setLocalDuration(durationSeconds);
+      setLocalDuration(durationSeconds!);
     } else {
-      // No peaks — fall back to loading the audio file for waveform drawing
-      setIsLoading(true);
+      // No peaks — load audio for waveform drawing.
+      // IMPORTANT: Do NOT set isLoading=true here — that would block the play button.
+      // Instead, show the play button immediately and draw the waveform in the background.
+      setIsWaveformLoading(true);
       ws.load(audioUrl);
-    }
 
-    ws.on("loading", () => setIsLoading(true));
-    ws.on("ready", (dur) => {
-      setIsLoading(false);
-      setIsReady(true);
-      if (dur) setLocalDuration(dur);
-    });
-    ws.on("error", (err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("aborted") || msg.includes("abort")) return;
-      console.warn("[WaveformPlayer] error:", err);
-      setIsLoading(false);
-    });
+      // Listen to the underlying <audio> element's loadedmetadata event for duration.
+      // This fires as soon as the browser reads the file header (very fast, even for large files),
+      // unlike WaveSurfer's "ready" event which requires significant buffering.
+      const checkForMediaEl = setInterval(() => {
+        const mediaEl = ws.getMediaElement();
+        if (!mediaEl) return;
+        clearInterval(checkForMediaEl);
+
+        const onMetadata = () => {
+          if (mediaEl.duration && isFinite(mediaEl.duration)) {
+            setLocalDuration(mediaEl.duration);
+          }
+          // Mark as ready so the waveform container shows (even if still drawing)
+          setIsReady(true);
+          setIsWaveformLoading(false);
+        };
+
+        if (mediaEl.readyState >= 1) {
+          // Metadata already available
+          onMetadata();
+        } else {
+          mediaEl.addEventListener("loadedmetadata", onMetadata, { once: true });
+        }
+      }, 50);
+
+      // Fallback: if loadedmetadata never fires (e.g. CORS or format issue),
+      // clear the loading state after 8 seconds so the play button is never permanently stuck.
+      const fallbackTimer = setTimeout(() => {
+        setIsWaveformLoading(false);
+        setIsReady(true);
+        clearInterval(checkForMediaEl);
+      }, 8000);
+
+      ws.on("ready", (dur) => {
+        clearTimeout(fallbackTimer);
+        clearInterval(checkForMediaEl);
+        setIsWaveformLoading(false);
+        setIsReady(true);
+        if (dur) setLocalDuration(dur);
+      });
+
+      ws.on("error", (err) => {
+        clearTimeout(fallbackTimer);
+        clearInterval(checkForMediaEl);
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("aborted") || msg.includes("abort")) return;
+        console.warn("[WaveformPlayer] error:", err);
+        setIsWaveformLoading(false);
+        setIsReady(true); // Still show play button even if waveform failed to draw
+      });
+    }
 
     return () => {
       ws.destroy();
       wavesurferRef.current = null;
     };
-    // Re-init only when visibility or compact changes; audioUrl/peaks changes handled below
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible, compact]);
 
-  // ── Reload when audioUrl changes (only if no peaks, since peaks render instantly) ──
+  // ── Reload when audioUrl changes (only if no peaks) ──
   useEffect(() => {
     if (!wavesurferRef.current || !audioUrl) return;
     const parsedPeaks: number[] | null = (() => {
@@ -144,7 +190,7 @@ export default function WaveformPlayer({
     })();
     if (parsedPeaks && durationSeconds) return; // peaks already rendered
     setIsReady(false);
-    setIsLoading(true);
+    setIsWaveformLoading(true);
     wavesurferRef.current.load(audioUrl);
   }, [audioUrl, waveformPeaks, durationSeconds]);
 
@@ -166,19 +212,21 @@ export default function WaveformPlayer({
   }, [isActiveGlobal, togglePlayPause, onPlay, trackId]);
 
   const isShowingPlaying = isActiveGlobal && globalIsPlaying;
+  // Only show the spinner if the row is visible and waveform is actively loading
+  // AND this is not the active track (active track has its own loading state in the player bar)
+  const showSpinner = isWaveformLoading && !isActiveGlobal && !isReady;
 
   return (
     <div ref={wrapperRef} className="flex items-center gap-3 w-full">
-      {/* Play/Pause button */}
+      {/* Play/Pause button — never permanently disabled */}
       <Button
         variant="ghost"
         size="icon"
         className="shrink-0 h-9 w-9 rounded-full bg-primary/10 hover:bg-primary/20 text-primary"
         onClick={handlePlayPause}
-        disabled={isLoading}
         aria-label={isShowingPlaying ? "Pause" : "Play"}
       >
-        {isLoading && !isActiveGlobal ? (
+        {showSpinner ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : isShowingPlaying ? (
           <Pause className="h-4 w-4 fill-current" />

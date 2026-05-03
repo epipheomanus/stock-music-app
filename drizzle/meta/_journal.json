@@ -57,6 +57,13 @@
       "when": 1777826024875,
       "tag": "0007_freezing_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1777836593973,
+      "tag": "0008_short_loa",
+      "breakpoints": true
     }
   ]
 }
