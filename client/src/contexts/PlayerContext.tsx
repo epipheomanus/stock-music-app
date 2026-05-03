@@ -158,8 +158,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ws.on("error", (err) => {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("aborted") || msg.includes("abort")) return;
-      console.warn("[GlobalPlayer] error:", err);
+      // Decode error (e.g. 24-bit WAV not yet converted by admin retry pipeline)
+      // Keep the player bar usable — the track will be fixed after "Retry All Stuck".
+      console.warn("[GlobalPlayer] audio decode error (will be fixed after watermark retry):", msg);
       setIsLoading(false);
+      setIsPlaying(false);
     });
 
     if (pendingTrackRef.current) {
