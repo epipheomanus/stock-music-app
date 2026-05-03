@@ -129,7 +129,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       barRadius: 2,
       normalize: true,
       interact: true,
-      backend: "WebAudio",
+      // MediaElement backend uses the native HTML5 <audio> element, which
+      // supports 24-bit / 32-bit float WAV files that the WebAudio
+      // decodeAudioData() API cannot handle in most browsers.
+      backend: "MediaElement",
     });
 
     wavesurferRef.current = ws;

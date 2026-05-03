@@ -277,17 +277,17 @@ export default function Browse() {
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {filters.genres.map(v => (
-              <Badge key={v} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("genres", v)}>
+              <Badge key={`genre:${v}`} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("genres", v)}>
                 Genre: {v} <X className="h-3 w-3" />
               </Badge>
             ))}
             {filters.moods.map(v => (
-              <Badge key={v} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("moods", v)}>
+              <Badge key={`mood:${v}`} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("moods", v)}>
                 Mood: {v} <X className="h-3 w-3" />
               </Badge>
             ))}
             {filters.attributes.map(v => (
-              <Badge key={v} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("attributes", v)}>
+              <Badge key={`attr:${v}`} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("attributes", v)}>
                 {v} <X className="h-3 w-3" />
               </Badge>
             ))}
