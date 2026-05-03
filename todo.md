@@ -206,3 +206,11 @@
 - [x] Persist Browse page sort order to localStorage (survives page navigation)
 - [x] Add drag-to-reorder handles on playlist tracks in My Projects detail page
 - [x] Save reordered playlist track order to DB (new sortOrder column on playlist_tracks table)
+
+## Round 26 — Replace WaveSurfer with native HTML5 audio player
+
+- [x] Remove wavesurfer.js dependency
+- [x] Build new TrackPlayer component: native HTML5 audio, canvas waveform from peaks data, play/pause/seek, time display
+- [x] Replace WaveformPlayer.tsx (per-row player in Browse/ProjectDetail/SharedProject) with new TrackPlayer
+- [x] Replace GlobalPlayerBar WaveSurfer instance with native HTML5 audio
+- [x] Fallback: flat animated bar when peaks not yet available
