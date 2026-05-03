@@ -1,6 +1,7 @@
 import {
   boolean,
   int,
+  mediumtext,
   mysqlEnum,
   mysqlTable,
   text,
@@ -67,8 +68,11 @@ export const tracks = mysqlTable("tracks", {
   watermarkedMp3Url: varchar("watermarkedMp3Url", { length: 1024 }),
   coverArtKey: varchar("coverArtKey", { length: 512 }),
   coverArtUrl: varchar("coverArtUrl", { length: 1024 }),
+   keySignature: varchar("keySignature", { length: 64 }),
+  // Pre-computed waveform peaks for instant canvas rendering (JSON array of floats)
+  waveformPeaks: mediumtext("waveformPeaks"),
   hasStems: boolean("hasStems").default(false).notNull(),
-  watermarkStatus: mysqlEnum("watermarkStatus", ["pending", "processing", "done", "error"])
+  watermarkStatus: mysqlEnum("watermarkStatus", ["pending","processing","done","error"])
     .default("pending")
     .notNull(),
   isPublished: boolean("isPublished").default(false).notNull(),

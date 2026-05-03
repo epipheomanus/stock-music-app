@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Filter, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Filter, ChevronDown, FileArchive, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -224,6 +224,38 @@ export default function AdminTracks() {
       filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
   // Duplicate name alert
   const [duplicateAlertMsg, setDuplicateAlertMsg] = useState<string | null>(null);
+
+  // Bulk import state
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkZipFile, setBulkZipFile] = useState<File | null>(null);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkResults, setBulkResults] = useState<{
+    total: number; ok: number; skipped: number; errors: number;
+    results: { title: string; status: "ok"|"skipped"|"error"; error?: string; trackId?: number }[];
+  } | null>(null);
+
+  async function handleBulkImport() {
+    if (!bulkZipFile) { toast.error("Please select a ZIP file"); return; }
+    setBulkImporting(true);
+    setBulkResults(null);
+    try {
+      const fd = new FormData();
+      fd.append("zip", bulkZipFile);
+      const res = await fetch("/api/admin/bulk-import", {
+        method: "POST", body: fd, credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Import failed");
+      setBulkResults(data);
+      await utils.tracks.adminList.invalidate();
+      await utils.tracks.filterOptions.invalidate();
+      toast.success(`Imported ${data.ok} track${data.ok !== 1 ? "s" : ""}${data.errors > 0 ? `, ${data.errors} failed` : ""}`);
+    } catch (err: any) {
+      toast.error(err.message || "Bulk import failed");
+    } finally {
+      setBulkImporting(false);
+    }
+  }
 
   const tracksQuery = trpc.tracks.adminList.useQuery();
   const tracks = tracksQuery.data ?? [];
@@ -493,6 +525,13 @@ export default function AdminTracks() {
                 Retry All Stuck ({stuckCount})
               </Button>
             )}
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => { setBulkZipFile(null); setBulkResults(null); setShowBulkImport(true); }}
+            >
+              <FileArchive className="h-4 w-4" /> Bulk Import
+            </Button>
             <Button onClick={() => { setForm(DEFAULT_FORM); setWavFile(null); setStemsFiles([]); setCoverFile(null); setShowUploadDialog(true); }} className="gap-2">
               <Plus className="h-4 w-4" /> Add Track
             </Button>
@@ -810,6 +849,97 @@ export default function AdminTracks() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* ── Bulk Import dialog ── */}
+      <Dialog open={showBulkImport} onOpenChange={(open) => { if (!open) { setShowBulkImport(false); } }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Bulk Import Tracks</DialogTitle>
+            <DialogDescription>
+              Upload a ZIP file containing a CSV metadata file and WAV audio files.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Instructions */}
+          <div className="rounded-xl border border-border/60 bg-muted/20 p-4 text-xs space-y-2">
+            <p className="font-semibold text-foreground">ZIP file structure:</p>
+            <ul className="space-y-1 text-muted-foreground list-disc list-inside">
+              <li>One <code className="bg-muted px-1 rounded">tracks.csv</code> file with track metadata</li>
+              <li>WAV audio files (named to match the CSV <code className="bg-muted px-1 rounded">File</code> column)</li>
+            </ul>
+            <p className="font-semibold text-foreground mt-2">CSV columns:</p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+              <span><code className="bg-muted px-1 rounded">Title</code> <span className="text-destructive">*</span></span>
+              <span><code className="bg-muted px-1 rounded">File</code> (WAV filename)</span>
+              <span><code className="bg-muted px-1 rounded">Composer</code></span>
+              <span><code className="bg-muted px-1 rounded">Description</code></span>
+              <span><code className="bg-muted px-1 rounded">BPM</code></span>
+              <span><code className="bg-muted px-1 rounded">Key</code></span>
+              <span><code className="bg-muted px-1 rounded">Genre</code></span>
+              <span><code className="bg-muted px-1 rounded">Mood/Attributes</code></span>
+              <span><code className="bg-muted px-1 rounded">Published</code> (true/false)</span>
+            </div>
+            <p className="text-muted-foreground mt-1">
+              <span className="font-medium text-foreground">Mood/Attributes</span> values are auto-classified:
+              moods (Chill, Happy…), attributes (Corporate, Cinematic…), or genres (Pop, Rock…).
+              Unrecognized values become hidden tags.
+            </p>
+          </div>
+
+          {/* ZIP file picker */}
+          {!bulkResults && (
+            <div className="space-y-4">
+              <DropZone
+                label="ZIP File" hint="* required" accept=".zip,application/zip"
+                icon={FileArchive} file={bulkZipFile} onFile={setBulkZipFile}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowBulkImport(false)} disabled={bulkImporting}>Cancel</Button>
+                <Button onClick={handleBulkImport} disabled={bulkImporting || !bulkZipFile} className="gap-2">
+                  {bulkImporting ? <><Loader2 className="h-4 w-4 animate-spin" />Importing…</> : <><Upload className="h-4 w-4" />Start Import</>}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+
+          {/* Results */}
+          {bulkResults && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-center">
+                  <p className="text-2xl font-bold text-green-700">{bulkResults.ok}</p>
+                  <p className="text-xs text-green-600">Imported</p>
+                </div>
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-center">
+                  <p className="text-2xl font-bold text-yellow-700">{bulkResults.skipped}</p>
+                  <p className="text-xs text-yellow-600">Skipped</p>
+                </div>
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-center">
+                  <p className="text-2xl font-bold text-red-700">{bulkResults.errors}</p>
+                  <p className="text-xs text-red-600">Errors</p>
+                </div>
+              </div>
+              {/* Per-track list */}
+              <div className="max-h-60 overflow-y-auto space-y-1 rounded-lg border border-border/60 p-2">
+                {bulkResults.results.map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs py-1 px-2 rounded hover:bg-muted/30">
+                    {r.status === "ok" && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
+                    {r.status === "skipped" && <SkipForward className="h-3.5 w-3.5 text-yellow-500 shrink-0" />}
+                    {r.status === "error" && <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+                    <span className="flex-1 truncate font-medium">{r.title}</span>
+                    {r.error && <span className="text-muted-foreground truncate max-w-[180px]" title={r.error}>{r.error}</span>}
+                  </div>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setBulkZipFile(null); setBulkResults(null); }}>Import Another</Button>
+                <Button onClick={() => setShowBulkImport(false)}>Done</Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Duplicate name alert */}
       <AlertDialog open={duplicateAlertMsg !== null} onOpenChange={(open) => { if (!open) setDuplicateAlertMsg(null); }}>
         <AlertDialogContent>

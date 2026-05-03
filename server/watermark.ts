@@ -117,3 +117,42 @@ export async function convert16BitWav(inputPath: string): Promise<Buffer> {
     try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
   }
 }
+
+/**
+ * Generate waveform peak data from a WAV file for instant canvas rendering.
+ * Returns a JSON string of normalized float values (0..1) sampled at numSamples points.
+ *
+ * @param wavPath - Path to the WAV file on disk
+ * @param numSamples - Number of peak samples to generate (default 500)
+ */
+export async function generateWaveformPeaks(wavPath: string, numSamples = 500): Promise<string> {
+  // Use ffmpeg to extract raw PCM samples as 16-bit mono at a low sample rate
+  const targetRate = numSamples * 10;
+  const tmpRaw = path.join(os.tmpdir(), `peaks_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);
+  try {
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", wavPath,
+      "-ac", "1",                    // mono
+      "-ar", String(targetRate),     // target sample rate
+      "-f", "s16le",                 // raw 16-bit signed little-endian
+      tmpRaw,
+    ]);
+    const rawBuf = fs.readFileSync(tmpRaw);
+    const totalSamples = rawBuf.length / 2; // 2 bytes per s16le sample
+    const blockSize = Math.max(1, Math.floor(totalSamples / numSamples));
+    const peaks: number[] = [];
+    for (let i = 0; i < numSamples; i++) {
+      const start = i * blockSize * 2;
+      const end = Math.min(start + blockSize * 2, rawBuf.length);
+      let max = 0;
+      for (let j = start; j < end; j += 2) {
+        const sample = Math.abs(rawBuf.readInt16LE(j));
+        if (sample > max) max = sample;
+      }
+      peaks.push(parseFloat((max / 32768).toFixed(4)));
+    }
+    return JSON.stringify(peaks);
+  } finally {
+    try { fs.unlinkSync(tmpRaw); } catch { /* ignore */ }
+  }
+}

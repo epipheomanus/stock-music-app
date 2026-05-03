@@ -2,7 +2,10 @@
  * Upload routes for admin track and watermark uploads.
  * These use multipart/form-data so they live outside tRPC.
  */
+import { execFile } from "child_process";
+import { promisify } from "util";
 import { Router, Request, Response } from "express";
+const execFileAsync = promisify(execFile);
 import multer from "multer";
 import fs from "fs";
 import path from "path";
@@ -16,7 +19,9 @@ import {
   upsertWatermarkConfig,
   getWatermarkConfig,
 } from "./db";
-import { generateWatermarkedMp3, downloadToTemp } from "./watermark";
+import { generateWatermarkedMp3, downloadToTemp, convert16BitWav, generateWaveformPeaks } from "./watermark";
+import { parse as csvParse } from "csv-parse/sync";
+import unzipper from "unzipper";
 import { sdk } from "./_core/sdk";
 
 // ─── Multer config (memory storage) ─────────────────────────────────────────
@@ -71,14 +76,30 @@ export function registerUploadRoutes(app: any) {
           return;
         }
 
-        const tags: { type: "genre" | "mood" | "attribute" | "hidden"; value: string }[] =
+         const tags: { type: "genre" | "mood" | "attribute" | "hidden"; value: string }[] =
           req.body.tags ? JSON.parse(req.body.tags) : [];
-
-        // 1. Upload clean WAV to storage
+        // 1. Write original WAV to temp for processing
+        const tmpOrigPath = path.join(os.tmpdir(), `orig_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+        fs.writeFileSync(tmpOrigPath, wavFile.buffer);
+        // 1a. Upload original 24-bit WAV (preserved for download)
+        const origKeyBase = `tracks/wav/orig_${Date.now()}_${wavFile.originalname.replace(/\s+/g, "_")}`;
+        const { key: origWavKey, url: origWavUrl } = await storagePut(origKeyBase, wavFile.buffer, "audio/wav");
+        // 1b. Convert to 16-bit WAV for browser playback
+        let wav16Buf: Buffer;
+        try {
+          wav16Buf = await convert16BitWav(tmpOrigPath);
+        } catch {
+          wav16Buf = wavFile.buffer; // fallback to original if conversion fails
+        }
         const wavKeyBase = `tracks/wav/${Date.now()}_${wavFile.originalname.replace(/\s+/g, "_")}`;
-        const { key: wavKey, url: wavUrl } = await storagePut(wavKeyBase, wavFile.buffer, "audio/wav");
-
-        // 2. Upload cover art if provided
+        const { key: wavKey, url: wavUrl } = await storagePut(wavKeyBase, wav16Buf, "audio/wav");
+        // 1c. Generate waveform peaks
+        let waveformPeaks: string | undefined;
+        try {
+          waveformPeaks = await generateWaveformPeaks(tmpOrigPath, 500);
+        } catch { /* not critical */ }
+        try { fs.unlinkSync(tmpOrigPath); } catch { /* ignore */ }
+        // 2. Upload cover art if providedd
         let coverArtUrl: string | undefined;
         if (coverFiles && coverFiles.length > 0) {
           const coverFile = coverFiles[0];
@@ -114,22 +135,19 @@ export function registerUploadRoutes(app: any) {
           fs.unlinkSync(tmpZipPath);
         }
 
-        // 4. Get duration via ffprobe (write wav to temp)
+        // 4. Get duration via ffprobe
         let durationSeconds: number | undefined;
         try {
-          const tmpWavPath = path.join(os.tmpdir(), `dur_${Date.now()}.wav`);
-          fs.writeFileSync(tmpWavPath, wavFile.buffer);
-          const { execFile } = await import("child_process");
-          const { promisify } = await import("util");
-          const execFileAsync = promisify(execFile);
+          const tmpDurPath = path.join(os.tmpdir(), `dur_${Date.now()}.wav`);
+          fs.writeFileSync(tmpDurPath, wavFile.buffer);
           const { stdout } = await execFileAsync("ffprobe", [
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
-            tmpWavPath,
+            tmpDurPath,
           ]);
           durationSeconds = Math.round(parseFloat(stdout.trim()));
-          fs.unlinkSync(tmpWavPath);
+          fs.unlinkSync(tmpDurPath);
         } catch {
           // Duration detection failed — not critical
         }
@@ -140,15 +158,19 @@ export function registerUploadRoutes(app: any) {
           composerName: req.body.composerName?.trim() || undefined,
           description: req.body.description?.trim() || undefined,
           bpm: req.body.bpm ? Number(req.body.bpm) : undefined,
+          keySignature: req.body.keySignature?.trim() || undefined,
           durationSeconds,
           wavKey,
           wavUrl,
+          originalWavKey: origWavKey,
+          originalWavUrl: origWavUrl,
+          waveformPeaks,
           coverArtUrl,
           stemsZipUrl,
           hasStems,
           isPublished: req.body.isPublished === "true",
           watermarkStatus: "pending",
-        });
+        } as any);
 
         // 6. Save tags
         if (tags.length > 0) {
@@ -186,6 +208,252 @@ export function registerUploadRoutes(app: any) {
         console.error("[upload-watermark]", err);
         res.status(500).json({ error: err.message || "Upload failed" });
       }
+    }
+  );
+
+  // ─── POST /api/admin/bulk-import ─────────────────────────────────────────
+  // Accepts a ZIP containing a CSV metadata file + WAV audio files.
+  // CSV columns (case-insensitive, flexible):
+  //   Title*, Composer, Description, BPM, Key, Genre, Mood/Attributes, Published
+  // (* required)
+  // The Mood/Attributes column values are classified against the site taxonomy:
+  //   - Matches mood list → tagged as "mood"
+  //   - Matches attribute list → tagged as "attribute"
+  //   - Matches genre list → tagged as "genre"
+  //   - Unrecognized → tagged as "hidden"
+  router.post(
+    "/api/admin/bulk-import",
+    requireAdmin,
+    upload.single("zip"),
+    async (req: Request, res: Response) => {
+      if (!req.file) {
+        res.status(400).json({ error: "ZIP file is required" });
+        return;
+      }
+
+      // ── Taxonomy for tag classification ──
+      const MOOD_TAGS = new Set([
+        "angry","carefree","chill","eerie","emotional","happy","heartwarming",
+        "hopeful","love","peaceful","sad","serious","silly","somber","uplifting",
+      ]);
+      const ATTRIBUTE_TAGS = new Set([
+        "adventurous","aggressive","badass","bubbly","calming","cinematic",
+        "comedic","corporate","cute","dark","digital","energetic","epic",
+        "fast","fun","funky","inspirational","intense","motivational","nerdy",
+        "professional","retro","romantic","sexy","technology","whimsical",
+      ]);
+      const GENRE_TAGS = new Set([
+        "ambient","country","dance","disco","electronic","folk","funk",
+        "hip hop","indie","jazz","jingle","oldies","orchestral","pop",
+        "religious","rock","techno","world",
+      ]);
+
+      function classifyTag(raw: string): { type: "genre"|"mood"|"attribute"|"hidden"; value: string } {
+        const lower = raw.trim().toLowerCase();
+        const display = raw.trim();
+        if (MOOD_TAGS.has(lower)) return { type: "mood", value: display };
+        if (ATTRIBUTE_TAGS.has(lower)) return { type: "attribute", value: display };
+        if (GENRE_TAGS.has(lower)) return { type: "genre", value: display };
+        return { type: "hidden", value: display };
+      }
+
+      function normalizeHeader(h: string): string {
+        return h.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+      }
+
+      // ── Extract ZIP contents ──
+      const zipBuffer = req.file.buffer;
+      const wavFiles: Map<string, Buffer> = new Map();
+      let csvBuffer: Buffer | null = null;
+
+      try {
+        const directory = await unzipper.Open.buffer(zipBuffer);
+        for (const entry of directory.files) {
+          if (entry.type === "Directory") continue;
+          const name = path.basename(entry.path);
+          const nameLower = name.toLowerCase();
+          const buf = await entry.buffer();
+          if (nameLower.endsWith(".csv")) {
+            csvBuffer = buf;
+          } else if (nameLower.endsWith(".wav")) {
+            wavFiles.set(name.toLowerCase(), buf);
+            wavFiles.set(name, buf); // also store with original case
+          }
+        }
+      } catch (err: any) {
+        res.status(400).json({ error: "Invalid ZIP file: " + err.message });
+        return;
+      }
+
+      if (!csvBuffer) {
+        res.status(400).json({ error: "No CSV file found in ZIP" });
+        return;
+      }
+      if (wavFiles.size === 0) {
+        res.status(400).json({ error: "No WAV files found in ZIP" });
+        return;
+      }
+
+      // ── Parse CSV ──
+      let rows: Record<string, string>[];
+      try {
+        rows = csvParse(csvBuffer, {
+          columns: (headers: string[]) => headers.map(normalizeHeader),
+          skip_empty_lines: true,
+          trim: true,
+        }) as Record<string, string>[];
+      } catch (err: any) {
+        res.status(400).json({ error: "CSV parse error: " + err.message });
+        return;
+      }
+
+      if (rows.length === 0) {
+        res.status(400).json({ error: "CSV has no data rows" });
+        return;
+      }
+
+      // ── Process each row ──
+      const results: { title: string; status: "ok"|"skipped"|"error"; error?: string; trackId?: number }[] = [];
+
+      for (const row of rows) {
+        const title = (row["title"] || "").trim();
+        if (!title) {
+          results.push({ title: "(no title)", status: "skipped", error: "Missing title" });
+          continue;
+        }
+
+        // Find WAV file — try exact match then case-insensitive
+        const wavFilename = (row["file"] || row["filename"] || row["wav"] || row["wavfile"] || "").trim();
+        let wavBuf: Buffer | undefined;
+        if (wavFilename) {
+          wavBuf = wavFiles.get(wavFilename) ?? wavFiles.get(wavFilename.toLowerCase());
+        }
+        if (!wavBuf) {
+          // Try matching by title
+          const titleKey = title.toLowerCase().replace(/\s+/g, "_") + ".wav";
+          wavBuf = wavFiles.get(titleKey);
+        }
+        if (!wavBuf) {
+          // Try first WAV file that starts with the title
+          for (const [k, v] of Array.from(wavFiles.entries())) {
+            if (k.toLowerCase().startsWith(title.toLowerCase().slice(0, 8))) {
+              wavBuf = v;
+              break;
+            }
+          }
+        }
+        if (!wavBuf) {
+          results.push({ title, status: "skipped", error: `No WAV file found for "${title}"` });
+          continue;
+        }
+
+        try {
+          // 1. Write original WAV to temp
+          const tmpOrigPath = path.join(os.tmpdir(), `orig_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+          fs.writeFileSync(tmpOrigPath, wavBuf);
+
+          // 2. Upload original 24-bit WAV
+          const origKeyBase = `tracks/wav/orig_${Date.now()}_${title.replace(/\s+/g, "_")}.wav`;
+          const { key: origKey, url: origUrl } = await storagePut(origKeyBase, wavBuf, "audio/wav");
+
+          // 3. Convert to 16-bit WAV for browser playback
+          let wav16Buf: Buffer;
+          try {
+            wav16Buf = await convert16BitWav(tmpOrigPath);
+          } catch {
+            // If conversion fails, use original (might still work)
+            wav16Buf = wavBuf;
+          }
+          const wav16KeyBase = `tracks/wav/${Date.now()}_${title.replace(/\s+/g, "_")}.wav`;
+          const { key: wavKey, url: wavUrl } = await storagePut(wav16KeyBase, wav16Buf, "audio/wav");
+
+          // 4. Generate waveform peaks
+          let waveformPeaks: string | undefined;
+          try {
+            waveformPeaks = await generateWaveformPeaks(tmpOrigPath, 500);
+          } catch {
+            // Peaks generation failed — not critical
+          }
+
+          // 5. Get duration
+          let durationSeconds: number | undefined;
+          try {
+            const { stdout } = await execFileAsync("ffprobe", [
+              "-v", "error",
+              "-show_entries", "format=duration",
+              "-of", "default=noprint_wrappers=1:nokey=1",
+              tmpOrigPath,
+            ]);
+            durationSeconds = Math.round(parseFloat(stdout.trim()));
+          } catch { /* not critical */ }
+
+          // 6. Parse tags
+          const tags: { type: "genre"|"mood"|"attribute"|"hidden"; value: string }[] = [];
+
+          // Genre column
+          const genreRaw = row["genre"] || "";
+          for (const g of genreRaw.split(/[,;|]+/).map(s => s.trim()).filter(Boolean)) {
+            const lower = g.toLowerCase();
+            if (GENRE_TAGS.has(lower)) tags.push({ type: "genre", value: g });
+            else tags.push({ type: "hidden", value: g });
+          }
+
+          // Mood/Attributes column — classify each value
+          const moodAttrRaw = row["moodattributes"] || row["mood"] || row["attributes"] || row["moodattribute"] || "";
+          for (const val of moodAttrRaw.split(/[,;|]+/).map(s => s.trim()).filter(Boolean)) {
+            tags.push(classifyTag(val));
+          }
+
+          // Deduplicate tags
+          const seenTags = new Set<string>();
+          const uniqueTags = tags.filter(t => {
+            const k = `${t.type}:${t.value.toLowerCase()}`;
+            if (seenTags.has(k)) return false;
+            seenTags.add(k);
+            return true;
+          });
+
+          // 7. Create track record
+          const isPublished = ["true","yes","1","published"].includes((row["published"] || "").toLowerCase());
+          const trackId = await createTrack({
+            title,
+            composerName: row["composer"]?.trim() || undefined,
+            description: row["description"]?.trim() || undefined,
+            bpm: row["bpm"] ? Number(row["bpm"]) : undefined,
+            keySignature: row["key"]?.trim() || row["keysignature"]?.trim() || undefined,
+            durationSeconds,
+            wavKey,
+            wavUrl,
+            originalWavKey: origKey,
+            originalWavUrl: origUrl,
+            waveformPeaks,
+            isPublished,
+            watermarkStatus: "pending",
+          } as any);
+
+          // 8. Save tags
+          if (uniqueTags.length > 0) {
+            await replaceTrackTags(trackId, uniqueTags);
+          }
+
+          // 9. Cleanup temp
+          try { fs.unlinkSync(tmpOrigPath); } catch { /* ignore */ }
+
+          // 10. Generate watermark in background (non-blocking)
+          generateWatermarkInBackground(trackId, wavBuf, title + ".wav");
+
+          results.push({ title, status: "ok", trackId });
+        } catch (err: any) {
+          console.error(`[bulk-import] Failed for "${title}":`, err);
+          results.push({ title, status: "error", error: err.message || "Unknown error" });
+        }
+      }
+
+      const ok = results.filter(r => r.status === "ok").length;
+      const skipped = results.filter(r => r.status === "skipped").length;
+      const errors = results.filter(r => r.status === "error").length;
+
+      res.json({ success: true, total: rows.length, ok, skipped, errors, results });
     }
   );
 
