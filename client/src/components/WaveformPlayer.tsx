@@ -67,7 +67,9 @@ export default function WaveformPlayer({
       barRadius: 2,
       normalize: true,
       interact: false, // clicks handled by the container div below
-      backend: "WebAudio",
+      // MediaElement backend supports 24-bit/32-bit float WAV files;
+      // WebAudio's decodeAudioData() rejects them and leaves isLoading stuck.
+      backend: "MediaElement",
     });
 
     wavesurferRef.current = ws;
