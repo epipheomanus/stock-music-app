@@ -176,6 +176,34 @@ export async function extractWavFromZip(
 }
 
 /**
+ * Convert any WAV file (24-bit, 32-bit float, etc.) to 16-bit PCM 44100 Hz stereo.
+ * WaveSurfer's WebAudio backend only supports 16-bit PCM WAV files.
+ * Returns the converted buffer, or the original buffer if conversion fails.
+ */
+export async function convert16BitWav(inputBuffer: Buffer): Promise<Buffer> {
+  const tmpIn = path.join(os.tmpdir(), `conv_in_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+  const tmpOut = path.join(os.tmpdir(), `conv_out_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+  try {
+    fs.writeFileSync(tmpIn, inputBuffer);
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", tmpIn,
+      "-acodec", "pcm_s16le",
+      "-ar", "44100",
+      "-ac", "2",
+      tmpOut,
+    ]);
+    const converted = fs.readFileSync(tmpOut);
+    return converted;
+  } catch {
+    // If conversion fails, return the original buffer unchanged
+    return inputBuffer;
+  } finally {
+    try { fs.unlinkSync(tmpIn); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
+  }
+}
+
+/**
  * Generate a compact waveform peaks array from a WAV buffer.
  * Uses ffmpeg to downsample to mono at `numSamples` points, reads the raw
  * f32le values, and normalises them to [0, 1].

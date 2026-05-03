@@ -2,10 +2,10 @@
  * PlayerContext — global audio playback state.
  *
  * Architecture:
- *  - Uses a single native HTML5 <audio> element (no WaveSurfer dependency)
- *  - GlobalPlayerBar renders the progress bar UI and reads state from this context
- *  - WaveformPlayer rows draw a canvas waveform from pre-computed peaks and call
- *    setActiveTrack() to hand off playback to the global audio element
+ *  - PlayerContext holds track state + a ref to the WaveSurfer instance
+ *  - GlobalPlayerBar owns the DOM container and calls initWaveSurfer() after mount
+ *  - WaveformPlayer rows are muted display-only instances; they call setActiveTrack() to
+ *    hand off playback to the global bar
  */
 import {
   createContext,
@@ -13,9 +13,9 @@ import {
   useState,
   useCallback,
   useRef,
-  useEffect,
   ReactNode,
 } from "react";
+import WaveSurfer from "wavesurfer.js";
 
 export interface GlobalTrack {
   id: number;
@@ -39,7 +39,10 @@ interface PlayerContextType {
   isLoading: boolean;
   volume: number;
   isCollapsed: boolean;
+  /** Called by GlobalPlayerBar after its container div mounts */
+  initWaveSurfer: (container: HTMLDivElement) => void;
   setActiveTrack: (track: GlobalTrack) => void;
+  /** Set the full queue and optionally start playing a specific track */
   setQueue: (tracks: GlobalTrack[], startIndex?: number) => void;
   clearActiveTrack: () => void;
   togglePlayPause: () => void;
@@ -59,6 +62,7 @@ const PlayerContext = createContext<PlayerContextType>({
   isLoading: false,
   volume: 1,
   isCollapsed: false,
+  initWaveSurfer: () => {},
   setActiveTrack: () => {},
   setQueue: () => {},
   clearActiveTrack: () => {},
@@ -79,97 +83,98 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [volume, setVolumeState] = useState(1);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const pendingTrackRef = useRef<GlobalTrack | null>(null);
   const currentUrlRef = useRef<string>("");
   const queueRef = useRef<GlobalTrack[]>([]);
   const queueIndexRef = useRef<number>(-1);
 
-  // Create the single <audio> element once on mount
-  useEffect(() => {
-    const audio = new Audio();
-    audio.preload = "metadata";
-    audioRef.current = audio;
-
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onDurationChange = () => {
-      if (isFinite(audio.duration)) setDuration(audio.duration);
-    };
-    const onPlay = () => { setIsPlaying(true); setIsLoading(false); };
-    const onPause = () => setIsPlaying(false);
-    const onWaiting = () => setIsLoading(true);
-    const onCanPlay = () => setIsLoading(false);
-    const onEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(0);
-      const nextIdx = queueIndexRef.current + 1;
-      if (nextIdx < queueRef.current.length) {
-        queueIndexRef.current = nextIdx;
-        loadTrackUrl(queueRef.current[nextIdx]);
-      }
-    };
-    const onError = () => {
-      setIsLoading(false);
-    };
-
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("durationchange", onDurationChange);
-    audio.addEventListener("loadedmetadata", onDurationChange);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("waiting", onWaiting);
-    audio.addEventListener("canplay", onCanPlay);
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("error", onError);
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("durationchange", onDurationChange);
-      audio.removeEventListener("loadedmetadata", onDurationChange);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("waiting", onWaiting);
-      audio.removeEventListener("canplay", onCanPlay);
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("error", onError);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Keep volume in sync
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
-  const loadTrackUrl = useCallback((track: GlobalTrack) => {
+  const loadTrack = useCallback((track: GlobalTrack) => {
+    // Use clean WAV for playback; watermarkedMp3Url is only for the Download Preview button
     const url = track.wavUrl ?? "";
     if (!url) return;
-    const audio = audioRef.current;
-    if (!audio) return;
 
     setActiveTrackState(track);
     setCurrentTime(0);
     setDuration(0);
 
+    if (!wavesurferRef.current) {
+      pendingTrackRef.current = track;
+      return;
+    }
+
     if (url === currentUrlRef.current) {
-      // Same track — toggle play/pause
-      if (audio.paused) {
-        setIsLoading(true);
-        audio.play().catch(() => setIsLoading(false));
-      } else {
-        audio.pause();
-      }
+      wavesurferRef.current.playPause();
       return;
     }
 
     currentUrlRef.current = url;
     setIsLoading(true);
-    audio.src = url;
-    audio.load();
-    audio.play().catch(() => setIsLoading(false));
+    wavesurferRef.current.load(url);
   }, []);
 
+  /** Called by GlobalPlayerBar once its container div is mounted */
+  const initWaveSurfer = useCallback((container: HTMLDivElement) => {
+    if (wavesurferRef.current) return;
+
+    const ws = WaveSurfer.create({
+      container,
+      waveColor: "oklch(0.75 0.01 240)",
+      progressColor: "oklch(0.50 0.18 264)",
+      cursorColor: "oklch(0.50 0.18 264)",
+      cursorWidth: 2,
+      height: 40,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 2,
+      normalize: true,
+      interact: true,
+      backend: "WebAudio",
+    });
+
+    wavesurferRef.current = ws;
+    ws.setVolume(volume);
+
+    ws.on("loading", () => setIsLoading(true));
+    ws.on("ready", (dur) => {
+      setIsLoading(false);
+      setDuration(dur);
+      ws.play();
+    });
+    ws.on("audioprocess", (t) => setCurrentTime(t));
+    ws.on("seeking", (t) => setCurrentTime(t));
+    ws.on("play", () => setIsPlaying(true));
+    ws.on("pause", () => setIsPlaying(false));
+    ws.on("finish", () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      // Auto-advance to next track
+      const nextIdx = queueIndexRef.current + 1;
+      if (nextIdx < queueRef.current.length) {
+        queueIndexRef.current = nextIdx;
+        loadTrack(queueRef.current[nextIdx]);
+      }
+    });
+    ws.on("error", (err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("aborted") || msg.includes("abort")) return;
+      console.warn("[GlobalPlayer] error:", err);
+      setIsLoading(false);
+    });
+
+    if (pendingTrackRef.current) {
+      // Use clean WAV for playback
+      const url = pendingTrackRef.current.wavUrl ?? "";
+      if (url) {
+        currentUrlRef.current = url;
+        ws.load(url);
+      }
+      pendingTrackRef.current = null;
+    }
+  }, [volume, loadTrack]);
+
   const setActiveTrack = useCallback((track: GlobalTrack) => {
+    // Find in queue or append
     const idx = queueRef.current.findIndex((t) => t.id === track.id);
     if (idx >= 0) {
       queueIndexRef.current = idx;
@@ -177,74 +182,64 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueRef.current = [...queueRef.current, track];
       queueIndexRef.current = queueRef.current.length - 1;
     }
-    loadTrackUrl(track);
-  }, [loadTrackUrl]);
+    loadTrack(track);
+  }, [loadTrack]);
 
   const setQueue = useCallback((tracks: GlobalTrack[], startIndex = 0) => {
     queueRef.current = tracks;
     queueIndexRef.current = startIndex;
-    if (tracks[startIndex]) loadTrackUrl(tracks[startIndex]);
-  }, [loadTrackUrl]);
+    if (tracks[startIndex]) loadTrack(tracks[startIndex]);
+  }, [loadTrack]);
 
   const clearActiveTrack = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.src = "";
+    if (wavesurferRef.current) {
+      wavesurferRef.current.pause();
+      try { wavesurferRef.current.empty(); } catch { /* ignore */ }
     }
     currentUrlRef.current = "";
+    pendingTrackRef.current = null;
     queueRef.current = [];
     queueIndexRef.current = -1;
     setActiveTrackState(null);
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setIsLoading(false);
   }, []);
 
   const togglePlayPause = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      setIsLoading(true);
-      audio.play().catch(() => setIsLoading(false));
-    } else {
-      audio.pause();
-    }
+    wavesurferRef.current?.playPause();
   }, []);
 
   const seek = useCallback((time: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = time;
-    setCurrentTime(time);
-  }, []);
+    if (!wavesurferRef.current || !duration) return;
+    wavesurferRef.current.seekTo(time / duration);
+  }, [duration]);
 
   const setVolume = useCallback((v: number) => {
     setVolumeState(v);
-    if (audioRef.current) audioRef.current.volume = v;
+    wavesurferRef.current?.setVolume(v);
   }, []);
 
   const playNext = useCallback(() => {
     const nextIdx = queueIndexRef.current + 1;
     if (nextIdx < queueRef.current.length) {
       queueIndexRef.current = nextIdx;
-      loadTrackUrl(queueRef.current[nextIdx]);
+      loadTrack(queueRef.current[nextIdx]);
     }
-  }, [loadTrackUrl]);
+  }, [loadTrack]);
 
   const playPrev = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio && audio.currentTime > 3) {
-      audio.currentTime = 0;
+    // If more than 3s in, restart current track; otherwise go to previous
+    if (currentTime > 3 && wavesurferRef.current) {
+      wavesurferRef.current.seekTo(0);
       return;
     }
     const prevIdx = queueIndexRef.current - 1;
     if (prevIdx >= 0) {
       queueIndexRef.current = prevIdx;
-      loadTrackUrl(queueRef.current[prevIdx]);
+      loadTrack(queueRef.current[prevIdx]);
     }
-  }, [loadTrackUrl]);
+  }, [currentTime, loadTrack]);
 
   const toggleCollapsed = useCallback(() => {
     setIsCollapsed((c) => !c);
@@ -261,6 +256,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         isLoading,
         volume,
         isCollapsed,
+        initWaveSurfer,
         setActiveTrack,
         setQueue,
         clearActiveTrack,

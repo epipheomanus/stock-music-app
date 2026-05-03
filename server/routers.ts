@@ -30,7 +30,7 @@ import {
 import { eq, and, or, isNull } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3, generateWaveformPeaks, extractWavFromZip } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3, generateWaveformPeaks, extractWavFromZip, convert16BitWav } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -502,7 +502,17 @@ export const appRouter = router({
               }
               await updateTrack(trackId, stemsUpdate);
             }
-            // Generate waveform peaks from the (possibly extracted) WAV
+            // Convert WAV to 16-bit PCM so WaveSurfer can decode it (24-bit/32-bit WAV not supported)
+            const rawWavBuf = fs.readFileSync(cleanPath);
+            const convertedWavBuf = await convert16BitWav(rawWavBuf);
+            if (convertedWavBuf !== rawWavBuf) {
+              // Re-upload the converted WAV so the browser player gets the 16-bit version
+              const convKeyBase = `tracks/${trackId}/wav/clean_16bit_${Date.now()}.wav`;
+              const { key: convKey, url: convUrl } = await storagePut(convKeyBase, convertedWavBuf, "audio/wav");
+              await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
+              fs.writeFileSync(cleanPath, convertedWavBuf);
+            }
+            // Generate waveform peaks from the 16-bit WAV
             const wavBuf = fs.readFileSync(cleanPath);
             const peaks = await generateWaveformPeaks(wavBuf);
             if (peaks) await updateTrack(trackId, { waveformPeaks: peaks });
@@ -583,7 +593,16 @@ export const appRouter = router({
                 }
                 await updateTrack(trackId, stemsUpdate);
               }
-              // Generate waveform peaks from the (possibly extracted) WAV
+              // Convert WAV to 16-bit PCM so WaveSurfer can decode it (24-bit/32-bit WAV not supported)
+              const rawWavBuf = fs.readFileSync(cleanPath);
+              const convertedWavBuf = await convert16BitWav(rawWavBuf);
+              if (convertedWavBuf !== rawWavBuf) {
+                const convKeyBase = `tracks/${trackId}/wav/clean_16bit_${Date.now()}.wav`;
+                const { key: convKey, url: convUrl } = await storagePut(convKeyBase, convertedWavBuf, "audio/wav");
+                await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
+                fs.writeFileSync(cleanPath, convertedWavBuf);
+              }
+              // Generate waveform peaks from the 16-bit WAV
               const wavBuf = fs.readFileSync(cleanPath);
               const peaks = await generateWaveformPeaks(wavBuf);
               if (peaks) await updateTrack(trackId, { waveformPeaks: peaks });

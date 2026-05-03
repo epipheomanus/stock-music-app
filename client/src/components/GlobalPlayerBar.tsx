@@ -1,9 +1,9 @@
 /**
  * GlobalPlayerBar — persistent bottom playback bar.
- * Uses native HTML5 audio via PlayerContext (no WaveSurfer dependency).
+ * Owns the WaveSurfer container div and calls initWaveSurfer() after mount.
  * Features: play/pause, prev/next, volume slider, collapsible, add to cart, preview download.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -27,7 +27,7 @@ export default function GlobalPlayerBar() {
   const {
     activeTrack, isPlaying, currentTime, duration, isLoading,
     volume, isCollapsed,
-    togglePlayPause, seek,
+    initWaveSurfer, togglePlayPause, seek,
     setVolume, playNext, playPrev, clearActiveTrack, toggleCollapsed,
   } = usePlayer();
 
@@ -37,7 +37,16 @@ export default function GlobalPlayerBar() {
     onError: (err) => toast.error(err.message),
   });
   const { isAuthenticated } = useAuth();
+  const waveContainerRef = useRef<HTMLDivElement | null>(null);
   const [prevVolume, setPrevVolume] = useState(1);
+
+  // Initialize WaveSurfer once the container div is mounted
+  const setWaveContainerRef = useCallback((el: HTMLDivElement | null) => {
+    if (el && !waveContainerRef.current) {
+      waveContainerRef.current = el;
+      initWaveSurfer(el);
+    }
+  }, [initWaveSurfer]);
 
   const watermarkedDownloadMutation = trpc.downloads.downloadWatermarked.useMutation({
     onSuccess: (data) => {
@@ -189,24 +198,17 @@ export default function GlobalPlayerBar() {
               </Button>
             </div>
 
-            {/* Progress / time display */}
+            {/* Waveform */}
             <div className="flex-1 min-w-0 flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-9 text-right flex-shrink-0 tabular-nums">
+              <span className="text-xs text-muted-foreground w-9 text-right flex-shrink-0">
                 {formatTime(currentTime)}
               </span>
-              {/* Clickable waveform-style progress bar */}
               <div
-                className="flex-1 relative h-10 cursor-pointer flex items-center"
-                onClick={handleSeekClick}
-              >
-                <div className="w-full h-1.5 bg-muted rounded-full">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-              <span className="text-xs text-muted-foreground w-9 flex-shrink-0 tabular-nums">
+                ref={setWaveContainerRef}
+                className="flex-1 cursor-pointer"
+                style={{ height: 40 }}
+              />
+              <span className="text-xs text-muted-foreground w-9 flex-shrink-0">
                 {formatTime(duration)}
               </span>
             </div>
