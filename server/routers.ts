@@ -29,7 +29,7 @@ import {
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3, convert16BitWav } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -480,6 +480,27 @@ export const appRouter = router({
             // Use signed URLs for server-side downloads — relative /manus-storage/ paths only work in the browser
             const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
             cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
+
+            // Preserve the original (possibly 24-bit) WAV for download before converting.
+            // Only save originalWavUrl if not already set (avoid overwriting with 16-bit version).
+            const currentTrack = await getTrackById(trackId);
+            if (!currentTrack?.originalWavUrl) {
+              const origBuf = fs.readFileSync(cleanPath);
+              const origKey = `tracks/${trackId}/original_${Date.now()}.wav`;
+              const { key: ok, url: ou } = await storagePut(origKey, origBuf, "audio/wav");
+              await updateTrack(trackId, { originalWavKey: ok, originalWavUrl: ou });
+            }
+
+            // Convert to 16-bit WAV for browser playback (WebAudio cannot decode 24-bit in most browsers)
+            const wav16Buf = await convert16BitWav(cleanPath);
+            const conv16Key = `tracks/${trackId}/wav_16bit_${Date.now()}.wav`;
+            const { key: convKey, url: convUrl } = await storagePut(conv16Key, wav16Buf, "audio/wav");
+            await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
+            // Re-download the 16-bit version for watermarking
+            cleanPath && fs.existsSync(cleanPath) && fs.unlinkSync(cleanPath);
+            const conv16SignedUrl = await storageGetSignedUrl(convKey);
+            cleanPath = await downloadToTemp(conv16SignedUrl, ".wav");
+
             const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
             wmPath = await downloadToTemp(wmSignedUrl, ".wav");
             outPath = await generateWatermarkedMp3(cleanPath, wmPath);
@@ -541,6 +562,26 @@ export const appRouter = router({
             try {
               const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
               cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
+
+              // Preserve original 24-bit WAV for download (only if not already saved)
+              const currentTrack = await getTrackById(trackId);
+              if (!currentTrack?.originalWavUrl) {
+                const origBuf = fs.readFileSync(cleanPath);
+                const origKey = `tracks/${trackId}/original_${Date.now()}.wav`;
+                const { key: ok, url: ou } = await storagePut(origKey, origBuf, "audio/wav");
+                await updateTrack(trackId, { originalWavKey: ok, originalWavUrl: ou });
+              }
+
+              // Convert to 16-bit WAV for browser playback
+              const wav16Buf = await convert16BitWav(cleanPath);
+              const conv16Key = `tracks/${trackId}/wav_16bit_${Date.now()}.wav`;
+              const { key: convKey, url: convUrl } = await storagePut(conv16Key, wav16Buf, "audio/wav");
+              await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
+              // Re-download 16-bit for watermarking
+              cleanPath && fs.existsSync(cleanPath) && fs.unlinkSync(cleanPath);
+              const conv16SignedUrl = await storageGetSignedUrl(convKey);
+              cleanPath = await downloadToTemp(conv16SignedUrl, ".wav");
+
               const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
               wmPath = await downloadToTemp(wmSignedUrl, ".wav");
               outPath = await generateWatermarkedMp3(cleanPath, wmPath);
@@ -685,10 +726,13 @@ export const appRouter = router({
           const track = await getTrackById(trackId);
           if (!track || !track.wavUrl) continue;
           await logDownload(ctx.user.id, trackId, input.projectName, "clean_wav");
+          // Serve the original 24-bit WAV for download when available;
+          // wavUrl may be the 16-bit browser-playback version.
+          const downloadWavUrl = track.originalWavUrl ?? track.wavUrl;
           results.push({
             trackId,
             title: track.title,
-            wavUrl: track.wavUrl,
+            wavUrl: downloadWavUrl,
             stemsZipUrl: track.stemsZipUrl ?? null,
             hasStems: track.hasStems,
           });

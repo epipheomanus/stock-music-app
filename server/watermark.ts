@@ -94,3 +94,26 @@ export async function downloadToTemp(url: string, ext: string): Promise<string> 
   fs.writeFileSync(tmpPath, buf);
   return tmpPath;
 }
+
+/**
+ * Convert a WAV buffer to 16-bit PCM WAV using ffmpeg.
+ * WebAudio (used by WaveSurfer) cannot decode 24-bit WAV in many browsers,
+ * so we store a 16-bit version as `wavUrl` for browser playback.
+ * The original 24-bit file is preserved as `originalWavUrl` for downloads.
+ *
+ * @param inputPath - Path to the source WAV file on disk
+ * @returns Buffer containing the 16-bit WAV
+ */
+export async function convert16BitWav(inputPath: string): Promise<Buffer> {
+  const tmpOut = path.join(os.tmpdir(), `conv16_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+  try {
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", inputPath,
+      "-acodec", "pcm_s16le",
+      tmpOut,
+    ]);
+    return fs.readFileSync(tmpOut);
+  } finally {
+    try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
+  }
+}
