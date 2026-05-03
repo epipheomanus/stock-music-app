@@ -439,8 +439,8 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
             </div>
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {allTags.slice(0, 8).map(tag => (
-                  <span key={tag} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
+                {allTags.slice(0, 8).map((tag, i) => (
+                  <span key={`${i}:${tag}`} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
                     {tag}
                   </span>
                 ))}
