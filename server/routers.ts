@@ -215,7 +215,10 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const allTracks = await getPublishedTracks();
         if (!allTracks.length) return [];
-        const allTagRows = await getTagsForTracks(allTracks.map(t => t.id));
+        const [allTagRows, downloadCounts] = await Promise.all([
+          getTagsForTracks(allTracks.map(t => t.id)),
+          getTrackDownloadCounts(),
+        ]);
 
         // Group tags by trackId
         const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[]; hidden: string[] }>();
@@ -274,6 +277,7 @@ export const appRouter = router({
           ...track,
           // Don't expose hidden tags to the public
           tags: (() => { const t = tagMap.get(track.id); return { genres: t?.genres ?? [], moods: t?.moods ?? [], attributes: t?.attributes ?? [] }; })(),
+          downloadCount: downloadCounts.get(track.id) ?? 0,
         }));
       }),
 
@@ -526,20 +530,19 @@ export const appRouter = router({
 
         const wmAudioKey = wmConfig.audioKey!;
 
-        // Mark all as processing, then kick off async watermark jobs
-        for (const track of eligible) {
-          await updateTrack(track.id, { watermarkStatus: "processing" });
-
-          const realWavKey = track.wavUrl
-            ? track.wavUrl.replace(/^\/manus-storage\//, "")
-            : track.wavKey!;
-          const trackId = track.id;
-
-          (async () => {
+        // Process tracks SEQUENTIALLY in background to avoid rate-limiting the storage API.
+        // A 500ms gap between tracks keeps requests well under the 429 threshold.
+        (async () => {
+          for (const track of eligible) {
+            const trackId = track.id;
+            const realWavKey = track.wavUrl
+              ? track.wavUrl.replace(/^\/manus-storage\//, "")
+              : track.wavKey!;
             let cleanPath: string | null = null;
             let wmPath: string | null = null;
             let outPath: string | null = null;
             try {
+              await updateTrack(trackId, { watermarkStatus: "processing" });
               const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
               cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
               const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
@@ -549,17 +552,20 @@ export const appRouter = router({
               const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
               const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
               await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
-              console.log(`[Watermark] Bulk retry done for track ${trackId}: ${mp3Url}`);
+              console.log(`[Watermark] Retry done for track ${trackId}`);
             } catch (err) {
-              console.error(`[Watermark] Bulk retry failed for track ${trackId}:`, err);
-              await updateTrack(trackId, { watermarkStatus: "error" });
+              console.error(`[Watermark] Retry failed for track ${trackId}:`, err);
+              await updateTrack(trackId, { watermarkStatus: "error" }).catch(() => {});
             } finally {
               if (cleanPath && fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath);
               if (wmPath && fs.existsSync(wmPath)) fs.unlinkSync(wmPath);
               if (outPath && fs.existsSync(outPath)) fs.unlinkSync(outPath);
             }
-          })();
-        }
+            // Brief pause between tracks to avoid 429 rate limiting on storage API
+            await new Promise((r) => setTimeout(r, 500));
+          }
+          console.log(`[Watermark] Sequential retry complete for ${eligible.length} tracks`);
+        })();
 
         return { count: eligible.length, message: `Queued watermark generation for ${eligible.length} track(s)` };
       }),
@@ -976,6 +982,28 @@ export const appRouter = router({
     removeTrack: protectedProcedure
       .input(z.object({ playlistId: z.number(), trackId: z.number() }))
       .mutation(async ({ input }) => { await removeTrackFromPlaylist(input.playlistId, input.trackId); return { success: true }; }),
+    reorderTracks: protectedProcedure
+      .input(z.object({
+        playlistId: z.number(),
+        // Array of playlist-track IDs in the new desired order
+        orderedIds: z.array(z.number()),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Verify the playlist belongs to a project owned by this user
+        const { playlistTracks: ptTable, playlists: playlistsTable, projects: projectsTable } = await import("../drizzle/schema");
+        const { eq, and } = await import("drizzle-orm");
+        const pl = await db.select().from(playlistsTable).where(eq(playlistsTable.id, input.playlistId)).limit(1);
+        if (!pl[0]) throw new TRPCError({ code: "NOT_FOUND" });
+        const proj = await db.select().from(projectsTable).where(and(eq(projectsTable.id, pl[0].projectId), eq(projectsTable.userId, ctx.user.id))).limit(1);
+        if (!proj[0]) throw new TRPCError({ code: "FORBIDDEN" });
+        // Update sortOrder for each playlist-track row
+        await Promise.all(input.orderedIds.map((ptId, idx) =>
+          db.update(ptTable).set({ sortOrder: idx + 1 }).where(and(eq(ptTable.id, ptId), eq(ptTable.playlistId, input.playlistId)))
+        ));
+        return { success: true };
+      }),
   }),
 });
 

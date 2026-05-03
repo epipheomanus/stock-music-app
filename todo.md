@@ -195,3 +195,14 @@
 - [x] Add lazy intersection-observer loading so off-screen waveforms don't load until scrolled into view
 - [x] Add admin tRPC procedure to backfill peaks for existing tracks without them
 - [x] Add "Generate Peaks" button in admin Track Manager for backfill
+
+## Round 25
+
+- [ ] Fix bulk watermark stuck on "Processing" — investigate why tracks never complete watermark generation after bulk import
+- [ ] Fix waveform loading on Browse page — waveforms still not rendering correctly
+- [ ] Make composer a required field in admin track upload/edit form (frontend validation + server-side)
+- [ ] Add "Popularity" sort option to Browse page sort dropdown (based on clean download count, most → least)
+- [ ] Add download_count to tracks.list tRPC response for sort-by-popularity
+- [ ] Persist Browse page sort order to localStorage (survives page navigation)
+- [ ] Add drag-to-reorder handles on playlist tracks in My Projects detail page
+- [ ] Save reordered playlist track order to DB (new sortOrder column on playlist_tracks table)

@@ -107,7 +107,10 @@ export default function Browse() {
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za" | "popular">(
+    () => (localStorage.getItem("browse-sort") as any) ?? "newest"
+  );
+  useEffect(() => { localStorage.setItem("browse-sort", sortOrder); }, [sortOrder]);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
@@ -126,6 +129,7 @@ export default function Browse() {
     if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     else if (sortOrder === "az") arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortOrder === "za") arr.sort((a, b) => b.title.localeCompare(a.title));
+    else if (sortOrder === "popular") arr.sort((a, b) => ((b as any).downloadCount ?? 0) - ((a as any).downloadCount ?? 0));
     else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return arr;
   }, [rawTracks, sortOrder]);
@@ -208,7 +212,7 @@ export default function Browse() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="shrink-0 gap-1.5 text-xs h-8">
                   <ArrowUpDown className="h-3.5 w-3.5" />
-                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : "Z → A"}
+                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : sortOrder === "za" ? "Z → A" : "Most popular"}
                   <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -221,6 +225,9 @@ export default function Browse() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSortOrder("az")} className={sortOrder === "az" ? "font-medium text-primary" : ""}>
                   A → Z
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortOrder("popular")} className={sortOrder === "popular" ? "font-medium text-primary" : ""}>
+                  Most popular
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSortOrder("za")} className={sortOrder === "za" ? "font-medium text-primary" : ""}>
                   Z → A

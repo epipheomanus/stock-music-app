@@ -85,14 +85,51 @@ export async function generateWatermarkedMp3(
 
 /**
  * Download a file from a URL to a temp path.
+ * Retries up to `maxRetries` times with exponential backoff on 429 / 5xx errors.
+ * Validates that the downloaded content is not an error JSON payload.
  */
-export async function downloadToTemp(url: string, ext: string): Promise<string> {
+export async function downloadToTemp(
+  url: string,
+  ext: string,
+  maxRetries = 4
+): Promise<string> {
   const tmpPath = path.join(os.tmpdir(), `sv_${Date.now()}_${Math.random().toString(36).slice(2)}${ext}`);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to download file: ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.writeFileSync(tmpPath, buf);
-  return tmpPath;
+  let lastErr: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) {
+      // Exponential backoff: 1s, 2s, 4s, 8s
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+    try {
+      const res = await fetch(url);
+      if (res.status === 429 || res.status >= 500) {
+        lastErr = new Error(`HTTP ${res.status} from storage — will retry`);
+        continue; // retry
+      }
+      if (!res.ok) {
+        throw new Error(`Failed to download file: ${res.status}`);
+      }
+      const contentType = res.headers.get("content-type") ?? "";
+      // If the server returned JSON/HTML instead of binary audio, it's an error response
+      if (contentType.includes("application/json") || contentType.includes("text/html")) {
+        const body = await res.text().catch(() => "(unreadable)");
+        throw new Error(`Storage returned non-binary response (${contentType}): ${body.slice(0, 200)}`);
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length < 100) {
+        throw new Error(`Downloaded file is suspiciously small (${buf.length} bytes) — likely an error response`);
+      }
+      fs.writeFileSync(tmpPath, buf);
+      return tmpPath;
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      // Only retry on transient errors
+      if (attempt < maxRetries) continue;
+    }
+  }
+  throw lastErr ?? new Error("downloadToTemp: unknown error");
 }
 
 /**
