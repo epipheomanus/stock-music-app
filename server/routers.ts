@@ -1,7 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import bcrypt from "bcryptjs";
 import fs from "fs";
-import os from "os";
 import { nanoid } from "nanoid";
 import path from "path";
 import { z } from "zod";
@@ -27,10 +26,10 @@ import {
   getPlaylistTracks, addTrackToPlaylist, removeTrackFromPlaylist,
   getTrackDownloadCounts,
 } from "./db";
-import { eq, and, or, isNull } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3, generateWaveformPeaks, extractWavFromZip, convert16BitWav } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -215,10 +214,7 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const allTracks = await getPublishedTracks();
         if (!allTracks.length) return [];
-        const [allTagRows, downloadCounts] = await Promise.all([
-          getTagsForTracks(allTracks.map(t => t.id)),
-          getTrackDownloadCounts(),
-        ]);
+        const allTagRows = await getTagsForTracks(allTracks.map(t => t.id));
 
         // Group tags by trackId
         const tagMap = new Map<number, { genres: string[]; moods: string[]; attributes: string[]; hidden: string[] }>();
@@ -277,7 +273,6 @@ export const appRouter = router({
           ...track,
           // Don't expose hidden tags to the public
           tags: (() => { const t = tagMap.get(track.id); return { genres: t?.genres ?? [], moods: t?.moods ?? [], attributes: t?.attributes ?? [] }; })(),
-          downloadCount: downloadCounts.get(track.id) ?? 0,
         }));
       }),
 
@@ -485,52 +480,12 @@ export const appRouter = router({
             // Use signed URLs for server-side downloads — relative /manus-storage/ paths only work in the browser
             const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
             cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
-            // If the stored file is a ZIP (Dropbox bundle), extract the WAV and re-upload
-            const rawBuf = fs.readFileSync(cleanPath);
-            const zipResult = await extractWavFromZip(rawBuf);
-            if (zipResult) {
-              console.log(`[Watermark] Track ${trackId}: ZIP detected — extracting WAV from bundle`);
-              fs.writeFileSync(cleanPath, zipResult.wavBuffer);
-              const cleanKeyBase = `tracks/${trackId}/wav/clean_${Date.now()}.wav`;
-              const { key: newWavKey, url: newWavUrl } = await storagePut(cleanKeyBase, zipResult.wavBuffer, "audio/wav");
-              const stemsUpdate: Record<string, unknown> = { wavKey: newWavKey, wavUrl: newWavUrl };
-              if (zipResult.stemsZipBuffer) {
-                const stemsKeyBase = `tracks/${trackId}/stems/stems_${Date.now()}.zip`;
-                const { key: sKey, url: sUrl } = await storagePut(stemsKeyBase, zipResult.stemsZipBuffer, "application/zip");
-                stemsUpdate.stemsZipKey = sKey;
-                stemsUpdate.stemsZipUrl = sUrl;
-              }
-              await updateTrack(trackId, stemsUpdate);
-            }
-            // Preserve the original (possibly 24-bit) WAV for download before converting
-            const rawWavBuf = fs.readFileSync(cleanPath);
-            // Only save originalWavUrl if not already set (avoid overwriting with 16-bit version)
-            const currentTrack = await getTrackById(trackId);
-            if (!currentTrack?.originalWavUrl) {
-              const origKeyBase = `tracks/${trackId}/wav/original_${Date.now()}.wav`;
-              const { key: origKey, url: origUrl } = await storagePut(origKeyBase, rawWavBuf, "audio/wav");
-              await updateTrack(trackId, { originalWavKey: origKey, originalWavUrl: origUrl });
-              console.log(`[Watermark] Saved original WAV for track ${trackId}: ${origUrl}`);
-            }
-            // Convert WAV to 16-bit PCM for browser playback (WaveSurfer/WebAudio compatibility)
-            const convertedWavBuf = await convert16BitWav(rawWavBuf);
-            if (convertedWavBuf !== rawWavBuf) {
-              // Re-upload the converted WAV so the browser player gets the 16-bit version
-              const convKeyBase = `tracks/${trackId}/wav/clean_16bit_${Date.now()}.wav`;
-              const { key: convKey, url: convUrl } = await storagePut(convKeyBase, convertedWavBuf, "audio/wav");
-              await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
-              fs.writeFileSync(cleanPath, convertedWavBuf);
-            }
-            // Generate waveform peaks from the 16-bit WAV
-            const wavBuf = fs.readFileSync(cleanPath);
-            const peaks = await generateWaveformPeaks(wavBuf);
-            if (peaks) await updateTrack(trackId, { waveformPeaks: peaks });
             const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
             wmPath = await downloadToTemp(wmSignedUrl, ".wav");
             outPath = await generateWatermarkedMp3(cleanPath, wmPath);
-            const mp3Buf = fs.readFileSync(outPath);
+            const buf = fs.readFileSync(outPath);
             const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
-            const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, mp3Buf, "audio/mpeg");
+            const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
             await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
             console.log(`[Watermark] Done for track ${trackId}: ${mp3Url}`);
           } catch (err) {
@@ -570,80 +525,40 @@ export const appRouter = router({
 
         const wmAudioKey = wmConfig.audioKey!;
 
-        // Process tracks SEQUENTIALLY in background to avoid rate-limiting the storage API.
-        // A 500ms gap between tracks keeps requests well under the 429 threshold.
-        (async () => {
-          for (const track of eligible) {
-            const trackId = track.id;
-            const realWavKey = track.wavUrl
-              ? track.wavUrl.replace(/^\/manus-storage\//, "")
-              : track.wavKey!;
+        // Mark all as processing, then kick off async watermark jobs
+        for (const track of eligible) {
+          await updateTrack(track.id, { watermarkStatus: "processing" });
+
+          const realWavKey = track.wavUrl
+            ? track.wavUrl.replace(/^\/manus-storage\//, "")
+            : track.wavKey!;
+          const trackId = track.id;
+
+          (async () => {
             let cleanPath: string | null = null;
             let wmPath: string | null = null;
             let outPath: string | null = null;
             try {
-              await updateTrack(trackId, { watermarkStatus: "processing" });
               const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
               cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
-              // If the stored file is a ZIP (Dropbox bundle), extract the WAV and re-upload
-              const rawBuf = fs.readFileSync(cleanPath);
-              const zipResult = await extractWavFromZip(rawBuf);
-              if (zipResult) {
-                console.log(`[Watermark] Track ${trackId}: ZIP detected — extracting WAV from bundle`);
-                fs.writeFileSync(cleanPath, zipResult.wavBuffer);
-                const cleanKeyBase = `tracks/${trackId}/wav/clean_${Date.now()}.wav`;
-                const { key: newWavKey, url: newWavUrl } = await storagePut(cleanKeyBase, zipResult.wavBuffer, "audio/wav");
-                const stemsUpdate: Record<string, unknown> = { wavKey: newWavKey, wavUrl: newWavUrl };
-                if (zipResult.stemsZipBuffer) {
-                  const stemsKeyBase = `tracks/${trackId}/stems/stems_${Date.now()}.zip`;
-                  const { key: sKey, url: sUrl } = await storagePut(stemsKeyBase, zipResult.stemsZipBuffer, "application/zip");
-                  stemsUpdate.stemsZipKey = sKey;
-                  stemsUpdate.stemsZipUrl = sUrl;
-                }
-                await updateTrack(trackId, stemsUpdate);
-              }
-              // Preserve the original (possibly 24-bit) WAV for download before converting
-              const rawWavBuf = fs.readFileSync(cleanPath);
-              // Only save originalWavUrl if not already set (avoid overwriting with 16-bit version)
-              if (!track.originalWavUrl) {
-                const origKeyBase = `tracks/${trackId}/wav/original_${Date.now()}.wav`;
-                const { key: origKey, url: origUrl } = await storagePut(origKeyBase, rawWavBuf, "audio/wav");
-                await updateTrack(trackId, { originalWavKey: origKey, originalWavUrl: origUrl });
-                console.log(`[Watermark] Saved original WAV for track ${trackId}`);
-              }
-              // Convert WAV to 16-bit PCM for browser playback (WaveSurfer/WebAudio compatibility)
-              const convertedWavBuf = await convert16BitWav(rawWavBuf);
-              if (convertedWavBuf !== rawWavBuf) {
-                const convKeyBase = `tracks/${trackId}/wav/clean_16bit_${Date.now()}.wav`;
-                const { key: convKey, url: convUrl } = await storagePut(convKeyBase, convertedWavBuf, "audio/wav");
-                await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
-                fs.writeFileSync(cleanPath, convertedWavBuf);
-              }
-              // Generate waveform peaks from the 16-bit WAV
-              const wavBuf = fs.readFileSync(cleanPath);
-              const peaks = await generateWaveformPeaks(wavBuf);
-              if (peaks) await updateTrack(trackId, { waveformPeaks: peaks });
               const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
               wmPath = await downloadToTemp(wmSignedUrl, ".wav");
               outPath = await generateWatermarkedMp3(cleanPath, wmPath);
-              const mp3Buf = fs.readFileSync(outPath);
+              const buf = fs.readFileSync(outPath);
               const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
-              const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, mp3Buf, "audio/mpeg");
+              const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
               await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
-              console.log(`[Watermark] Retry done for track ${trackId}`);
+              console.log(`[Watermark] Bulk retry done for track ${trackId}: ${mp3Url}`);
             } catch (err) {
-              console.error(`[Watermark] Retry failed for track ${trackId}:`, err);
-              await updateTrack(trackId, { watermarkStatus: "error" }).catch(() => {});
+              console.error(`[Watermark] Bulk retry failed for track ${trackId}:`, err);
+              await updateTrack(trackId, { watermarkStatus: "error" });
             } finally {
               if (cleanPath && fs.existsSync(cleanPath)) fs.unlinkSync(cleanPath);
               if (wmPath && fs.existsSync(wmPath)) fs.unlinkSync(wmPath);
               if (outPath && fs.existsSync(outPath)) fs.unlinkSync(outPath);
             }
-            // Brief pause between tracks to avoid 429 rate limiting on storage API
-            await new Promise((r) => setTimeout(r, 500));
-          }
-          console.log(`[Watermark] Sequential retry complete for ${eligible.length} tracks`);
-        })();
+          })();
+        }
 
         return { count: eligible.length, message: `Queued watermark generation for ${eligible.length} track(s)` };
       }),
@@ -697,166 +612,6 @@ export const appRouter = router({
           and(eq(taxonomyTagsTable.type, input.type), eq(taxonomyTagsTable.value, input.value))
         );
         return { success: true };
-      }),
-    // Admin: bulk import tracks from CSV rows (downloads WAV from URL, uploads to storage, queues watermark)
-    bulkImport: adminOnly
-      .input(z.object({
-        rows: z.array(z.object({
-          title: z.string(),
-          composerName: z.string().optional(),
-          description: z.string().optional(),
-          bpm: z.number().optional(),
-          keySignature: z.string().optional(),
-          genres: z.array(z.string()).default([]),
-          moods: z.array(z.string()).default([]),
-          attributes: z.array(z.string()).default([]),
-          hiddenTags: z.array(z.string()).default([]),
-          wavUrl: z.string().url(),
-          isPublished: z.boolean().default(true),
-        })),
-      }))
-      .mutation(async ({ input }) => {
-        const results: { title: string; status: "success" | "skipped" | "error"; trackId?: number; error?: string }[] = [];
-        const dbConn = await getDb();
-        if (!dbConn) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        for (const row of input.rows) {
-          try {
-            // Check for duplicate title
-            const existing = await dbConn.select({ id: tracksTable.id }).from(tracksTable).where(eq(tracksTable.title, row.title)).limit(1);
-            if (existing.length > 0) {
-              results.push({ title: row.title, status: "skipped", error: "Duplicate title" });
-              continue;
-            }
-            // Convert Dropbox share URL to direct download URL
-            let downloadUrl = row.wavUrl;
-            if (downloadUrl.includes("dropbox.com")) {
-              downloadUrl = downloadUrl
-                .replace(/[?&]dl=0/, "")
-                .replace(/[?&]raw=0/, "")
-                .replace(/dropbox\.com\//, "dropbox.com/")
-                + (downloadUrl.includes("?") ? "&dl=1" : "?dl=1");
-            }
-            // Download WAV file
-            const response = await fetch(downloadUrl, { redirect: "follow" });
-            if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
-            const contentType = response.headers.get("content-type") ?? "audio/wav";
-            const arrayBuffer = await response.arrayBuffer();
-            const wavBuffer = Buffer.from(arrayBuffer);
-            const safeTitle = row.title.replace(/[^a-zA-Z0-9_-]/g, "_");
-            // Get duration via ffprobe
-            let durationSeconds: number | undefined;
-            try {
-              const tmpWavPath = path.join(os.tmpdir(), `import_dur_${Date.now()}.wav`);
-              fs.writeFileSync(tmpWavPath, wavBuffer);
-              const { execFile } = await import("child_process");
-              const { promisify } = await import("util");
-              const execFileAsync = promisify(execFile);
-              const { stdout } = await execFileAsync("ffprobe", ["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",tmpWavPath]);
-              durationSeconds = Math.round(parseFloat(stdout.trim()));
-              fs.unlinkSync(tmpWavPath);
-            } catch { /* non-critical */ }
-            // Upload original WAV to storage (preserved for download)
-            const origWavKey = `tracks/wav/${Date.now()}_${safeTitle}_original.wav`;
-            const { key: origWavKey2, url: origWavUrl } = await storagePut(origWavKey, wavBuffer, "audio/wav");
-            // Convert to 16-bit PCM for browser playback
-            const wavBuffer16 = await convert16BitWav(wavBuffer).catch(() => wavBuffer);
-            const playbackWavKey = `tracks/wav/${Date.now()}_${safeTitle}_16bit.wav`;
-            const { key: playbackKey, url: playbackUrl } = await storagePut(playbackWavKey, wavBuffer16, "audio/wav");
-            // Generate waveform peaks from 16-bit WAV (non-critical)
-            const waveformPeaks = await generateWaveformPeaks(wavBuffer16).catch(() => null);
-            // Create track record
-            const trackId = await createTrack({
-              title: row.title,
-              composerName: row.composerName,
-              description: row.description,
-              bpm: row.bpm,
-              durationSeconds,
-              wavKey: playbackKey,
-              wavUrl: playbackUrl,
-              originalWavKey: origWavKey2,
-              originalWavUrl: origWavUrl,
-              hasStems: false,
-              isPublished: row.isPublished,
-              watermarkStatus: "pending",
-              waveformPeaks: waveformPeaks ?? undefined,
-            });
-            // Save tags (keySignature stored as hidden tag)
-            const tags = [
-              ...row.genres.map(v => ({ type: "genre" as const, value: v })),
-              ...row.moods.map(v => ({ type: "mood" as const, value: v })),
-              ...row.attributes.map(v => ({ type: "attribute" as const, value: v })),
-              ...row.hiddenTags.map(v => ({ type: "hidden" as const, value: v })),
-              ...(row.keySignature ? [{ type: "hidden" as const, value: `key:${row.keySignature}` }] : []),
-            ];
-            if (tags.length > 0) await replaceTrackTags(trackId, tags);
-            // Kick off watermark generation in background (non-blocking)
-            // Use the 16-bit WAV buffer for watermark generation
-            const wavBuffer16Captured = wavBuffer16;
-            const trackIdCaptured = trackId;
-            (async () => {
-              try {
-                const wmConfig = await getWatermarkConfig();
-                if (!wmConfig?.audioKey) {
-                  await updateTrack(trackIdCaptured, { watermarkStatus: "error" }).catch(() => {});
-                  return;
-                }
-                await updateTrack(trackIdCaptured, { watermarkStatus: "processing" });
-                const wmSignedUrl = await storageGetSignedUrl(wmConfig.audioKey);
-                const wmTmpPath = await downloadToTemp(wmSignedUrl, ".wav");
-                const tmpWavPath2 = path.join(os.tmpdir(), `import_clean_${trackIdCaptured}_${Date.now()}.wav`);
-                fs.writeFileSync(tmpWavPath2, wavBuffer16Captured);
-                const mp3TmpPath = await generateWatermarkedMp3(tmpWavPath2, wmTmpPath);
-                const mp3Buffer = fs.readFileSync(mp3TmpPath);
-                const mp3Key = `tracks/watermarked/${trackIdCaptured}_${Date.now()}.mp3`;
-                const { key: mp3Key2, url: mp3Url } = await storagePut(mp3Key, mp3Buffer, "audio/mpeg");
-                await updateTrack(trackIdCaptured, { watermarkedMp3Key: mp3Key2, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
-                fs.unlinkSync(tmpWavPath2); fs.unlinkSync(wmTmpPath); fs.unlinkSync(mp3TmpPath);
-              } catch { await updateTrack(trackIdCaptured, { watermarkStatus: "error" }).catch(() => {}); }
-            })();
-            results.push({ title: row.title, status: "success", trackId });
-          } catch (err: any) {
-            results.push({ title: row.title, status: "error", error: err.message ?? "Unknown error" });
-          }
-        }
-        return { results };
-      }),
-    // Admin: backfill waveform peaks for all tracks that don't have them yet
-    backfillPeaks: adminOnly
-      .mutation(async () => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        // Get all tracks missing peaks
-        const missing = await db
-          .select({ id: tracksTable.id, wavUrl: tracksTable.wavUrl, wavKey: tracksTable.wavKey })
-          .from(tracksTable)
-          .where(isNull(tracksTable.waveformPeaks));
-        let done = 0;
-        let failed = 0;
-        // Process in background — fire and forget, return count immediately
-        (async () => {
-          for (const track of missing) {
-            try {
-              if (!track.wavUrl) { failed++; continue; }
-              // Derive the real key from wavUrl
-              const realKey = track.wavUrl.replace(/^\/manus-storage\//, "");
-              const signedUrl = await storageGetSignedUrl(realKey);
-              const res = await fetch(signedUrl);
-              if (!res.ok) { failed++; continue; }
-              const buf = Buffer.from(await res.arrayBuffer());
-              const peaks = await generateWaveformPeaks(buf);
-              if (peaks) {
-                await updateTrack(track.id, { waveformPeaks: peaks });
-                done++;
-              } else {
-                failed++;
-              }
-            } catch {
-              failed++;
-            }
-          }
-          console.log(`[backfillPeaks] Done: ${done}, Failed: ${failed} of ${missing.length} tracks`);
-        })();
-        return { queued: missing.length };
       }),
   }),
   // ─── Watermark Config ──────────────────────────────────────────────────────
@@ -919,7 +674,6 @@ export const appRouter = router({
   // ─── Downloads ─────────────────────────────────────────────────────────────
   downloads: router({
     // Checkout: log downloads and return download URLs
-    // NOTE: wavUrl = 16-bit browser-playback version; originalWavUrl = original 24-bit for download
     checkout: protectedProcedure
       .input(z.object({
         projectName: z.string().min(1),
@@ -931,12 +685,10 @@ export const appRouter = router({
           const track = await getTrackById(trackId);
           if (!track || !track.wavUrl) continue;
           await logDownload(ctx.user.id, trackId, input.projectName, "clean_wav");
-          // Prefer originalWavUrl (24-bit) for download; fall back to wavUrl if not yet set
-          const downloadWavUrl = track.originalWavUrl ?? track.wavUrl;
           results.push({
             trackId,
             title: track.title,
-            wavUrl: downloadWavUrl,
+            wavUrl: track.wavUrl,
             stemsZipUrl: track.stemsZipUrl ?? null,
             hasStems: track.hasStems,
           });
@@ -1072,28 +824,6 @@ export const appRouter = router({
     removeTrack: protectedProcedure
       .input(z.object({ playlistId: z.number(), trackId: z.number() }))
       .mutation(async ({ input }) => { await removeTrackFromPlaylist(input.playlistId, input.trackId); return { success: true }; }),
-    reorderTracks: protectedProcedure
-      .input(z.object({
-        playlistId: z.number(),
-        // Array of playlist-track IDs in the new desired order
-        orderedIds: z.array(z.number()),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        const db = await getDb();
-        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        // Verify the playlist belongs to a project owned by this user
-        const { playlistTracks: ptTable, playlists: playlistsTable, projects: projectsTable } = await import("../drizzle/schema");
-        const { eq, and } = await import("drizzle-orm");
-        const pl = await db.select().from(playlistsTable).where(eq(playlistsTable.id, input.playlistId)).limit(1);
-        if (!pl[0]) throw new TRPCError({ code: "NOT_FOUND" });
-        const proj = await db.select().from(projectsTable).where(and(eq(projectsTable.id, pl[0].projectId), eq(projectsTable.userId, ctx.user.id))).limit(1);
-        if (!proj[0]) throw new TRPCError({ code: "FORBIDDEN" });
-        // Update sortOrder for each playlist-track row
-        await Promise.all(input.orderedIds.map((ptId, idx) =>
-          db.update(ptTable).set({ sortOrder: idx + 1 }).where(and(eq(ptTable.id, ptId), eq(ptTable.playlistId, input.playlistId)))
-        ));
-        return { success: true };
-      }),
   }),
 });
 

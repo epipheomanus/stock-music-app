@@ -1,7 +1,6 @@
 import {
   boolean,
   int,
-  mediumtext,
   mysqlEnum,
   mysqlTable,
   text,
@@ -59,9 +58,6 @@ export const tracks = mysqlTable("tracks", {
   // Storage keys (S3)
   wavKey: varchar("wavKey", { length: 512 }),
   wavUrl: varchar("wavUrl", { length: 1024 }),
-  // Original 24-bit WAV preserved for download (wavUrl holds 16-bit browser-playback version)
-  originalWavKey: varchar("originalWavKey", { length: 512 }),
-  originalWavUrl: varchar("originalWavUrl", { length: 1024 }),
   stemsZipKey: varchar("stemsZipKey", { length: 512 }),
   stemsZipUrl: varchar("stemsZipUrl", { length: 1024 }),
   watermarkedMp3Key: varchar("watermarkedMp3Key", { length: 512 }),
@@ -73,9 +69,6 @@ export const tracks = mysqlTable("tracks", {
     .default("pending")
     .notNull(),
   isPublished: boolean("isPublished").default(false).notNull(),
-  // Pre-computed waveform peaks JSON array (~200 values) for instant waveform rendering
-  // MEDIUMTEXT supports up to 16 MB; TEXT (65 KB) is too small for long tracks
-  waveformPeaks: mediumtext("waveformPeaks"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

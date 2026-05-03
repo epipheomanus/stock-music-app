@@ -251,10 +251,6 @@ export default function AdminTracks() {
     onError: (err: { message?: string }) => toast.error(err.message || "Retry failed"),
   });
 
-  const backfillPeaksMutation = trpc.tracks.backfillPeaks.useMutation({
-    onSuccess: (data) => toast.success(`Waveform backfill started for ${data.queued} tracks`),
-    onError: (err) => toast.error(`Backfill failed: ${err.message}`),
-  });
   const retryAllStuckMutation = trpc.tracks.retryAllStuck.useMutation({
     onSuccess: (data) => {
       utils.tracks.adminList.invalidate();
@@ -330,7 +326,6 @@ export default function AdminTracks() {
     e.preventDefault();
     if (!wavFile) { toast.error("Please select a WAV file"); return; }
     if (!form.title.trim()) { toast.error("Title is required"); return; }
-    if (!form.composerName.trim()) { toast.error("Composer is required"); return; }
 
     setUploading(true);
     try {
@@ -498,20 +493,6 @@ export default function AdminTracks() {
                 Retry All Stuck ({stuckCount})
               </Button>
             )}
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => backfillPeaksMutation.mutate()}
-              disabled={backfillPeaksMutation.isPending}
-              title="Generate waveform peaks for all tracks that are missing them"
-            >
-              {backfillPeaksMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              Backfill Waveforms
-            </Button>
             <Button onClick={() => { setForm(DEFAULT_FORM); setWavFile(null); setStemsFiles([]); setCoverFile(null); setShowUploadDialog(true); }} className="gap-2">
               <Plus className="h-4 w-4" /> Add Track
             </Button>
@@ -734,8 +715,8 @@ export default function AdminTracks() {
                 <Input id="title" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="composer">Composer *</Label>
-                <Input id="composer" value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} required />
+                <Label htmlFor="composer">Composer</Label>
+                <Input id="composer" value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -790,8 +771,8 @@ export default function AdminTracks() {
                 <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
               </div>
               <div className="space-y-1.5">
-                <Label>Composer *</Label>
-                <Input value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} required />
+                <Label>Composer</Label>
+                <Input value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

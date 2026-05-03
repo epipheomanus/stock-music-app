@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2, Tags, Upload } from "lucide-react";
+import { LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2, Tags } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useEffect } from "react";
@@ -12,7 +12,6 @@ const navItems = [
   { href: "/admin/analytics", label: "Downloads", icon: BarChart3 },
   { href: "/admin/watermark", label: "Watermark", icon: Mic2 },
   { href: "/admin/taxonomy", label: "Taxonomy", icon: Tags },
-  { href: "/admin/import", label: "Bulk Import", icon: Upload },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

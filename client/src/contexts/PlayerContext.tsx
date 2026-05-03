@@ -129,9 +129,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       barRadius: 2,
       normalize: true,
       interact: true,
-      // MediaElement backend: starts playing immediately without decoding the full file first.
-      // This eliminates the "large delay from click to playback" issue with WebAudio backend.
-      backend: "MediaElement",
+      backend: "WebAudio",
     });
 
     wavesurferRef.current = ws;
@@ -160,11 +158,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ws.on("error", (err) => {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("aborted") || msg.includes("abort")) return;
-      // Decode error (e.g. 24-bit WAV not yet converted by admin retry pipeline)
-      // Keep the player bar usable — the track will be fixed after "Retry All Stuck".
-      console.warn("[GlobalPlayer] audio decode error (will be fixed after watermark retry):", msg);
+      console.warn("[GlobalPlayer] error:", err);
       setIsLoading(false);
-      setIsPlaying(false);
     });
 
     if (pendingTrackRef.current) {

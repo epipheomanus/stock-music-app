@@ -107,10 +107,7 @@ export default function Browse() {
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za" | "popular">(
-    () => (localStorage.getItem("browse-sort") as any) ?? "newest"
-  );
-  useEffect(() => { localStorage.setItem("browse-sort", sortOrder); }, [sortOrder]);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za">("newest");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
@@ -129,7 +126,6 @@ export default function Browse() {
     if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     else if (sortOrder === "az") arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortOrder === "za") arr.sort((a, b) => b.title.localeCompare(a.title));
-    else if (sortOrder === "popular") arr.sort((a, b) => ((b as any).downloadCount ?? 0) - ((a as any).downloadCount ?? 0));
     else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return arr;
   }, [rawTracks, sortOrder]);
@@ -212,7 +208,7 @@ export default function Browse() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="shrink-0 gap-1.5 text-xs h-8">
                   <ArrowUpDown className="h-3.5 w-3.5" />
-                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : sortOrder === "za" ? "Z → A" : "Most popular"}
+                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : "Z → A"}
                   <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
               </DropdownMenuTrigger>
@@ -225,9 +221,6 @@ export default function Browse() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSortOrder("az")} className={sortOrder === "az" ? "font-medium text-primary" : ""}>
                   A → Z
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortOrder("popular")} className={sortOrder === "popular" ? "font-medium text-primary" : ""}>
-                  Most popular
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setSortOrder("za")} className={sortOrder === "za" ? "font-medium text-primary" : ""}>
                   Z → A
@@ -284,17 +277,17 @@ export default function Browse() {
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {filters.genres.map(v => (
-              <Badge key={`genre:${v}`} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("genres", v)}>
+              <Badge key={v} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("genres", v)}>
                 Genre: {v} <X className="h-3 w-3" />
               </Badge>
             ))}
             {filters.moods.map(v => (
-              <Badge key={`mood:${v}`} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("moods", v)}>
+              <Badge key={v} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("moods", v)}>
                 Mood: {v} <X className="h-3 w-3" />
               </Badge>
             ))}
             {filters.attributes.map(v => (
-              <Badge key={`attr:${v}`} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("attributes", v)}>
+              <Badge key={v} variant="secondary" className="gap-1 cursor-pointer" onClick={() => toggleFilter("attributes", v)}>
                 {v} <X className="h-3 w-3" />
               </Badge>
             ))}
@@ -364,7 +357,6 @@ type TrackData = {
   id: number; title: string; composerName: string | null; durationSeconds: number | null;
   coverArtUrl: string | null; watermarkedMp3Url: string | null; wavUrl: string | null;
   hasStems: boolean; watermarkStatus: string; createdAt: Date;
-  waveformPeaks?: string | null;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
 };
 
@@ -447,8 +439,8 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
             </div>
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-2">
-                {allTags.slice(0, 8).map((tag, i) => (
-                  <span key={`${i}:${tag}`} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
+                {allTags.slice(0, 8).map(tag => (
+                  <span key={tag} className="text-xs bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full capitalize">
                     {tag}
                   </span>
                 ))}
@@ -461,14 +453,7 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
         </div>
         {audioUrl && (
           <div className="mt-3">
-            <WaveformPlayer
-              audioUrl={audioUrl}
-              trackId={track.id}
-              peaks={track.waveformPeaks}
-              durationSeconds={track.durationSeconds}
-              isGloballyPlaying={isPlaying}
-              onPlay={() => onPlay(track)}
-            />
+            <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
           </div>
         )}
       </div>
