@@ -3,6 +3,8 @@
  *
  * Responsibilities:
  *  - Renders a WaveSurfer waveform for visual display (loads audio to draw shape)
+ *  - When pre-computed peaks are provided, renders instantly without fetching the audio file
+ *  - Uses IntersectionObserver to lazy-initialise off-screen waveforms
  *  - When the user clicks Play, it calls onPlay(track) to hand off to the GlobalPlayerBar
  *  - When this track IS the active global track, it mirrors the global progress bar
  *  - Does NOT output audio itself — audio comes from the GlobalPlayerBar's WaveSurfer instance
@@ -16,6 +18,10 @@ import { usePlayer } from "@/contexts/PlayerContext";
 interface WaveformPlayerProps {
   audioUrl: string;
   trackId: number;
+  /** Pre-computed peaks JSON string from the server — enables instant waveform rendering */
+  waveformPeaks?: string | null;
+  /** Duration in seconds (used with peaks to avoid fetching audio for duration) */
+  durationSeconds?: number | null;
   /** Whether this track is the one currently active in the global player */
   isGloballyPlaying: boolean;
   /** Called when user wants to start playing this track */
@@ -33,15 +39,19 @@ function formatTime(seconds: number): string {
 export default function WaveformPlayer({
   audioUrl,
   trackId,
+  waveformPeaks,
+  durationSeconds,
   isGloballyPlaying,
   onPlay,
   compact = false,
 }: WaveformPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [localDuration, setLocalDuration] = useState(0);
+  const [localDuration, setLocalDuration] = useState(durationSeconds ?? 0);
+  const [isVisible, setIsVisible] = useState(false);
 
   // Pull live progress from global context when this is the active track
   const { activeTrackId, currentTime: globalTime, duration: globalDuration, isPlaying: globalIsPlaying, togglePlayPause } = usePlayer();
@@ -49,11 +59,27 @@ export default function WaveformPlayer({
 
   const displayTime = isActiveGlobal ? globalTime : 0;
   const displayDuration = isActiveGlobal ? globalDuration : localDuration;
-  const progressRatio = displayDuration > 0 ? displayTime / displayDuration : 0;
 
-  // Initialize WaveSurfer for waveform drawing only (muted)
+  // ── Lazy-load: only initialise WaveSurfer when the row is scrolled into view ──
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+      { rootMargin: "200px" } // pre-load 200px before entering viewport
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // ── Initialize WaveSurfer once visible ──
+  useEffect(() => {
+    if (!isVisible || !containerRef.current) return;
+
+    const parsedPeaks: number[] | null = (() => {
+      if (!waveformPeaks) return null;
+      try { return JSON.parse(waveformPeaks); } catch { return null; }
+    })();
 
     const ws = WaveSurfer.create({
       container: containerRef.current,
@@ -70,16 +96,29 @@ export default function WaveformPlayer({
       // MediaElement backend supports 24-bit/32-bit float WAV files;
       // WebAudio's decodeAudioData() rejects them and leaves isLoading stuck.
       backend: "MediaElement",
+      // Pre-supply peaks so WaveSurfer renders the waveform shape without
+      // fetching the full audio file (the audio is only loaded on first play).
+      ...(parsedPeaks && durationSeconds ? { peaks: [parsedPeaks], duration: durationSeconds } : {}),
     });
 
     wavesurferRef.current = ws;
     ws.setVolume(0); // Mute — audio output is handled by GlobalPlayerBar
 
+    if (parsedPeaks && durationSeconds) {
+      // Peaks supplied — render instantly without fetching audio
+      setIsReady(true);
+      setLocalDuration(durationSeconds);
+    } else {
+      // No peaks — fall back to loading the audio file for waveform drawing
+      setIsLoading(true);
+      ws.load(audioUrl);
+    }
+
     ws.on("loading", () => setIsLoading(true));
     ws.on("ready", (dur) => {
       setIsLoading(false);
       setIsReady(true);
-      setLocalDuration(dur);
+      if (dur) setLocalDuration(dur);
     });
     ws.on("error", (err) => {
       const msg = err instanceof Error ? err.message : String(err);
@@ -92,17 +131,24 @@ export default function WaveformPlayer({
       ws.destroy();
       wavesurferRef.current = null;
     };
-  }, [compact]);
+    // Re-init only when visibility or compact changes; audioUrl/peaks changes handled below
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isVisible, compact]);
 
-  // Load audio when URL changes (for waveform shape only)
+  // ── Reload when audioUrl changes (only if no peaks, since peaks render instantly) ──
   useEffect(() => {
     if (!wavesurferRef.current || !audioUrl) return;
+    const parsedPeaks: number[] | null = (() => {
+      if (!waveformPeaks) return null;
+      try { return JSON.parse(waveformPeaks); } catch { return null; }
+    })();
+    if (parsedPeaks && durationSeconds) return; // peaks already rendered
     setIsReady(false);
     setIsLoading(true);
     wavesurferRef.current.load(audioUrl);
-  }, [audioUrl]);
+  }, [audioUrl, waveformPeaks, durationSeconds]);
 
-  // Mirror global progress in the visual waveform
+  // ── Mirror global progress in the visual waveform ──
   useEffect(() => {
     if (!wavesurferRef.current || !isReady || !isActiveGlobal || !globalDuration) return;
     const ratio = globalTime / globalDuration;
@@ -113,10 +159,8 @@ export default function WaveformPlayer({
 
   const handlePlayPause = useCallback(() => {
     if (isActiveGlobal) {
-      // Already active — toggle play/pause on the global player
       togglePlayPause();
     } else {
-      // Trigger global player to load and play this track
       onPlay(trackId);
     }
   }, [isActiveGlobal, togglePlayPause, onPlay, trackId]);
@@ -124,7 +168,7 @@ export default function WaveformPlayer({
   const isShowingPlaying = isActiveGlobal && globalIsPlaying;
 
   return (
-    <div className="flex items-center gap-3 w-full">
+    <div ref={wrapperRef} className="flex items-center gap-3 w-full">
       {/* Play/Pause button */}
       <Button
         variant="ghost"

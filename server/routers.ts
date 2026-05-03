@@ -27,10 +27,10 @@ import {
   getPlaylistTracks, addTrackToPlaylist, removeTrackFromPlaylist,
   getTrackDownloadCounts,
 } from "./db";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3 } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3, generateWaveformPeaks } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -674,6 +674,8 @@ export const appRouter = router({
             // Upload WAV to storage
             const wavKey = `tracks/wav/${Date.now()}_${safeTitle}.wav`;
             const { url: wavStorageUrl } = await storagePut(wavKey, wavBuffer, "audio/wav");
+            // Generate waveform peaks (non-critical)
+            const waveformPeaks = await generateWaveformPeaks(wavBuffer).catch(() => null);
             // Create track record
             const trackId = await createTrack({
               title: row.title,
@@ -686,6 +688,7 @@ export const appRouter = router({
               hasStems: false,
               isPublished: row.isPublished,
               watermarkStatus: "pending",
+              waveformPeaks: waveformPeaks ?? undefined,
             });
             // Save tags (keySignature stored as hidden tag)
             const tags = [
@@ -723,6 +726,44 @@ export const appRouter = router({
           }
         }
         return { results };
+      }),
+    // Admin: backfill waveform peaks for all tracks that don't have them yet
+    backfillPeaks: adminOnly
+      .mutation(async () => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Get all tracks missing peaks
+        const missing = await db
+          .select({ id: tracksTable.id, wavUrl: tracksTable.wavUrl, wavKey: tracksTable.wavKey })
+          .from(tracksTable)
+          .where(isNull(tracksTable.waveformPeaks));
+        let done = 0;
+        let failed = 0;
+        // Process in background — fire and forget, return count immediately
+        (async () => {
+          for (const track of missing) {
+            try {
+              if (!track.wavUrl) { failed++; continue; }
+              // Derive the real key from wavUrl
+              const realKey = track.wavUrl.replace(/^\/manus-storage\//, "");
+              const signedUrl = await storageGetSignedUrl(realKey);
+              const res = await fetch(signedUrl);
+              if (!res.ok) { failed++; continue; }
+              const buf = Buffer.from(await res.arrayBuffer());
+              const peaks = await generateWaveformPeaks(buf);
+              if (peaks) {
+                await updateTrack(track.id, { waveformPeaks: peaks });
+                done++;
+              } else {
+                failed++;
+              }
+            } catch {
+              failed++;
+            }
+          }
+          console.log(`[backfillPeaks] Done: ${done}, Failed: ${failed} of ${missing.length} tracks`);
+        })();
+        return { queued: missing.length };
       }),
   }),
   // ─── Watermark Config ──────────────────────────────────────────────────────

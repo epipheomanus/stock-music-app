@@ -182,3 +182,16 @@
 - [x] Register /admin/import route in App.tsx and add link in AdminLayout sidebar
 - [x] Handle Dropbox share links → convert to direct-download URLs (replace ?dl=0 with ?dl=1 / raw=1)
 - [x] Show per-row import result (success / skipped duplicate / error) in results table
+
+## Round 24 — Performance: Waveform Peaks Cache
+
+- [x] Add `waveformPeaks` TEXT column to tracks table in drizzle/schema.ts
+- [x] Generate and apply DB migration SQL
+- [x] Add `generateWaveformPeaks(wavPath)` helper using ffmpeg to extract peak data as JSON
+- [x] Call peaks generation after WAV upload (single upload route)
+- [x] Call peaks generation during bulk import
+- [x] Expose peaks in tracks.list and tracks.adminList tRPC responses
+- [x] Update WaveformPlayer to pass peaks to WaveSurfer (skips full WAV fetch for waveform drawing)
+- [x] Add lazy intersection-observer loading so off-screen waveforms don't load until scrolled into view
+- [x] Add admin tRPC procedure to backfill peaks for existing tracks without them
+- [x] Add "Generate Peaks" button in admin Track Manager for backfill

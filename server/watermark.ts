@@ -94,3 +94,51 @@ export async function downloadToTemp(url: string, ext: string): Promise<string> 
   fs.writeFileSync(tmpPath, buf);
   return tmpPath;
 }
+
+/**
+ * Generate a compact waveform peaks array from a WAV buffer.
+ * Uses ffmpeg to downsample to mono at `numSamples` points, reads the raw
+ * f32le values, and normalises them to [0, 1].
+ *
+ * Returns a JSON string like "[0.12,0.45,...]" suitable for DB storage.
+ * Returns null if ffmpeg fails (non-critical — waveform will fall back to
+ * fetching the full audio file).
+ */
+export async function generateWaveformPeaks(
+  wavBuffer: Buffer,
+  numSamples = 200
+): Promise<string | null> {
+  const tmpIn = path.join(os.tmpdir(), `peaks_in_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
+  const tmpOut = path.join(os.tmpdir(), `peaks_out_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);
+  try {
+    fs.writeFileSync(tmpIn, wavBuffer);
+    // Downsample to mono at exactly numSamples frames (f32le raw PCM)
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", tmpIn,
+      "-ac", "1",
+      "-ar", String(numSamples),
+      "-f", "f32le",
+      tmpOut,
+    ]);
+    const raw = fs.readFileSync(tmpOut);
+    const count = Math.floor(raw.byteLength / 4);
+    if (count === 0) return null;
+    const peaks: number[] = [];
+    let maxVal = 0;
+    for (let i = 0; i < count; i++) {
+      const v = Math.abs(raw.readFloatLE(i * 4));
+      peaks.push(v);
+      if (v > maxVal) maxVal = v;
+    }
+    // Normalise to [0, 1] with 3 decimal places
+    const normalised = maxVal > 0
+      ? peaks.map(v => Math.round((v / maxVal) * 1000) / 1000)
+      : peaks;
+    return JSON.stringify(normalised);
+  } catch {
+    return null;
+  } finally {
+    try { fs.unlinkSync(tmpIn); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpOut); } catch { /* ignore */ }
+  }
+}

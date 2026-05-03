@@ -69,6 +69,8 @@ export const tracks = mysqlTable("tracks", {
     .default("pending")
     .notNull(),
   isPublished: boolean("isPublished").default(false).notNull(),
+  // Pre-computed waveform peaks JSON array (~200 values) for instant waveform rendering
+  waveformPeaks: text("waveformPeaks"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

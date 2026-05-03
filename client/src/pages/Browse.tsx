@@ -357,6 +357,7 @@ type TrackData = {
   id: number; title: string; composerName: string | null; durationSeconds: number | null;
   coverArtUrl: string | null; watermarkedMp3Url: string | null; wavUrl: string | null;
   hasStems: boolean; watermarkStatus: string; createdAt: Date;
+  waveformPeaks?: string | null;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
 };
 
@@ -453,7 +454,7 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
         </div>
         {audioUrl && (
           <div className="mt-3">
-            <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
+            <WaveformPlayer audioUrl={audioUrl} trackId={track.id} waveformPeaks={track.waveformPeaks} durationSeconds={track.durationSeconds} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
           </div>
         )}
       </div>

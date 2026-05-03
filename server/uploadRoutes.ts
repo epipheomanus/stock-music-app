@@ -16,7 +16,7 @@ import {
   upsertWatermarkConfig,
   getWatermarkConfig,
 } from "./db";
-import { generateWatermarkedMp3, downloadToTemp } from "./watermark";
+import { generateWatermarkedMp3, downloadToTemp, generateWaveformPeaks } from "./watermark";
 import { sdk } from "./_core/sdk";
 
 // ─── Multer config (memory storage) ─────────────────────────────────────────
@@ -134,6 +134,8 @@ export function registerUploadRoutes(app: any) {
           // Duration detection failed — not critical
         }
 
+        // 4b. Generate waveform peaks (non-blocking, non-critical)
+        const waveformPeaks = await generateWaveformPeaks(wavFile.buffer).catch(() => null);
         // 5. Create track record
         const trackId = await createTrack({
           title,
@@ -148,6 +150,7 @@ export function registerUploadRoutes(app: any) {
           hasStems,
           isPublished: req.body.isPublished === "true",
           watermarkStatus: "pending",
+          waveformPeaks: waveformPeaks ?? undefined,
         });
 
         // 6. Save tags

@@ -251,6 +251,10 @@ export default function AdminTracks() {
     onError: (err: { message?: string }) => toast.error(err.message || "Retry failed"),
   });
 
+  const backfillPeaksMutation = trpc.tracks.backfillPeaks.useMutation({
+    onSuccess: (data) => toast.success(`Waveform backfill started for ${data.queued} tracks`),
+    onError: (err) => toast.error(`Backfill failed: ${err.message}`),
+  });
   const retryAllStuckMutation = trpc.tracks.retryAllStuck.useMutation({
     onSuccess: (data) => {
       utils.tracks.adminList.invalidate();
@@ -493,6 +497,20 @@ export default function AdminTracks() {
                 Retry All Stuck ({stuckCount})
               </Button>
             )}
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => backfillPeaksMutation.mutate()}
+              disabled={backfillPeaksMutation.isPending}
+              title="Generate waveform peaks for all tracks that are missing them"
+            >
+              {backfillPeaksMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Backfill Waveforms
+            </Button>
             <Button onClick={() => { setForm(DEFAULT_FORM); setWavFile(null); setStemsFiles([]); setCoverFile(null); setShowUploadDialog(true); }} className="gap-2">
               <Plus className="h-4 w-4" /> Add Track
             </Button>
