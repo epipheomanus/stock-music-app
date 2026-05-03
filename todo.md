@@ -214,3 +214,15 @@
 - [x] Replace WaveformPlayer.tsx (per-row player in Browse/ProjectDetail/SharedProject) with new TrackPlayer
 - [x] Replace GlobalPlayerBar WaveSurfer instance with native HTML5 audio
 - [x] Fallback: flat animated bar when peaks not yet available
+
+## Round 28 — Playback Overhaul (16-bit for playback, 24-bit for download)
+
+- [x] Add originalWavUrl + originalWavKey columns to tracks table (preserve 24-bit source file)
+- [x] Update watermark/retry pipeline: store 16-bit converted WAV as wavUrl, original 24-bit as originalWavUrl
+- [x] Fix WaveformPlayer: use pre-computed peaks for instant waveform render (no full WAV fetch needed for waveform)
+- [x] Fix download endpoint to serve originalWavUrl (24-bit) when available, fall back to wavUrl
+- [x] Ensure waveformPeaks are generated for all tracks during retry pipeline
+- [x] Fix spinning loader — play button must be immediately clickable without waiting for waveform decode
+- [x] Switch GlobalPlayerBar to MediaElement backend (eliminates decode delay before playback starts)
+- [x] Increase waveform peaks resolution from 200 to 500 samples
+- [x] Reset 15 stuck "processing" tracks to "error" so admin can retry them

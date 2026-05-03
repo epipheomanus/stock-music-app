@@ -129,7 +129,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       barRadius: 2,
       normalize: true,
       interact: true,
-      backend: "WebAudio",
+      // MediaElement backend: starts playing immediately without decoding the full file first.
+      // This eliminates the "large delay from click to playback" issue with WebAudio backend.
+      backend: "MediaElement",
     });
 
     wavesurferRef.current = ws;

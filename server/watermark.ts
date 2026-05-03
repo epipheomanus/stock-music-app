@@ -214,7 +214,7 @@ export async function convert16BitWav(inputBuffer: Buffer): Promise<Buffer> {
  */
 export async function generateWaveformPeaks(
   wavBuffer: Buffer,
-  numSamples = 200
+  numSamples = 500
 ): Promise<string | null> {
   const tmpIn = path.join(os.tmpdir(), `peaks_in_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
   const tmpOut = path.join(os.tmpdir(), `peaks_out_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);

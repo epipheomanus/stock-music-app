@@ -502,8 +502,17 @@ export const appRouter = router({
               }
               await updateTrack(trackId, stemsUpdate);
             }
-            // Convert WAV to 16-bit PCM so WaveSurfer can decode it (24-bit/32-bit WAV not supported)
+            // Preserve the original (possibly 24-bit) WAV for download before converting
             const rawWavBuf = fs.readFileSync(cleanPath);
+            // Only save originalWavUrl if not already set (avoid overwriting with 16-bit version)
+            const currentTrack = await getTrackById(trackId);
+            if (!currentTrack?.originalWavUrl) {
+              const origKeyBase = `tracks/${trackId}/wav/original_${Date.now()}.wav`;
+              const { key: origKey, url: origUrl } = await storagePut(origKeyBase, rawWavBuf, "audio/wav");
+              await updateTrack(trackId, { originalWavKey: origKey, originalWavUrl: origUrl });
+              console.log(`[Watermark] Saved original WAV for track ${trackId}: ${origUrl}`);
+            }
+            // Convert WAV to 16-bit PCM for browser playback (WaveSurfer/WebAudio compatibility)
             const convertedWavBuf = await convert16BitWav(rawWavBuf);
             if (convertedWavBuf !== rawWavBuf) {
               // Re-upload the converted WAV so the browser player gets the 16-bit version
@@ -593,8 +602,16 @@ export const appRouter = router({
                 }
                 await updateTrack(trackId, stemsUpdate);
               }
-              // Convert WAV to 16-bit PCM so WaveSurfer can decode it (24-bit/32-bit WAV not supported)
+              // Preserve the original (possibly 24-bit) WAV for download before converting
               const rawWavBuf = fs.readFileSync(cleanPath);
+              // Only save originalWavUrl if not already set (avoid overwriting with 16-bit version)
+              if (!track.originalWavUrl) {
+                const origKeyBase = `tracks/${trackId}/wav/original_${Date.now()}.wav`;
+                const { key: origKey, url: origUrl } = await storagePut(origKeyBase, rawWavBuf, "audio/wav");
+                await updateTrack(trackId, { originalWavKey: origKey, originalWavUrl: origUrl });
+                console.log(`[Watermark] Saved original WAV for track ${trackId}`);
+              }
+              // Convert WAV to 16-bit PCM for browser playback (WaveSurfer/WebAudio compatibility)
               const convertedWavBuf = await convert16BitWav(rawWavBuf);
               if (convertedWavBuf !== rawWavBuf) {
                 const convKeyBase = `tracks/${trackId}/wav/clean_16bit_${Date.now()}.wav`;
@@ -738,11 +755,15 @@ export const appRouter = router({
               durationSeconds = Math.round(parseFloat(stdout.trim()));
               fs.unlinkSync(tmpWavPath);
             } catch { /* non-critical */ }
-            // Upload WAV to storage
-            const wavKey = `tracks/wav/${Date.now()}_${safeTitle}.wav`;
-            const { url: wavStorageUrl } = await storagePut(wavKey, wavBuffer, "audio/wav");
-            // Generate waveform peaks (non-critical)
-            const waveformPeaks = await generateWaveformPeaks(wavBuffer).catch(() => null);
+            // Upload original WAV to storage (preserved for download)
+            const origWavKey = `tracks/wav/${Date.now()}_${safeTitle}_original.wav`;
+            const { key: origWavKey2, url: origWavUrl } = await storagePut(origWavKey, wavBuffer, "audio/wav");
+            // Convert to 16-bit PCM for browser playback
+            const wavBuffer16 = await convert16BitWav(wavBuffer).catch(() => wavBuffer);
+            const playbackWavKey = `tracks/wav/${Date.now()}_${safeTitle}_16bit.wav`;
+            const { key: playbackKey, url: playbackUrl } = await storagePut(playbackWavKey, wavBuffer16, "audio/wav");
+            // Generate waveform peaks from 16-bit WAV (non-critical)
+            const waveformPeaks = await generateWaveformPeaks(wavBuffer16).catch(() => null);
             // Create track record
             const trackId = await createTrack({
               title: row.title,
@@ -750,8 +771,10 @@ export const appRouter = router({
               description: row.description,
               bpm: row.bpm,
               durationSeconds,
-              wavKey,
-              wavUrl: wavStorageUrl,
+              wavKey: playbackKey,
+              wavUrl: playbackUrl,
+              originalWavKey: origWavKey2,
+              originalWavUrl: origWavUrl,
               hasStems: false,
               isPublished: row.isPublished,
               watermarkStatus: "pending",
@@ -767,25 +790,28 @@ export const appRouter = router({
             ];
             if (tags.length > 0) await replaceTrackTags(trackId, tags);
             // Kick off watermark generation in background (non-blocking)
+            // Use the 16-bit WAV buffer for watermark generation
+            const wavBuffer16Captured = wavBuffer16;
+            const trackIdCaptured = trackId;
             (async () => {
               try {
                 const wmConfig = await getWatermarkConfig();
                 if (!wmConfig?.audioKey) {
-                  await updateTrack(trackId, { watermarkStatus: "error" }).catch(() => {});
+                  await updateTrack(trackIdCaptured, { watermarkStatus: "error" }).catch(() => {});
                   return;
                 }
-                await updateTrack(trackId, { watermarkStatus: "processing" });
+                await updateTrack(trackIdCaptured, { watermarkStatus: "processing" });
                 const wmSignedUrl = await storageGetSignedUrl(wmConfig.audioKey);
                 const wmTmpPath = await downloadToTemp(wmSignedUrl, ".wav");
-                const tmpWavPath2 = path.join(os.tmpdir(), `import_clean_${trackId}_${Date.now()}.wav`);
-                fs.writeFileSync(tmpWavPath2, wavBuffer);
+                const tmpWavPath2 = path.join(os.tmpdir(), `import_clean_${trackIdCaptured}_${Date.now()}.wav`);
+                fs.writeFileSync(tmpWavPath2, wavBuffer16Captured);
                 const mp3TmpPath = await generateWatermarkedMp3(tmpWavPath2, wmTmpPath);
                 const mp3Buffer = fs.readFileSync(mp3TmpPath);
-                const mp3Key = `tracks/watermarked/${trackId}_${Date.now()}.mp3`;
+                const mp3Key = `tracks/watermarked/${trackIdCaptured}_${Date.now()}.mp3`;
                 const { key: mp3Key2, url: mp3Url } = await storagePut(mp3Key, mp3Buffer, "audio/mpeg");
-                await updateTrack(trackId, { watermarkedMp3Key: mp3Key2, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
+                await updateTrack(trackIdCaptured, { watermarkedMp3Key: mp3Key2, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
                 fs.unlinkSync(tmpWavPath2); fs.unlinkSync(wmTmpPath); fs.unlinkSync(mp3TmpPath);
-              } catch { await updateTrack(trackId, { watermarkStatus: "error" }).catch(() => {}); }
+              } catch { await updateTrack(trackIdCaptured, { watermarkStatus: "error" }).catch(() => {}); }
             })();
             results.push({ title: row.title, status: "success", trackId });
           } catch (err: any) {
@@ -893,6 +919,7 @@ export const appRouter = router({
   // ─── Downloads ─────────────────────────────────────────────────────────────
   downloads: router({
     // Checkout: log downloads and return download URLs
+    // NOTE: wavUrl = 16-bit browser-playback version; originalWavUrl = original 24-bit for download
     checkout: protectedProcedure
       .input(z.object({
         projectName: z.string().min(1),
@@ -904,10 +931,12 @@ export const appRouter = router({
           const track = await getTrackById(trackId);
           if (!track || !track.wavUrl) continue;
           await logDownload(ctx.user.id, trackId, input.projectName, "clean_wav");
+          // Prefer originalWavUrl (24-bit) for download; fall back to wavUrl if not yet set
+          const downloadWavUrl = track.originalWavUrl ?? track.wavUrl;
           results.push({
             trackId,
             title: track.title,
-            wavUrl: track.wavUrl,
+            wavUrl: downloadWavUrl,
             stemsZipUrl: track.stemsZipUrl ?? null,
             hasStems: track.hasStems,
           });
