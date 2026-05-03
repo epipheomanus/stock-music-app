@@ -133,6 +133,49 @@ export async function downloadToTemp(
 }
 
 /**
+ * If `buf` starts with PK (ZIP magic bytes), extract the root-level WAV file
+ * (the main mixdown — not in a stems/ subfolder) and return its buffer.
+ * Also returns the original ZIP buffer as stemsZipBuffer if stems are found.
+ * Returns null if the ZIP contains no root-level WAV.
+ */
+export async function extractWavFromZip(
+  buf: Buffer
+): Promise<{ wavBuffer: Buffer; stemsZipBuffer: Buffer | null } | null> {
+  // Check ZIP magic bytes
+  if (buf[0] !== 0x50 || buf[1] !== 0x4b) return null;
+  const tmpZip = path.join(os.tmpdir(), `sv_zip_${Date.now()}_${Math.random().toString(36).slice(2)}.zip`);
+  const tmpExtract = path.join(os.tmpdir(), `sv_zip_extract_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  try {
+    fs.writeFileSync(tmpZip, buf);
+    fs.mkdirSync(tmpExtract, { recursive: true });
+    // List ZIP contents
+    const { stdout: listOut } = await execFileAsync("unzip", ["-l", tmpZip]);
+    // Find root-level WAV files (not in a subfolder)
+    const rootWavs = listOut
+      .split("\n")
+      .map(l => l.trim())
+      .filter(l => /\.wav$/i.test(l))
+      .map(l => l.replace(/^\d+\s+\S+\s+\S+\s+/, "").trim())
+      .filter(name => !name.includes("/"));
+    if (rootWavs.length === 0) return null;
+    // Extract the first root-level WAV
+    const wavName = rootWavs[0];
+    await execFileAsync("unzip", ["-o", tmpZip, wavName, "-d", tmpExtract]);
+    const extractedPath = path.join(tmpExtract, wavName);
+    if (!fs.existsSync(extractedPath)) return null;
+    const wavBuffer = fs.readFileSync(extractedPath);
+    // Check if there are stems (files in a stems/ subfolder)
+    const hasStems = listOut.split("\n").some(l => /stems\//i.test(l) && /\.wav$/i.test(l));
+    return { wavBuffer, stemsZipBuffer: hasStems ? buf : null };
+  } catch {
+    return null;
+  } finally {
+    try { fs.unlinkSync(tmpZip); } catch { /* ignore */ }
+    try { fs.rmSync(tmpExtract, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
+
+/**
  * Generate a compact waveform peaks array from a WAV buffer.
  * Uses ffmpeg to downsample to mono at `numSamples` points, reads the raw
  * f32le values, and normalises them to [0, 1].

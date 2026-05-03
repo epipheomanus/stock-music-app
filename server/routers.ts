@@ -30,7 +30,7 @@ import {
 import { eq, and, or, isNull } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3, generateWaveformPeaks } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3, generateWaveformPeaks, extractWavFromZip } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -485,12 +485,33 @@ export const appRouter = router({
             // Use signed URLs for server-side downloads — relative /manus-storage/ paths only work in the browser
             const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
             cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
+            // If the stored file is a ZIP (Dropbox bundle), extract the WAV and re-upload
+            const rawBuf = fs.readFileSync(cleanPath);
+            const zipResult = await extractWavFromZip(rawBuf);
+            if (zipResult) {
+              console.log(`[Watermark] Track ${trackId}: ZIP detected — extracting WAV from bundle`);
+              fs.writeFileSync(cleanPath, zipResult.wavBuffer);
+              const cleanKeyBase = `tracks/${trackId}/wav/clean_${Date.now()}.wav`;
+              const { key: newWavKey, url: newWavUrl } = await storagePut(cleanKeyBase, zipResult.wavBuffer, "audio/wav");
+              const stemsUpdate: Record<string, unknown> = { wavKey: newWavKey, wavUrl: newWavUrl };
+              if (zipResult.stemsZipBuffer) {
+                const stemsKeyBase = `tracks/${trackId}/stems/stems_${Date.now()}.zip`;
+                const { key: sKey, url: sUrl } = await storagePut(stemsKeyBase, zipResult.stemsZipBuffer, "application/zip");
+                stemsUpdate.stemsZipKey = sKey;
+                stemsUpdate.stemsZipUrl = sUrl;
+              }
+              await updateTrack(trackId, stemsUpdate);
+            }
+            // Generate waveform peaks from the (possibly extracted) WAV
+            const wavBuf = fs.readFileSync(cleanPath);
+            const peaks = await generateWaveformPeaks(wavBuf);
+            if (peaks) await updateTrack(trackId, { waveformPeaks: peaks });
             const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
             wmPath = await downloadToTemp(wmSignedUrl, ".wav");
             outPath = await generateWatermarkedMp3(cleanPath, wmPath);
-            const buf = fs.readFileSync(outPath);
+            const mp3Buf = fs.readFileSync(outPath);
             const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
-            const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
+            const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, mp3Buf, "audio/mpeg");
             await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
             console.log(`[Watermark] Done for track ${trackId}: ${mp3Url}`);
           } catch (err) {
@@ -545,12 +566,33 @@ export const appRouter = router({
               await updateTrack(trackId, { watermarkStatus: "processing" });
               const cleanSignedUrl = await storageGetSignedUrl(realWavKey);
               cleanPath = await downloadToTemp(cleanSignedUrl, ".wav");
+              // If the stored file is a ZIP (Dropbox bundle), extract the WAV and re-upload
+              const rawBuf = fs.readFileSync(cleanPath);
+              const zipResult = await extractWavFromZip(rawBuf);
+              if (zipResult) {
+                console.log(`[Watermark] Track ${trackId}: ZIP detected — extracting WAV from bundle`);
+                fs.writeFileSync(cleanPath, zipResult.wavBuffer);
+                const cleanKeyBase = `tracks/${trackId}/wav/clean_${Date.now()}.wav`;
+                const { key: newWavKey, url: newWavUrl } = await storagePut(cleanKeyBase, zipResult.wavBuffer, "audio/wav");
+                const stemsUpdate: Record<string, unknown> = { wavKey: newWavKey, wavUrl: newWavUrl };
+                if (zipResult.stemsZipBuffer) {
+                  const stemsKeyBase = `tracks/${trackId}/stems/stems_${Date.now()}.zip`;
+                  const { key: sKey, url: sUrl } = await storagePut(stemsKeyBase, zipResult.stemsZipBuffer, "application/zip");
+                  stemsUpdate.stemsZipKey = sKey;
+                  stemsUpdate.stemsZipUrl = sUrl;
+                }
+                await updateTrack(trackId, stemsUpdate);
+              }
+              // Generate waveform peaks from the (possibly extracted) WAV
+              const wavBuf = fs.readFileSync(cleanPath);
+              const peaks = await generateWaveformPeaks(wavBuf);
+              if (peaks) await updateTrack(trackId, { waveformPeaks: peaks });
               const wmSignedUrl = await storageGetSignedUrl(wmAudioKey);
               wmPath = await downloadToTemp(wmSignedUrl, ".wav");
               outPath = await generateWatermarkedMp3(cleanPath, wmPath);
-              const buf = fs.readFileSync(outPath);
+              const mp3Buf = fs.readFileSync(outPath);
               const keyBase = `tracks/${trackId}/watermarked_${Date.now()}.mp3`;
-              const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, buf, "audio/mpeg");
+              const { key: mp3Key, url: mp3Url } = await storagePut(keyBase, mp3Buf, "audio/mpeg");
               await updateTrack(trackId, { watermarkedMp3Key: mp3Key, watermarkedMp3Url: mp3Url, watermarkStatus: "done" });
               console.log(`[Watermark] Retry done for track ${trackId}`);
             } catch (err) {
