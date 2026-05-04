@@ -79,22 +79,14 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Update user profile fields (firstName, lastName, company, username)
+    // Update user profile fields (firstName, lastName, company)
     updateProfile: protectedProcedure
       .input(z.object({
         firstName: z.string().min(1).max(128).optional(),
         lastName: z.string().min(1).max(128).optional(),
         company: z.string().max(256).optional(),
-        username: z.string().min(3).max(32).regex(/^[a-zA-Z0-9_]+$/).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // Check username uniqueness if changing
-        if (input.username && input.username !== ctx.user.username) {
-          const existing = await getUserByUsername(input.username);
-          if (existing && existing.id !== ctx.user.id) {
-            throw new TRPCError({ code: "CONFLICT", message: "Username already taken" });
-          }
-        }
         await upsertUser({ openId: ctx.user.openId, ...input });
         return { success: true };
       }),
@@ -103,6 +95,25 @@ export const appRouter = router({
     myDownloads: protectedProcedure.query(async ({ ctx }) => {
       return getUserDownloads(ctx.user.id);
     }),
+
+    // Change password (requires current password verification)
+    changePassword: protectedProcedure
+      .input(z.object({
+        currentPassword: z.string().min(1),
+        newPassword: z.string().min(8),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user.passwordHash) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Password login is not set up for this account" });
+        }
+        const valid = await bcrypt.compare(input.currentPassword, ctx.user.passwordHash);
+        if (!valid) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect" });
+        }
+        const newHash = await bcrypt.hash(input.newPassword, 12);
+        await updatePassword(ctx.user.id, newHash);
+        return { success: true };
+      }),
 
     // Validate invite token
     validateInvite: publicProcedure

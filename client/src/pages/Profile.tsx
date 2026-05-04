@@ -7,22 +7,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   User,
   Building2,
-  AtSign,
   Mail,
   Download,
-  Bell,
-  BellOff,
+  ShieldCheck,
   ChevronLeft,
   Loader2,
   Music,
   Calendar,
   FolderOpen,
-  RefreshCw,
   Save,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 
@@ -35,7 +36,6 @@ export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
-  const [username, setUsername] = useState("");
   const [formDirty, setFormDirty] = useState(false);
 
   // Populate form when user loads
@@ -44,10 +44,17 @@ export default function Profile() {
       setFirstName(user.firstName ?? "");
       setLastName(user.lastName ?? "");
       setCompany(user.company ?? "");
-      setUsername(user.username ?? "");
       setFormDirty(false);
     }
   }, [user]);
+
+  // ─── Change password state ────────────────────────────────────────────────
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // ─── tRPC mutations ───────────────────────────────────────────────────────
   const updateProfileMutation = trpc.auth.updateProfile.useMutation({
@@ -60,11 +67,18 @@ export default function Profile() {
   });
 
   const updatePrefMutation = trpc.auth.updatePreference.useMutation({
-    onSuccess: () => {
-      utils.auth.me.invalidate();
-      toast.success("Download preference reset — you'll see the confirmation dialog again");
-    },
+    onSuccess: () => utils.auth.me.invalidate(),
     onError: () => toast.error("Failed to update preference"),
+  });
+
+  const changePasswordMutation = trpc.auth.changePassword.useMutation({
+    onSuccess: () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast.success("Password updated successfully");
+    },
+    onError: (err) => toast.error(err.message || "Failed to change password"),
   });
 
   // ─── Download history ─────────────────────────────────────────────────────
@@ -95,8 +109,22 @@ export default function Profile() {
   const cleanDownloads = (downloadsQuery.data ?? []).filter(d => d.fileType === "clean_wav");
 
   function handleSave() {
-    updateProfileMutation.mutate({ firstName, lastName, company, username });
+    updateProfileMutation.mutate({ firstName, lastName, company });
   }
+
+  function handleChangePassword() {
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
+      return;
+    }
+    changePasswordMutation.mutate({ currentPassword, newPassword });
+  }
+
+  const passwordFormFilled = currentPassword.length > 0 && newPassword.length > 0 && confirmPassword.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -123,10 +151,7 @@ export default function Profile() {
         {/* ── Personal Information ─────────────────────────────────────────── */}
         <section className="space-y-5">
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-primary" />
-            <h2 className="text-base font-semibold font-display tracking-wide uppercase text-xs text-muted-foreground">
-              Personal Information
-            </h2>
+            <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Personal Information</span>
           </div>
           <Separator />
 
@@ -162,17 +187,19 @@ export default function Profile() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="username" className="flex items-center gap-1.5">
-                <AtSign className="h-3.5 w-3.5 text-muted-foreground" />
-                Username
+              <Label className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                Role
               </Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={e => { setUsername(e.target.value); setFormDirty(true); }}
-                placeholder="username"
-              />
-              <p className="text-xs text-muted-foreground">Letters, numbers, and underscores only.</p>
+              <div className="flex items-center h-9 px-3 rounded-md border border-input bg-muted/40">
+                <Badge
+                  variant={user.role === "admin" ? "default" : "secondary"}
+                  className="text-xs capitalize"
+                >
+                  {user.role}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">Your access level. Contact an admin to change.</p>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="flex items-center gap-1.5">
@@ -200,57 +227,123 @@ export default function Profile() {
           </div>
         </section>
 
+        {/* ── Change Password ───────────────────────────────────────────────── */}
+        {user.passwordHash && (
+          <section className="space-y-5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Change Password</span>
+            </div>
+            <Separator />
+
+            <div className="grid grid-cols-1 gap-4 max-w-sm">
+              <div className="space-y-1.5">
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <div className="relative">
+                  <Input
+                    id="currentPassword"
+                    type={showCurrent ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowCurrent(v => !v)}
+                  >
+                    {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNew ? "text" : "password"}
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowNew(v => !v)}
+                  >
+                    {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirm ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat new password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowConfirm(v => !v)}
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-start">
+              <Button
+                onClick={handleChangePassword}
+                disabled={!passwordFormFilled || changePasswordMutation.isPending}
+                variant="outline"
+                className="gap-2"
+              >
+                {changePasswordMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <KeyRound className="h-4 w-4" />
+                )}
+                Update Password
+              </Button>
+            </div>
+          </section>
+        )}
+
         {/* ── Preferences ──────────────────────────────────────────────────── */}
         <section className="space-y-5">
           <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" />
-            <h2 className="text-base font-semibold font-display tracking-wide uppercase text-xs text-muted-foreground">
-              Preferences
-            </h2>
+            <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Preferences</span>
           </div>
           <Separator />
 
-          <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
+          <div className="flex items-center justify-between gap-6 rounded-lg border border-border p-4">
             <div className="space-y-1">
-              <p className="text-sm font-medium">Watermarked preview confirmation</p>
+              <p className="text-sm font-medium">Watermark preview confirmation</p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                When you download a watermarked preview, a confirmation dialog reminds you that
-                the file is for review purposes only. You previously chose to skip this dialog.
+                Toggles the watermark preview download confirmation message to appear / not appear.
               </p>
             </div>
-            <div className="shrink-0">
-              {user.skipWatermarkConfirm ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 whitespace-nowrap"
-                  onClick={() => updatePrefMutation.mutate({ skipWatermarkConfirm: false })}
-                  disabled={updatePrefMutation.isPending}
-                >
-                  {updatePrefMutation.isPending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  )}
-                  Re-enable prompt
-                </Button>
-              ) : (
-                <Badge variant="secondary" className="gap-1.5 py-1 px-2.5">
-                  <Bell className="h-3 w-3" />
-                  Prompt active
-                </Badge>
-              )}
-            </div>
+            <Switch
+              checked={!user.skipWatermarkConfirm}
+              disabled={updatePrefMutation.isPending}
+              onCheckedChange={(checked) => {
+                updatePrefMutation.mutate({ skipWatermarkConfirm: !checked });
+              }}
+            />
           </div>
         </section>
 
         {/* ── Download History ─────────────────────────────────────────────── */}
         <section className="space-y-5">
           <div className="flex items-center gap-2">
-            <Download className="h-4 w-4 text-primary" />
-            <h2 className="text-base font-semibold font-display tracking-wide uppercase text-xs text-muted-foreground">
-              Download History
-            </h2>
+            <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">Download History</span>
             {cleanDownloads.length > 0 && (
               <Badge variant="secondary" className="ml-auto text-xs">
                 {cleanDownloads.length} download{cleanDownloads.length !== 1 ? "s" : ""}

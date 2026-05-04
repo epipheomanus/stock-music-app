@@ -211,3 +211,12 @@
 - [x] Add "My Profile" link to user dropdown in TopNav
 - [x] Remove "Reset download prompt" from TopNav dropdown (moved to profile page)
 - [x] Register /profile route in App.tsx
+
+## Round 34 — My Profile Page Improvements
+
+- [x] Remove username field from profile personal info form
+- [x] Add read-only Role field to profile personal info form
+- [x] Replace watermark preference badge with a toggle switch (on = prompt active, off = prompt skipped)
+- [x] Update preference section body copy to describe the toggle behavior
+- [x] Add change password section to profile page (current password, new password, confirm)
+- [x] Add changePassword tRPC procedure (verify current password, hash and save new one)
