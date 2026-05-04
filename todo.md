@@ -240,3 +240,9 @@
 ## Round 37 — Watermarked Preview Filename
 
 - [x] Append "-Preview" to the filename of all watermarked preview downloads (Browse, SharedProject, GlobalPlayerBar)
+
+## Round 38 — Waveform Color + Duration Filter
+
+- [x] Change waveform playback progress color to match the primary green (same as volume slider)
+- [x] Add min/max track duration range slider to Browse page filter panel
+- [x] Wire duration filter to filter the displayed tracks client-side

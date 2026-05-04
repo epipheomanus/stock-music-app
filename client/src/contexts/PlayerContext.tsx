@@ -124,8 +124,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const ws = WaveSurfer.create({
       container,
       waveColor: "oklch(0.75 0.01 240)",
-      progressColor: "oklch(0.50 0.18 264)",
-      cursorColor: "oklch(0.50 0.18 264)",
+      progressColor: "oklch(0.84 0.14 174)",
+      cursorColor: "oklch(0.84 0.14 174)",
       cursorWidth: 2,
       height: 40,
       barWidth: 2,

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import TopNav from "@/components/TopNav";
 import CartDrawer from "@/components/CartDrawer";
 import WaveformPlayer from "@/components/WaveformPlayer";
@@ -108,6 +109,8 @@ export default function Browse() {
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
+  // Duration range filter: [minSec, maxSec | null], null = no upper limit
+  const [durationRange, setDurationRange] = useState<[number, number | null]>([0, null]);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za" | "popular">(() => {
     try { return (localStorage.getItem("browse-sort-order") as any) ?? "newest"; } catch { return "newest"; }
   });
@@ -132,14 +135,21 @@ export default function Browse() {
 
   const rawTracks = tracksQuery.data ?? [];
   const tracks = useMemo(() => {
-    const arr = [...rawTracks];
+    let arr = [...rawTracks];
+    // Apply duration filter
+    if (durationRange[0] > 0 || durationRange[1] !== null) {
+      arr = arr.filter(t => {
+        const d = (t as any).durationSeconds ?? 0;
+        return d >= durationRange[0] && (durationRange[1] === null || d <= durationRange[1]);
+      });
+    }
     if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     else if (sortOrder === "az") arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortOrder === "za") arr.sort((a, b) => b.title.localeCompare(a.title));
     else if (sortOrder === "popular") arr.sort((a, b) => ((b as any).downloadCount ?? 0) - ((a as any).downloadCount ?? 0));
     else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return arr;
-  }, [rawTracks, sortOrder]);
+  }, [rawTracks, sortOrder, durationRange]);
 
   const activeProjectsQuery = trpc.projects.listActive.useQuery(undefined, { enabled: isAuthenticated });
   const activeProjects = activeProjectsQuery.data ?? [];
@@ -209,8 +219,9 @@ export default function Browse() {
     });
   }
 
-  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); setPage(1); }
-  const activeFilterCount = filters.genres.length + filters.moods.length + filters.attributes.length;
+  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); setPage(1); setDurationRange([0, null]); }
+  const isDurationFiltered = durationRange[0] > 0 || durationRange[1] !== null;
+  const activeFilterCount = filters.genres.length + filters.moods.length + filters.attributes.length + (isDurationFiltered ? 1 : 0);
   const totalPages = Math.max(1, Math.ceil(tracks.length / perPage));
   const pagedTracks = useMemo(() => tracks.slice((page - 1) * perPage, page * perPage), [tracks, page, perPage]);
   // Reset to page 1 when search or filters change
@@ -305,6 +316,48 @@ export default function Browse() {
             selected={filters.attributes}
             onToggle={v => toggleFilter("attributes", v)}
           />
+          {/* Duration range slider */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`h-8 gap-1.5 text-xs font-normal ${isDurationFiltered ? "border-primary text-primary bg-primary/5" : ""}`}
+              >
+                Duration
+                {isDurationFiltered
+                  ? `: ${Math.floor(durationRange[0] / 60)}:${String(durationRange[0] % 60).padStart(2, "0")} – ${durationRange[1] === null ? "any" : `${Math.floor(durationRange[1] / 60)}:${String(durationRange[1] % 60).padStart(2, "0")}`}`
+                  : " (any)"}
+                <ChevronDown className="h-3 w-3 ml-0.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-4" align="start">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">Track Duration</p>
+                  {isDurationFiltered && (
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => { setDurationRange([0, null]); setPage(1); }}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <Slider
+                  min={0}
+                  max={600}
+                  step={15}
+                  value={[durationRange[0], durationRange[1] ?? 600]}
+                  onValueChange={(v) => { const [lo, hi] = v; setDurationRange([lo, hi >= 600 ? null : hi]); setPage(1); }}
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{Math.floor(durationRange[0] / 60)}:{String(durationRange[0] % 60).padStart(2, "0")}</span>
+                  <span>{durationRange[1] === null ? "No max" : `${Math.floor(durationRange[1] / 60)}:${String(durationRange[1] % 60).padStart(2, "0")}`}</span>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           {activeFilterCount > 0 && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground ml-1" onClick={clearFilters}>
               <X className="h-3 w-3 mr-1" /> Clear all
