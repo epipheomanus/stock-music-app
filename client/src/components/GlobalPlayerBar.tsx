@@ -59,7 +59,7 @@ export default function GlobalPlayerBar() {
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = blobUrl;
-        a.download = `${data.title}_preview.mp3`;
+        a.download = `${data.title}-Preview.mp3`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -69,7 +69,7 @@ export default function GlobalPlayerBar() {
         // Fallback: direct link
         const a = document.createElement("a");
         a.href = data.url;
-        a.download = `${data.title}_preview.mp3`;
+        a.download = `${data.title}-Preview.mp3`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

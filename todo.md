@@ -236,3 +236,7 @@
 - [x] Guests (not signed in) always see the watermark confirmation dialog before downloading
 - [x] Logged-in users follow their skipWatermarkConfirm preference
 - [x] No "do not show again" option shown to guests (confirmation always appears)
+
+## Round 37 — Watermarked Preview Filename
+
+- [x] Append "-Preview" to the filename of all watermarked preview downloads (Browse, SharedProject, GlobalPlayerBar)
