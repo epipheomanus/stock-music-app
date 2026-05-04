@@ -250,3 +250,7 @@
 ## Round 39 — Persist Duration Filter
 
 - [x] Persist Browse page duration range filter to localStorage (read on mount, write on change)
+
+## Round 40 — Persist Taxonomy Filters
+
+- [x] Persist Browse page Genre, Mood, and Attributes filters to localStorage (read on mount, write on change)

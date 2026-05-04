@@ -108,7 +108,18 @@ export default function Browse() {
   const { openCart } = useCart();
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
+  const [filters, setFilters] = useState<FilterState>(() => {
+    try {
+      const stored = localStorage.getItem("browse-filters");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && Array.isArray(parsed.genres) && Array.isArray(parsed.moods) && Array.isArray(parsed.attributes)) {
+          return parsed as FilterState;
+        }
+      }
+    } catch {}
+    return { genres: [], moods: [], attributes: [] };
+  });
   // Duration range filter: [minSec, maxSec | null], null = no upper limit; persisted to localStorage
   const [durationRange, setDurationRange] = useState<[number, number | null]>(() => {
     try {
@@ -229,11 +240,13 @@ export default function Browse() {
   function toggleFilter(type: keyof FilterState, value: string) {
     setFilters(prev => {
       const arr = prev[type];
-      return { ...prev, [type]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value] };
+      const next = { ...prev, [type]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value] };
+      try { localStorage.setItem("browse-filters", JSON.stringify(next)); } catch {}
+      return next;
     });
   }
 
-  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); setPage(1); setDurationRangePersisted([0, null]); }
+  function clearFilters() { const empty: FilterState = { genres: [], moods: [], attributes: [] }; setFilters(empty); try { localStorage.setItem("browse-filters", JSON.stringify(empty)); } catch {} setSearch(""); setPage(1); setDurationRangePersisted([0, null]); }
   const isDurationFiltered = durationRange[0] > 0 || durationRange[1] !== null;
   const activeFilterCount = filters.genres.length + filters.moods.length + filters.attributes.length + (isDurationFiltered ? 1 : 0);
   const totalPages = Math.max(1, Math.ceil(tracks.length / perPage));
