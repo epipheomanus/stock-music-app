@@ -73,14 +73,28 @@ export default function CartDrawer() {
 
   const items = cartQuery.data ?? [];
 
-  function triggerDownload(url: string, filename: string) {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.target = "_blank";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  async function triggerDownload(url: string, filename: string) {
+    try {
+      // Fetch as blob to force a true file download (avoids browser opening a media player/viewer tab)
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } catch {
+      // Fallback: direct link
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   }
 
   function handleCheckoutSubmit(e: React.FormEvent) {
