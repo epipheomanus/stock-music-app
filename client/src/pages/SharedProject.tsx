@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import TopNav from "@/components/TopNav";
 import { Button } from "@/components/ui/button";
-import { Loader2, Music, Play, Pause, ListMusic, Volume2, ShoppingCart } from "lucide-react";
+import { Loader2, Music, Play, Pause, ListMusic, ShoppingCart, Download } from "lucide-react";
 import { Link } from "wouter";
 import { usePlayer, GlobalTrack } from "@/contexts/PlayerContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
+import { WatermarkConfirmDialog } from "@/components/WatermarkConfirmDialog";
 
 interface SharedProjectProps {
   params: { token: string };
@@ -17,6 +19,48 @@ export default function SharedProject({ params }: SharedProjectProps) {
   const { user } = useAuth();
   const { openCart } = useCart();
   const utils = trpc.useUtils();
+
+  // ─── Watermark download state ─────────────────────────────────────────────
+  const [wmConfirmOpen, setWmConfirmOpen] = useState(false);
+  const [pendingWatermarkTrackId, setPendingWatermarkTrackId] = useState<number | null>(null);
+
+  const watermarkedDownloadMutation = trpc.downloads.downloadWatermarked.useMutation({
+    onSuccess: async (data) => {
+      try {
+        const res = await fetch(data.url);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `${data.title}_preview.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        toast.success("Downloading preview...");
+      } catch {
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.download = `${data.title}_preview.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success("Downloading preview...");
+      }
+    },
+    onError: (err: any) => toast.error(err.message || "Download failed"),
+  });
+
+  function handleDownloadWatermarked(trackId: number) {
+    // Logged-in users who have opted out of the confirmation skip it
+    if (user?.skipWatermarkConfirm) {
+      watermarkedDownloadMutation.mutate({ trackId });
+      return;
+    }
+    // Guests + users who haven't opted out always see the dialog
+    setPendingWatermarkTrackId(trackId);
+    setWmConfirmOpen(true);
+  }
 
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { utils.cart.list.invalidate(); openCart(); },
@@ -104,10 +148,10 @@ export default function SharedProject({ params }: SharedProjectProps) {
           </p>
         </div>
 
-        {/* Watermark notice */}
+        {/* Instruction notice */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border/50 rounded-lg px-3.5 py-2.5 mb-6">
-          <Volume2 className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span>All previews are watermarked. Click any track or <strong>Play All</strong> to listen in the player below.</span>
+          <Play className="h-3.5 w-3.5 shrink-0 text-primary" />
+          <span>Click any track or <strong>Play All</strong> to listen in the player below.</span>
         </div>
 
         {playlists.length === 0 ? (
@@ -181,6 +225,16 @@ export default function SharedProject({ params }: SharedProjectProps) {
                             <p className="text-xs text-muted-foreground truncate">{t.composerName ?? "Unknown"}</p>
                           </div>
 
+                          {/* Download preview button — available to everyone */}
+                          {!!t.watermarkedMp3Url && (
+                            <button
+                              className="p-1.5 rounded-md bg-muted/50 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors shrink-0"
+                              title="Download watermarked preview"
+                              onClick={e => { e.stopPropagation(); handleDownloadWatermarked(t.id); }}
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           {/* Cart button — only for logged-in users */}
                           {user && (
                             <button
@@ -219,6 +273,23 @@ export default function SharedProject({ params }: SharedProjectProps) {
           </div>
         )}
       </div>
+
+      {/* Watermark confirmation dialog */}
+      <WatermarkConfirmDialog
+        open={wmConfirmOpen}
+        showDoNotShow={!!user}
+        onConfirm={() => {
+          setWmConfirmOpen(false);
+          if (pendingWatermarkTrackId !== null) {
+            watermarkedDownloadMutation.mutate({ trackId: pendingWatermarkTrackId });
+            setPendingWatermarkTrackId(null);
+          }
+        }}
+        onCancel={() => {
+          setWmConfirmOpen(false);
+          setPendingWatermarkTrackId(null);
+        }}
+      />
     </div>
   );
 }

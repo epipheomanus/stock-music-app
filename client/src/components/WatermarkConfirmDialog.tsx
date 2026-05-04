@@ -16,12 +16,15 @@ interface WatermarkConfirmDialogProps {
   open: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** When false (guests), the "Do not show again" checkbox is hidden */
+  showDoNotShow?: boolean;
 }
 
 export function WatermarkConfirmDialog({
   open,
   onConfirm,
   onCancel,
+  showDoNotShow = true,
 }: WatermarkConfirmDialogProps) {
   const [doNotShow, setDoNotShow] = useState(false);
   const updatePref = trpc.auth.updatePreference.useMutation();
@@ -50,16 +53,18 @@ export function WatermarkConfirmDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2 py-2">
-          <Checkbox
-            id="doNotShow"
-            checked={doNotShow}
-            onCheckedChange={(checked) => setDoNotShow(checked === true)}
-          />
-          <Label htmlFor="doNotShow" className="text-sm text-muted-foreground cursor-pointer">
-            Do not show this message again
-          </Label>
-        </div>
+        {showDoNotShow && (
+          <div className="flex items-center gap-2 py-2">
+            <Checkbox
+              id="doNotShow"
+              checked={doNotShow}
+              onCheckedChange={(checked) => setDoNotShow(checked === true)}
+            />
+            <Label htmlFor="doNotShow" className="text-sm text-muted-foreground cursor-pointer">
+              Do not show this message again
+            </Label>
+          </div>
+        )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button

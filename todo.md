@@ -228,3 +228,11 @@
 - [x] Update upsertUser to handle jobTitle field
 - [x] Add jobTitle to updateProfile tRPC input schema
 - [x] Replace read-only Role badge on profile page with editable jobTitle text input
+
+## Round 36 — Public Project/Playlist Preview Downloads
+
+- [x] Remove "All previews are watermarked." text from public project view
+- [x] Add watermarked preview download button to each track row in playlist view
+- [x] Guests (not signed in) always see the watermark confirmation dialog before downloading
+- [x] Logged-in users follow their skipWatermarkConfirm preference
+- [x] No "do not show again" option shown to guests (confirmation always appears)
