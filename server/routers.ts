@@ -79,12 +79,13 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Update user profile fields (firstName, lastName, company)
+    // Update user profile fields (firstName, lastName, company, jobTitle)
     updateProfile: protectedProcedure
       .input(z.object({
         firstName: z.string().min(1).max(128).optional(),
         lastName: z.string().min(1).max(128).optional(),
         company: z.string().max(256).optional(),
+        jobTitle: z.string().max(128).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         await upsertUser({ openId: ctx.user.openId, ...input });

@@ -19,6 +19,7 @@ export const users = mysqlTable("users", {
   firstName: varchar("firstName", { length: 128 }),
   lastName: varchar("lastName", { length: 128 }),
   company: varchar("company", { length: 256 }),
+  jobTitle: varchar("jobTitle", { length: 128 }),
   username: varchar("username", { length: 64 }).unique(),
   passwordHash: varchar("passwordHash", { length: 256 }),
   loginMethod: varchar("loginMethod", { length: 64 }),

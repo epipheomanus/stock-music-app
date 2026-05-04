@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `jobTitle` varchar(128);

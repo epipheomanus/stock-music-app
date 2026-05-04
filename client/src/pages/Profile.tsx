@@ -14,7 +14,7 @@ import {
   Building2,
   Mail,
   Download,
-  ShieldCheck,
+  Briefcase,
   ChevronLeft,
   Loader2,
   Music,
@@ -36,6 +36,7 @@ export default function Profile() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
   const [formDirty, setFormDirty] = useState(false);
 
   // Populate form when user loads
@@ -44,6 +45,7 @@ export default function Profile() {
       setFirstName(user.firstName ?? "");
       setLastName(user.lastName ?? "");
       setCompany(user.company ?? "");
+      setJobTitle(user.jobTitle ?? "");
       setFormDirty(false);
     }
   }, [user]);
@@ -109,7 +111,7 @@ export default function Profile() {
   const cleanDownloads = (downloadsQuery.data ?? []).filter(d => d.fileType === "clean_wav");
 
   function handleSave() {
-    updateProfileMutation.mutate({ firstName, lastName, company });
+    updateProfileMutation.mutate({ firstName, lastName, company, jobTitle });
   }
 
   function handleChangePassword() {
@@ -187,19 +189,16 @@ export default function Profile() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                Role
+              <Label htmlFor="jobTitle" className="flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                Role / Job Title
               </Label>
-              <div className="flex items-center h-9 px-3 rounded-md border border-input bg-muted/40">
-                <Badge
-                  variant={user.role === "admin" ? "default" : "secondary"}
-                  className="text-xs capitalize"
-                >
-                  {user.role}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">Your access level. Contact an admin to change.</p>
+              <Input
+                id="jobTitle"
+                value={jobTitle}
+                onChange={e => { setJobTitle(e.target.value); setFormDirty(true); }}
+                placeholder="e.g. Creative Director, Music Composer"
+              />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="flex items-center gap-1.5">

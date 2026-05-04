@@ -220,3 +220,11 @@
 - [x] Update preference section body copy to describe the toggle behavior
 - [x] Add change password section to profile page (current password, new password, confirm)
 - [x] Add changePassword tRPC procedure (verify current password, hash and save new one)
+
+## Round 35 — User Job Title Field
+
+- [x] Add jobTitle varchar column to users table in drizzle/schema.ts
+- [x] Generate and apply DB migration
+- [x] Update upsertUser to handle jobTitle field
+- [x] Add jobTitle to updateProfile tRPC input schema
+- [x] Replace read-only Role badge on profile page with editable jobTitle text input
