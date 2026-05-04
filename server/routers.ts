@@ -70,6 +70,14 @@ export const appRouter = router({
         return { success: true, user };
       }),
 
+    // Update user preferences (e.g. skipWatermarkConfirm)
+    updatePreference: protectedProcedure
+      .input(z.object({ skipWatermarkConfirm: z.boolean().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        await upsertUser({ openId: ctx.user.openId, ...input });
+        return { success: true };
+      }),
+
     // Validate invite token
     validateInvite: publicProcedure
       .input(z.object({ token: z.string() }))

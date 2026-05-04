@@ -26,6 +26,7 @@ export const users = mysqlTable("users", {
   resetToken: varchar("resetToken", { length: 128 }),
   resetTokenExpiresAt: timestamp("resetTokenExpiresAt"),
   isLocked: boolean("isLocked").default(false).notNull(),
+  skipWatermarkConfirm: boolean("skipWatermarkConfirm").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

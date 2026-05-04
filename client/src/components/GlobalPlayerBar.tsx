@@ -8,6 +8,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { WatermarkConfirmDialog } from "@/components/WatermarkConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
@@ -36,9 +37,10 @@ export default function GlobalPlayerBar() {
     onSuccess: () => { openCart(); },
     onError: (err) => toast.error(err.message),
   });
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const waveContainerRef = useRef<HTMLDivElement | null>(null);
   const [prevVolume, setPrevVolume] = useState(1);
+  const [wmConfirmOpen, setWmConfirmOpen] = useState(false);
 
   // Initialize WaveSurfer once the container div is mounted
   const setWaveContainerRef = useCallback((el: HTMLDivElement | null) => {
@@ -75,7 +77,12 @@ export default function GlobalPlayerBar() {
       toast.info("Preview not available yet — watermark is still processing");
       return;
     }
-    watermarkedDownloadMutation.mutate({ trackId: activeTrack.id });
+    // Skip confirmation if user has opted out
+    if (user?.skipWatermarkConfirm) {
+      watermarkedDownloadMutation.mutate({ trackId: activeTrack.id });
+      return;
+    }
+    setWmConfirmOpen(true);
   }
 
   function handleSeekClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -99,6 +106,7 @@ export default function GlobalPlayerBar() {
   if (!activeTrack) return null;
 
   return (
+    <>
     <div
       className={`fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)] transition-all duration-300 ${
         isCollapsed ? "h-14" : "h-24"
@@ -261,5 +269,15 @@ export default function GlobalPlayerBar() {
         </div>
       )}
     </div>
+    {/* Watermark preview confirmation dialog */}
+    <WatermarkConfirmDialog
+      open={wmConfirmOpen}
+      onConfirm={() => {
+        setWmConfirmOpen(false);
+        if (activeTrack) watermarkedDownloadMutation.mutate({ trackId: activeTrack.id });
+      }}
+      onCancel={() => setWmConfirmOpen(false)}
+    />
+    </>
   );
 }

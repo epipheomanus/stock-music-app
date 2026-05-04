@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import TopNav from "@/components/TopNav";
 import CartDrawer from "@/components/CartDrawer";
 import WaveformPlayer from "@/components/WaveformPlayer";
+import { WatermarkConfirmDialog } from "@/components/WatermarkConfirmDialog";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useCart } from "@/contexts/CartContext";
@@ -102,7 +103,7 @@ function TaxonomyDropdown({ label, items, selected, onToggle }: {
 
 // ─── Browse Page ───────────────────────────────────────────────────────────────
 export default function Browse() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { openCart } = useCart();
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
@@ -116,6 +117,9 @@ export default function Browse() {
   };
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
+  // Watermark confirm dialog state
+  const [wmConfirmOpen, setWmConfirmOpen] = useState(false);
+  const [pendingWatermarkTrackId, setPendingWatermarkTrackId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -172,6 +176,16 @@ export default function Browse() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  function handleDownloadWatermarked(trackId: number) {
+    // If user has opted out of the confirmation, download immediately
+    if (user?.skipWatermarkConfirm) {
+      watermarkedDownloadMutation.mutate({ trackId });
+      return;
+    }
+    setPendingWatermarkTrackId(trackId);
+    setWmConfirmOpen(true);
+  }
 
   function toggleFilter(type: keyof FilterState, value: string) {
     setFilters(prev => {
@@ -328,7 +342,7 @@ export default function Browse() {
                   }}
                   isAuthenticated={isAuthenticated}
                   onAddToCart={() => addToCartMutation.mutate({ trackId: track.id })}
-                  onDownloadWatermarked={() => watermarkedDownloadMutation.mutate({ trackId: track.id })}
+                  onDownloadWatermarked={() => handleDownloadWatermarked(track.id)}
                   activeProjects={activeProjects}
                   onAddToPlaylist={(playlistId) => addTrackToPlaylistMutation.mutate({ playlistId, trackId: track.id })}
                   onCreatePlaylistAndAdd={handleCreatePlaylistAndAdd}
@@ -357,12 +371,26 @@ export default function Browse() {
               <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === totalPages} onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Next</Button>
             </div>
           )}
-        </div>
+         </div>
       </div>
+      {/* Watermark preview confirmation dialog */}
+      <WatermarkConfirmDialog
+        open={wmConfirmOpen}
+        onConfirm={() => {
+          setWmConfirmOpen(false);
+          if (pendingWatermarkTrackId !== null) {
+            watermarkedDownloadMutation.mutate({ trackId: pendingWatermarkTrackId });
+            setPendingWatermarkTrackId(null);
+          }
+        }}
+        onCancel={() => {
+          setWmConfirmOpen(false);
+          setPendingWatermarkTrackId(null);
+        }}
+      />
     </div>
   );
 }
-
 type TrackData = {
   id: number; title: string; composerName: string | null; durationSeconds: number | null;
   coverArtUrl: string | null; watermarkedMp3Url: string | null; wavUrl: string | null;
