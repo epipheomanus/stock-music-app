@@ -25,6 +25,7 @@ import {
   getProjectPlaylists, createPlaylist, renamePlaylist, deletePlaylist,
   getPlaylistTracks, addTrackToPlaylist, removeTrackFromPlaylist,
   getTrackDownloadCounts,
+  reorderPlaylistTracks,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -269,10 +270,12 @@ export const appRouter = router({
           return true;
         });
 
+        const downloadCounts = await getTrackDownloadCounts();
         return filtered.map(track => ({
           ...track,
           // Don't expose hidden tags to the public
           tags: (() => { const t = tagMap.get(track.id); return { genres: t?.genres ?? [], moods: t?.moods ?? [], attributes: t?.attributes ?? [] }; })(),
+          downloadCount: downloadCounts.get(track.id) ?? 0,
         }));
       }),
 
@@ -868,6 +871,9 @@ export const appRouter = router({
     removeTrack: protectedProcedure
       .input(z.object({ playlistId: z.number(), trackId: z.number() }))
       .mutation(async ({ input }) => { await removeTrackFromPlaylist(input.playlistId, input.trackId); return { success: true }; }),
+    reorderTracks: protectedProcedure
+      .input(z.object({ playlistId: z.number(), orderedTrackIds: z.array(z.number()) }))
+      .mutation(async ({ input }) => { await reorderPlaylistTracks(input.playlistId, input.orderedTrackIds); return { success: true }; }),
   }),
 });
 

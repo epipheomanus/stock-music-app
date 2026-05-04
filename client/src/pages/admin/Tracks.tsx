@@ -358,6 +358,7 @@ export default function AdminTracks() {
     e.preventDefault();
     if (!wavFile) { toast.error("Please select a WAV file"); return; }
     if (!form.title.trim()) { toast.error("Title is required"); return; }
+    if (!form.composerName.trim()) { toast.error("Composer is required"); return; }
 
     setUploading(true);
     try {
@@ -754,8 +755,8 @@ export default function AdminTracks() {
                 <Input id="title" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="composer">Composer</Label>
-                <Input id="composer" value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} />
+                <Label htmlFor="composer">Composer *</Label>
+                <Input id="composer" value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} required />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -810,8 +811,8 @@ export default function AdminTracks() {
                 <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required />
               </div>
               <div className="space-y-1.5">
-                <Label>Composer</Label>
-                <Input value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} />
+                <Label>Composer *</Label>
+                <Input value={form.composerName} onChange={e => setForm(p => ({ ...p, composerName: e.target.value }))} required />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

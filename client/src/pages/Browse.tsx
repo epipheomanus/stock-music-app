@@ -107,7 +107,13 @@ export default function Browse() {
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za">("newest");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za" | "popular">(() => {
+    try { return (localStorage.getItem("browse-sort-order") as any) ?? "newest"; } catch { return "newest"; }
+  });
+  const handleSetSortOrder = (v: "newest" | "oldest" | "az" | "za" | "popular") => {
+    setSortOrder(v);
+    try { localStorage.setItem("browse-sort-order", v); } catch {}
+  };
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
 
@@ -126,6 +132,7 @@ export default function Browse() {
     if (sortOrder === "oldest") arr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     else if (sortOrder === "az") arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortOrder === "za") arr.sort((a, b) => b.title.localeCompare(a.title));
+    else if (sortOrder === "popular") arr.sort((a, b) => ((b as any).downloadCount ?? 0) - ((a as any).downloadCount ?? 0));
     else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return arr;
   }, [rawTracks, sortOrder]);
@@ -208,22 +215,25 @@ export default function Browse() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="shrink-0 gap-1.5 text-xs h-8">
                   <ArrowUpDown className="h-3.5 w-3.5" />
-                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : "Z → A"}
+                  {sortOrder === "newest" ? "Newest first" : sortOrder === "oldest" ? "Oldest first" : sortOrder === "az" ? "A → Z" : sortOrder === "za" ? "Z → A" : "Most Popular"}
                   <ChevronDown className="h-3 w-3 ml-0.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
-                <DropdownMenuItem onClick={() => setSortOrder("newest")} className={sortOrder === "newest" ? "font-medium text-primary" : ""}>
+                <DropdownMenuItem onClick={() => handleSetSortOrder("newest")} className={sortOrder === "newest" ? "font-medium text-primary" : ""}>
                   Newest first
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortOrder("oldest")} className={sortOrder === "oldest" ? "font-medium text-primary" : ""}>
+                <DropdownMenuItem onClick={() => handleSetSortOrder("oldest")} className={sortOrder === "oldest" ? "font-medium text-primary" : ""}>
                   Oldest first
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortOrder("az")} className={sortOrder === "az" ? "font-medium text-primary" : ""}>
+                <DropdownMenuItem onClick={() => handleSetSortOrder("az")} className={sortOrder === "az" ? "font-medium text-primary" : ""}>
                   A → Z
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setSortOrder("za")} className={sortOrder === "za" ? "font-medium text-primary" : ""}>
+                <DropdownMenuItem onClick={() => handleSetSortOrder("za")} className={sortOrder === "za" ? "font-medium text-primary" : ""}>
                   Z → A
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSetSortOrder("popular")} className={sortOrder === "popular" ? "font-medium text-primary" : ""}>
+                  Most Popular
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -328,7 +338,7 @@ export default function Browse() {
           )}
           {tracks.length > 0 && totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-6 flex-wrap">
-              <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === 1} onClick={() => { setPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Previous</Button>
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
                 .reduce<(number | "...")[]>((acc, p, idx, arr) => {
@@ -339,12 +349,12 @@ export default function Browse() {
                 .map((p, i) => p === "..." ? (
                   <span key={`ellipsis-${i}`} className="text-xs text-muted-foreground px-1">…</span>
                 ) : (
-                  <button key={p} onClick={() => setPage(p as number)}
+                  <button key={p} onClick={() => { setPage(p as number); window.scrollTo({ top: 0, behavior: "smooth" }); }}
                     className={`h-8 w-8 text-xs rounded border transition-colors ${
                       page === p ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary hover:text-foreground"
                     }`}>{p}</button>
                 ))}
-              <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button>
+              <Button variant="outline" size="sm" className="h-8 text-xs" disabled={page === totalPages} onClick={() => { setPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Next</Button>
             </div>
           )}
         </div>

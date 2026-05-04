@@ -174,3 +174,11 @@
 - [x] Add cart buttons to playlist track rows in SharedProject page (only when user is logged in)
 - [x] Add pagination to Browse page (10/25/50 per page, default 25, page numbers at bottom)
 - [x] Add pagination to admin Track Manager (10/25/50 per page, default 25, page numbers at bottom)
+
+## Round 30 — UI/UX Improvements
+
+- [ ] Make composer a required field in admin track form (Add Track + Edit Track dialogs)
+- [ ] Add "Popularity" sort option to Browse page sort dropdown (based on clean download count)
+- [ ] Persist Browse sort order to localStorage so it survives page refreshes
+- [ ] Scroll to top of page when changing pages in the Browse track browser
+- [ ] Add drag-to-reorder on playlist tracks in My Projects

@@ -501,3 +501,16 @@ export async function getTrackDownloadCounts(): Promise<Map<number, number>> {
   for (const row of rows) map.set(row.trackId, Number(row.count));
   return map;
 }
+
+// ─── Playlist Track Reorder ────────────────────────────────────────────────────
+export async function reorderPlaylistTracks(playlistId: number, orderedTrackIds: number[]): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await Promise.all(
+    orderedTrackIds.map((trackId, index) =>
+      db.update(playlistTracks)
+        .set({ sortOrder: index })
+        .where(and(eq(playlistTracks.playlistId, playlistId), eq(playlistTracks.trackId, trackId)))
+    )
+  );
+}

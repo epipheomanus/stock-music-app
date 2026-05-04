@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import TopNav from "@/components/TopNav";
@@ -7,16 +7,105 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Loader2, Music, Link2, Check, Pencil, ArrowLeft, Play, ListMusic, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, Loader2, Music, Link2, Check, Pencil, ArrowLeft, Play, ListMusic, ShoppingCart, GripVertical } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
 import { usePlayer, GlobalTrack } from "@/contexts/PlayerContext";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ProjectDetailProps {
   params: { id: string };
 }
 
+// ─── Sortable track row ────────────────────────────────────────────────────────
+function SortableTrackRow({
+  pt, idx, playlistId, onPlay, onAddToCart, onRemove, showCart,
+}: {
+  pt: any; idx: number; playlistId: number;
+  onPlay: (track: any) => void;
+  onAddToCart: (trackId: number) => void;
+  onRemove: (playlistId: number, trackId: number) => void;
+  showCart: boolean;
+}) {
+  const track = pt.track ?? pt;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: track.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors group border-b border-border/30 last:border-b-0"
+    >
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground transition-colors shrink-0 touch-none"
+        title="Drag to reorder"
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+      <span className="text-xs text-muted-foreground/50 w-5 text-right shrink-0">{idx + 1}</span>
+      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+        {track.coverArtUrl
+          ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" />
+          : <Music className="h-3.5 w-3.5 text-muted-foreground/40" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{track.title}</p>
+        <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown Composer"}</p>
+      </div>
+      <button
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
+        title="Play track"
+        onClick={() => onPlay(track)}
+      >
+        <Play className="h-3.5 w-3.5" />
+      </button>
+      {showCart && (
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
+          title="Add to cart"
+          onClick={() => onAddToCart(track.id)}
+        >
+          <ShoppingCart className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <button
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
+        title="Remove from playlist"
+        onClick={() => onRemove(playlistId, track.id)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 export default function ProjectDetail({ params }: ProjectDetailProps) {
   const projectId = parseInt(params.id, 10);
   const { user } = useAuth();
@@ -30,6 +119,11 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
   const [editingPlaylistName, setEditingPlaylistName] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
   const { openCart } = useCart();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { utils.cart.list.invalidate(); openCart(); },
@@ -71,6 +165,13 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
     onError: (err) => toast.error(err.message || "Failed to remove track"),
   });
 
+  const reorderTracksMutation = trpc.projects.reorderTracks.useMutation({
+    onError: (err) => {
+      toast.error("Failed to save order");
+      utils.projects.getById.invalidate({ id: projectId });
+    },
+  });
+
   function copyShareLink() {
     if (!project) return;
     const url = `${window.location.origin}/shared/${project.shareToken}`;
@@ -99,6 +200,42 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
       };
     });
     setQueue(queue, 0);
+  }
+
+  function handlePlayTrack(track: any) {
+    setActiveTrack({
+      id: track.id, title: track.title, composerName: track.composerName ?? null,
+      durationSeconds: track.durationSeconds ?? null, coverArtUrl: track.coverArtUrl ?? null,
+      watermarkedMp3Url: track.watermarkedMp3Url ?? null, wavUrl: track.wavUrl ?? null,
+      hasStems: track.hasStems ?? false, watermarkStatus: track.watermarkStatus ?? "pending",
+      tags: track.tags ?? { genres: [], moods: [], attributes: [] },
+    });
+  }
+
+  function handleDragEnd(event: DragEndEvent, playlistId: number, tracks: any[]) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = tracks.findIndex((pt: any) => (pt.track ?? pt).id === active.id);
+    const newIndex = tracks.findIndex((pt: any) => (pt.track ?? pt).id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // Optimistic update
+    const newOrder = arrayMove(tracks, oldIndex, newIndex);
+    const orderedTrackIds = newOrder.map((pt: any) => (pt.track ?? pt).id);
+
+    // Update cache optimistically
+    utils.projects.getById.setData({ id: projectId }, (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        playlists: old.playlists.map((pl: any) =>
+          pl.id === playlistId ? { ...pl, tracks: newOrder } : pl
+        ),
+      };
+    });
+
+    reorderTracksMutation.mutate({ playlistId, orderedTrackIds });
   }
 
   if (projectQuery.isLoading) {
@@ -204,52 +341,31 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
                     No tracks yet — add tracks from the <Link href="/browse" className="underline underline-offset-2 hover:text-foreground">Browse page</Link>.
                   </div>
                 ) : (
-                  <div className="divide-y divide-border/30">
-                    {playlist.tracks.map((pt: any, idx: number) => {
-                      const track = pt.track ?? pt;
-                      return (
-                        <div key={`${playlist.id}-${pt.id ?? track.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors group">
-                          <span className="text-xs text-muted-foreground/50 w-5 text-right shrink-0">{idx + 1}</span>
-                          <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                            {track.coverArtUrl ? <img src={track.coverArtUrl} alt={track.title} className="w-full h-full object-cover" /> : <Music className="h-3.5 w-3.5 text-muted-foreground/40" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{track.title}</p>
-                            <p className="text-xs text-muted-foreground truncate">{track.composerName ?? "Unknown Composer"}</p>
-                          </div>
-                          <button
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground"
-                            title="Play track"
-                            onClick={() => setActiveTrack({
-                              id: track.id, title: track.title, composerName: track.composerName ?? null,
-                              durationSeconds: track.durationSeconds ?? null, coverArtUrl: track.coverArtUrl ?? null,
-                              watermarkedMp3Url: track.watermarkedMp3Url ?? null, wavUrl: track.wavUrl ?? null,
-                              hasStems: track.hasStems ?? false, watermarkStatus: track.watermarkStatus ?? "pending",
-                              tags: track.tags ?? { genres: [], moods: [], attributes: [] },
-                            })}
-                          >
-                            <Play className="h-3.5 w-3.5" />
-                          </button>
-                          {user && (
-                            <button
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-primary"
-                              title="Add to cart"
-                              onClick={() => addToCartMutation.mutate({ trackId: track.id })}
-                            >
-                              <ShoppingCart className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                          <button
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
-                            title="Remove from playlist"
-                            onClick={() => removeTrackMutation.mutate({ playlistId: playlist.id, trackId: track.id })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event) => handleDragEnd(event, playlist.id, playlist.tracks)}
+                  >
+                    <SortableContext
+                      items={playlist.tracks.map((pt: any) => (pt.track ?? pt).id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div>
+                        {playlist.tracks.map((pt: any, idx: number) => (
+                          <SortableTrackRow
+                            key={`${playlist.id}-${(pt.track ?? pt).id}`}
+                            pt={pt}
+                            idx={idx}
+                            playlistId={playlist.id}
+                            onPlay={handlePlayTrack}
+                            onAddToCart={(trackId) => addToCartMutation.mutate({ trackId })}
+                            onRemove={(plId, trackId) => removeTrackMutation.mutate({ playlistId: plId, trackId })}
+                            showCart={!!user}
+                          />
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
                 )}
               </div>
             ))}
