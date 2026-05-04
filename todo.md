@@ -195,3 +195,8 @@
 - [x] Update PlayerContext/GlobalPlayerBar to use mp3PreviewUrl for playback
 - [x] Bulk-convert all 200 existing tracks to MP3 preview
 - [x] Ensure downloads still serve originalWavUrl (24-bit)
+
+## Round 32 — Admin Track Manager Improvements
+
+- [x] Add Published/Unpublished filter dropdown to Admin Track Manager filter panel
+- [ ] Add "Reset download preference" link in user account/profile page so users who checked "Do not show again" can re-enable the watermark confirmation dialog

@@ -195,7 +195,7 @@ export default function AdminTracks() {
         filterComposer: string; filterDateFrom: string; filterDateTo: string;
         filterStems: string; filterWatermark: string;
         filterBpmMin: string; filterBpmMax: string;
-        filterTag: string; filterCoverArt: string;
+        filterTag: string; filterCoverArt: string; filterPublished: string;
       };
     } catch { return null; }
   }
@@ -214,14 +214,15 @@ export default function AdminTracks() {
   const [filterBpmMax, setFilterBpmMax] = useState(saved?.filterBpmMax ?? "");
   const [filterTag, setFilterTag] = useState(saved?.filterTag ?? "");
   const [filterCoverArt, setFilterCoverArt] = useState<"all" | "has" | "missing">((saved?.filterCoverArt as any) ?? "all");
+  const [filterPublished, setFilterPublished] = useState<"all" | "published" | "unpublished">((saved?.filterPublished as any) ?? "all");
   // Persist to localStorage whenever filter state changes
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify({
       search, sortBy, showFilters, filterComposer, filterDateFrom, filterDateTo,
-      filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt,
+      filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt, filterPublished,
     }));
   }, [search, sortBy, showFilters, filterComposer, filterDateFrom, filterDateTo,
-      filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
+      filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt, filterPublished]);
   // Duplicate name alert
   const [duplicateAlertMsg, setDuplicateAlertMsg] = useState<string | null>(null);
 
@@ -320,6 +321,8 @@ export default function AdminTracks() {
     }
     if (filterCoverArt === "has") result = result.filter(t => !!t.coverArtUrl);
     if (filterCoverArt === "missing") result = result.filter(t => !t.coverArtUrl);
+    if (filterPublished === "published") result = result.filter(t => !!t.isPublished);
+    if (filterPublished === "unpublished") result = result.filter(t => !t.isPublished);
     result.sort((a, b) => {
       if (sortBy === "newest") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       if (sortBy === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -330,11 +333,11 @@ export default function AdminTracks() {
       return 0;
     });
     return result;
-  }, [tracks, search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
+  }, [tracks, search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt, filterPublished]);
   const totalAdminPages = Math.max(1, Math.ceil(displayedTracks.length / perPage));
   const pagedAdminTracks = useMemo(() => displayedTracks.slice((page - 1) * perPage, page * perPage), [displayedTracks, page, perPage]);
   // Reset to page 1 when search or filters change
-  useEffect(() => { setPage(1); }, [search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt]);
+  useEffect(() => { setPage(1); }, [search, sortBy, filterComposer, filterDateFrom, filterDateTo, filterStems, filterWatermark, filterBpmMin, filterBpmMax, filterTag, filterCoverArt, filterPublished]);
 
   const deleteGlobalTagMutation = trpc.tracks.deleteGlobalTag.useMutation({
     onSuccess: () => {
@@ -624,11 +627,22 @@ export default function AdminTracks() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Published Status</Label>
+              <Select value={filterPublished} onValueChange={(v) => setFilterPublished(v as any)}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tracks</SelectItem>
+                  <SelectItem value="published">Published Only</SelectItem>
+                  <SelectItem value="unpublished">Unpublished Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="col-span-full flex justify-end">
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => {
                 setFilterComposer(""); setFilterDateFrom(""); setFilterDateTo("");
                 setFilterStems("all"); setFilterWatermark("all"); setFilterBpmMin("");
-                setFilterBpmMax(""); setFilterTag(""); setFilterCoverArt("all");
+                setFilterBpmMax(""); setFilterTag(""); setFilterCoverArt("all"); setFilterPublished("all");
               }}>Clear Filters</Button>
             </div>
           </div>
