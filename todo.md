@@ -246,3 +246,7 @@
 - [x] Change waveform playback progress color to match the primary green (same as volume slider)
 - [x] Add min/max track duration range slider to Browse page filter panel
 - [x] Wire duration filter to filter the displayed tracks client-side
+
+## Round 39 — Persist Duration Filter
+
+- [x] Persist Browse page duration range filter to localStorage (read on mount, write on change)

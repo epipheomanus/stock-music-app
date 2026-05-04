@@ -109,8 +109,22 @@ export default function Browse() {
   const { activeTrackId, setActiveTrack, setQueue } = usePlayer();
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<FilterState>({ genres: [], moods: [], attributes: [] });
-  // Duration range filter: [minSec, maxSec | null], null = no upper limit
-  const [durationRange, setDurationRange] = useState<[number, number | null]>([0, null]);
+  // Duration range filter: [minSec, maxSec | null], null = no upper limit; persisted to localStorage
+  const [durationRange, setDurationRange] = useState<[number, number | null]>(() => {
+    try {
+      const stored = localStorage.getItem("browse-duration-range");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length === 2) return parsed as [number, number | null];
+      }
+    } catch {}
+    return [0, null];
+  });
+  // Helper that updates state and persists to localStorage
+  function setDurationRangePersisted(v: [number, number | null]) {
+    setDurationRange(v);
+    try { localStorage.setItem("browse-duration-range", JSON.stringify(v)); } catch {}
+  }
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "az" | "za" | "popular">(() => {
     try { return (localStorage.getItem("browse-sort-order") as any) ?? "newest"; } catch { return "newest"; }
   });
@@ -219,7 +233,7 @@ export default function Browse() {
     });
   }
 
-  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); setPage(1); setDurationRange([0, null]); }
+  function clearFilters() { setFilters({ genres: [], moods: [], attributes: [] }); setSearch(""); setPage(1); setDurationRangePersisted([0, null]); }
   const isDurationFiltered = durationRange[0] > 0 || durationRange[1] !== null;
   const activeFilterCount = filters.genres.length + filters.moods.length + filters.attributes.length + (isDurationFiltered ? 1 : 0);
   const totalPages = Math.max(1, Math.ceil(tracks.length / perPage));
@@ -338,7 +352,7 @@ export default function Browse() {
                   {isDurationFiltered && (
                     <button
                       className="text-xs text-muted-foreground hover:text-foreground"
-                      onClick={() => { setDurationRange([0, null]); setPage(1); }}
+                      onClick={() => { setDurationRangePersisted([0, null]); setPage(1); }}
                     >
                       Reset
                     </button>
@@ -349,7 +363,7 @@ export default function Browse() {
                   max={600}
                   step={15}
                   value={[durationRange[0], durationRange[1] ?? 600]}
-                  onValueChange={(v) => { const [lo, hi] = v; setDurationRange([lo, hi >= 600 ? null : hi]); setPage(1); }}
+                  onValueChange={(v) => { const [lo, hi] = v; setDurationRangePersisted([lo, hi >= 600 ? null : hi]); setPage(1); }}
                 />
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{Math.floor(durationRange[0] / 60)}:{String(durationRange[0] % 60).padStart(2, "0")}</span>
