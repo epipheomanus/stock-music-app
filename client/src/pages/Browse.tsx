@@ -164,15 +164,30 @@ export default function Browse() {
   });
 
   const watermarkedDownloadMutation = trpc.downloads.downloadWatermarked.useMutation({
-    onSuccess: (data) => {
-      const a = document.createElement("a");
-      a.href = data.url;
-      a.download = `${data.title}_preview.mp3`;
-      a.target = "_blank";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      toast.success("Downloading preview...");
+    onSuccess: async (data) => {
+      try {
+        // Fetch as blob to force a true file download (avoids browser opening a media player tab)
+        const res = await fetch(data.url);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = `${data.title}_preview.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        toast.success("Downloading preview...");
+      } catch {
+        // Fallback: direct link
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.download = `${data.title}_preview.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        toast.success("Downloading preview...");
+      }
     },
     onError: (err) => toast.error(err.message),
   });
