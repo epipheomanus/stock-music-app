@@ -26,6 +26,7 @@ import {
   getPlaylistTracks, addTrackToPlaylist, removeTrackFromPlaylist,
   getTrackDownloadCounts,
   reorderPlaylistTracks,
+  getUserDownloads,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -77,6 +78,31 @@ export const appRouter = router({
         await upsertUser({ openId: ctx.user.openId, ...input });
         return { success: true };
       }),
+
+    // Update user profile fields (firstName, lastName, company, username)
+    updateProfile: protectedProcedure
+      .input(z.object({
+        firstName: z.string().min(1).max(128).optional(),
+        lastName: z.string().min(1).max(128).optional(),
+        company: z.string().max(256).optional(),
+        username: z.string().min(3).max(32).regex(/^[a-zA-Z0-9_]+$/).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Check username uniqueness if changing
+        if (input.username && input.username !== ctx.user.username) {
+          const existing = await getUserByUsername(input.username);
+          if (existing && existing.id !== ctx.user.id) {
+            throw new TRPCError({ code: "CONFLICT", message: "Username already taken" });
+          }
+        }
+        await upsertUser({ openId: ctx.user.openId, ...input });
+        return { success: true };
+      }),
+
+    // Get current user's clean download history
+    myDownloads: protectedProcedure.query(async ({ ctx }) => {
+      return getUserDownloads(ctx.user.id);
+    }),
 
     // Validate invite token
     validateInvite: publicProcedure

@@ -59,6 +59,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   };
   textFields.forEach(assignNullable);
   if (user.lastSignedIn !== undefined) { values.lastSignedIn = user.lastSignedIn; updateSet.lastSignedIn = user.lastSignedIn; }
+  if (user.skipWatermarkConfirm !== undefined) { values.skipWatermarkConfirm = user.skipWatermarkConfirm; updateSet.skipWatermarkConfirm = user.skipWatermarkConfirm; }
   if (user.role !== undefined) { values.role = user.role; updateSet.role = user.role; }
   else if (user.openId === ENV.ownerOpenId) { values.role = "admin"; updateSet.role = "admin"; }
   if (!values.lastSignedIn) values.lastSignedIn = new Date();
@@ -467,6 +468,29 @@ export async function removeTrackFromPlaylist(playlistId: number, trackId: numbe
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(playlistTracks).where(and(eq(playlistTracks.playlistId, playlistId), eq(playlistTracks.trackId, trackId)));
+}
+
+// ─── User Downloads ──────────────────────────────────────────────────────────────────
+export async function getUserDownloads(userId: number): Promise<(Download & { trackTitle: string; composerName: string | null; coverArtUrl: string | null })[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: downloads.id,
+      userId: downloads.userId,
+      trackId: downloads.trackId,
+      projectName: downloads.projectName,
+      downloadedAt: downloads.downloadedAt,
+      fileType: downloads.fileType,
+      trackTitle: tracks.title,
+      composerName: tracks.composerName,
+      coverArtUrl: tracks.coverArtUrl,
+    })
+    .from(downloads)
+    .leftJoin(tracks, eq(downloads.trackId, tracks.id))
+    .where(eq(downloads.userId, userId))
+    .orderBy(desc(downloads.downloadedAt));
+  return rows as (Download & { trackTitle: string; composerName: string | null; coverArtUrl: string | null })[];
 }
 
 // ─── User Management ────────────────────────────────────────────────────────────────

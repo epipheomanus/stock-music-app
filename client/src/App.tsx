@@ -24,6 +24,7 @@ import AdminTaxonomy from "./pages/admin/Taxonomy";
 import MyProjects from "./pages/MyProjects";
 import ProjectDetail from "./pages/ProjectDetail";
 import SharedProject from "./pages/SharedProject";
+import Profile from "./pages/Profile";
 
 function Router() {
   return (
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/projects" component={MyProjects} />
       <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/shared/:token" component={SharedProject} />
+      <Route path="/profile" component={Profile} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

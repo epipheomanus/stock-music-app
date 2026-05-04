@@ -200,3 +200,14 @@
 
 - [x] Add Published/Unpublished filter dropdown to Admin Track Manager filter panel
 - [x] Add "Reset download preference" link in user account/profile page so users who checked "Do not show again" can re-enable the watermark confirmation dialog
+
+## Round 33 — My Profile Page
+
+- [x] Add updateProfile tRPC procedure (firstName, lastName, company, username fields)
+- [x] Add myDownloads tRPC procedure (returns user's clean download history with track info)
+- [x] Create /profile page with personal info edit form
+- [x] Add clean download history table to profile page
+- [x] Add download preference (reset watermark dialog) section to profile page
+- [x] Add "My Profile" link to user dropdown in TopNav
+- [x] Remove "Reset download prompt" from TopNav dropdown (moved to profile page)
+- [x] Register /profile route in App.tsx
