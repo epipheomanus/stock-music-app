@@ -199,4 +199,4 @@
 ## Round 32 — Admin Track Manager Improvements
 
 - [x] Add Published/Unpublished filter dropdown to Admin Track Manager filter panel
-- [ ] Add "Reset download preference" link in user account/profile page so users who checked "Do not show again" can re-enable the watermark confirmation dialog
+- [x] Add "Reset download preference" link in user account/profile page so users who checked "Do not show again" can re-enable the watermark confirmation dialog

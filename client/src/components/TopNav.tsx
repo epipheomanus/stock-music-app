@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, LogOut, Settings, Menu, X, FolderOpen } from "lucide-react";
+import { ShoppingCart, LogOut, Settings, Menu, X, FolderOpen, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,6 +24,9 @@ export default function TopNav() {
       window.location.href = "/";
     },
   });
+
+  const updatePrefMutation = trpc.auth.updatePreference.useMutation();
+  const utils = trpc.useUtils();
 
   const cartQuery = trpc.cart.list.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -113,6 +116,21 @@ export default function TopNav() {
                       <FolderOpen className="h-4 w-4 mr-2" />
                       My Projects
                     </DropdownMenuItem>
+                    {user?.skipWatermarkConfirm && (
+                      <>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            updatePrefMutation.mutate({ skipWatermarkConfirm: false }, {
+                              onSuccess: () => utils.auth.me.invalidate(),
+                            });
+                          }}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Reset download prompt
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => logoutMutation.mutate()}
