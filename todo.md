@@ -182,3 +182,16 @@
 - [ ] Persist Browse sort order to localStorage so it survives page refreshes
 - [ ] Scroll to top of page when changing pages in the Browse track browser
 - [ ] Add drag-to-reorder on playlist tracks in My Projects
+
+## Round 31 — MP3 Preview Pipeline
+
+- [ ] Add mp3PreviewKey + mp3PreviewUrl columns to tracks table in schema
+- [ ] Add generateMp3Preview() to watermark.ts (192kbps MP3 from 24-bit WAV)
+- [ ] Update single-track upload handler to generate mp3PreviewUrl
+- [ ] Update generateWatermark procedure to generate mp3PreviewUrl
+- [ ] Update retryAllStuck procedure to generate mp3PreviewUrl
+- [ ] Update bulkImport endpoint to generate mp3PreviewUrl
+- [ ] Update WaveformPlayer to use mp3PreviewUrl for WaveSurfer playback
+- [ ] Update PlayerContext/GlobalPlayerBar to use mp3PreviewUrl for playback
+- [ ] Bulk-convert all 200 existing tracks to MP3 preview
+- [ ] Ensure downloads still serve originalWavUrl (24-bit)

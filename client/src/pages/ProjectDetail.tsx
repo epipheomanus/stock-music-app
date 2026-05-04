@@ -194,6 +194,7 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
         coverArtUrl: t.coverArtUrl ?? null,
         watermarkedMp3Url: t.watermarkedMp3Url ?? null,
         wavUrl: t.wavUrl ?? null,
+        mp3PreviewUrl: t.mp3PreviewUrl ?? null,
         hasStems: t.hasStems ?? false,
         watermarkStatus: t.watermarkStatus ?? "pending",
         tags: t.tags ?? { genres: [], moods: [], attributes: [] },
@@ -207,6 +208,7 @@ export default function ProjectDetail({ params }: ProjectDetailProps) {
       id: track.id, title: track.title, composerName: track.composerName ?? null,
       durationSeconds: track.durationSeconds ?? null, coverArtUrl: track.coverArtUrl ?? null,
       watermarkedMp3Url: track.watermarkedMp3Url ?? null, wavUrl: track.wavUrl ?? null,
+      mp3PreviewUrl: track.mp3PreviewUrl ?? null,
       hasStems: track.hasStems ?? false, watermarkStatus: track.watermarkStatus ?? "pending",
       tags: track.tags ?? { genres: [], moods: [], attributes: [] },
     });

@@ -19,7 +19,7 @@ import {
   upsertWatermarkConfig,
   getWatermarkConfig,
 } from "./db";
-import { generateWatermarkedMp3, downloadToTemp, convert16BitWav, generateWaveformPeaks } from "./watermark";
+import { generateWatermarkedMp3, downloadToTemp, convert16BitWav, generateWaveformPeaks, generateMp3Preview } from "./watermark";
 import { parse as csvParse } from "csv-parse/sync";
 import unzipper from "unzipper";
 import { sdk } from "./_core/sdk";
@@ -98,6 +98,16 @@ export function registerUploadRoutes(app: any) {
         try {
           waveformPeaks = await generateWaveformPeaks(tmpOrigPath, 500);
         } catch { /* not critical */ }
+        // 1d. Generate 192kbps MP3 preview for fast browser streaming
+        let mp3PreviewKey: string | undefined;
+        let mp3PreviewUrl: string | undefined;
+        try {
+          const mp3Buf = await generateMp3Preview(tmpOrigPath);
+          const mp3KeyBase = `tracks/mp3preview/${Date.now()}_${wavFile.originalname.replace(/\s+/g, "_").replace(/\.wav$/i, ".mp3")}`;
+          const { key: pk, url: pu } = await storagePut(mp3KeyBase, mp3Buf, "audio/mpeg");
+          mp3PreviewKey = pk;
+          mp3PreviewUrl = pu;
+        } catch (e) { console.error("[upload-track] MP3 preview generation failed:", e); }
         try { fs.unlinkSync(tmpOrigPath); } catch { /* ignore */ }
         // 2. Upload cover art if providedd
         let coverArtUrl: string | undefined;
@@ -164,6 +174,8 @@ export function registerUploadRoutes(app: any) {
           wavUrl,
           originalWavKey: origWavKey,
           originalWavUrl: origWavUrl,
+          mp3PreviewKey,
+          mp3PreviewUrl,
           waveformPeaks,
           coverArtUrl,
           stemsZipUrl,
@@ -375,6 +387,17 @@ export function registerUploadRoutes(app: any) {
             // Peaks generation failed — not critical
           }
 
+          // 4b. Generate 192kbps MP3 preview for fast browser streaming
+          let mp3PreviewKey: string | undefined;
+          let mp3PreviewUrl: string | undefined;
+          try {
+            const mp3Buf = await generateMp3Preview(tmpOrigPath);
+            const mp3KeyBase = `tracks/mp3preview/${Date.now()}_${title.replace(/\s+/g, "_")}.mp3`;
+            const { key: pk, url: pu } = await storagePut(mp3KeyBase, mp3Buf, "audio/mpeg");
+            mp3PreviewKey = pk;
+            mp3PreviewUrl = pu;
+          } catch (e) { console.error(`[bulk-import] MP3 preview failed for "${title}":`, e); }
+
           // 5. Get duration
           let durationSeconds: number | undefined;
           try {
@@ -426,6 +449,8 @@ export function registerUploadRoutes(app: any) {
             wavUrl,
             originalWavKey: origKey,
             originalWavUrl: origUrl,
+            mp3PreviewKey,
+            mp3PreviewUrl,
             waveformPeaks,
             isPublished,
             watermarkStatus: "pending",

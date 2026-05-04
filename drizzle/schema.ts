@@ -62,6 +62,9 @@ export const tracks = mysqlTable("tracks", {
   // Original 24-bit WAV preserved for download; wavUrl holds the 16-bit browser-playback version
   originalWavKey: varchar("originalWavKey", { length: 512 }),
   originalWavUrl: varchar("originalWavUrl", { length: 1024 }),
+  // 192kbps MP3 for fast browser streaming/playback (not for download)
+  mp3PreviewKey: varchar("mp3PreviewKey", { length: 512 }),
+  mp3PreviewUrl: varchar("mp3PreviewUrl", { length: 1024 }),
   stemsZipKey: varchar("stemsZipKey", { length: 512 }),
   stemsZipUrl: varchar("stemsZipUrl", { length: 1024 }),
   watermarkedMp3Key: varchar("watermarkedMp3Key", { length: 512 }),

@@ -366,6 +366,7 @@ export default function Browse() {
 type TrackData = {
   id: number; title: string; composerName: string | null; durationSeconds: number | null;
   coverArtUrl: string | null; watermarkedMp3Url: string | null; wavUrl: string | null;
+  mp3PreviewUrl: string | null;
   hasStems: boolean; watermarkStatus: string; createdAt: Date;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
 };
@@ -379,8 +380,8 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
   // Deduplicate tags to prevent React duplicate-key warnings (a track can have the same
   // value in multiple tag categories, e.g. "hopeful" as both a mood and an attribute).
   const allTags = Array.from(new Set([...track.tags.genres, ...track.tags.moods, ...track.tags.attributes]));
-  // Use clean WAV for in-browser playback; watermarkedMp3Url is only for the Download Preview button
-  const audioUrl = track.wavUrl ?? "";
+  // Use MP3 preview for fast browser streaming; fall back to WAV if not yet generated
+  const audioUrl = track.mp3PreviewUrl ?? track.wavUrl ?? "";
 
   return (
     <div className={`group rounded-xl border transition-all ${isPlaying ? "border-primary/40 bg-primary/5" : "border-border/50 bg-card/50 hover:border-border hover:bg-card"}`}>

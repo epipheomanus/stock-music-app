@@ -30,7 +30,7 @@ import {
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3, convert16BitWav } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3, convert16BitWav, generateMp3Preview } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -499,6 +499,13 @@ export const appRouter = router({
             const conv16Key = `tracks/${trackId}/wav_16bit_${Date.now()}.wav`;
             const { key: convKey, url: convUrl } = await storagePut(conv16Key, wav16Buf, "audio/wav");
             await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
+            // Generate 192kbps MP3 preview for fast browser streaming (from original 24-bit for best quality)
+            try {
+              const mp3PrevBuf = await generateMp3Preview(cleanPath);
+              const mp3PrevKey = `tracks/${trackId}/mp3preview_${Date.now()}.mp3`;
+              const { key: ppk, url: ppu } = await storagePut(mp3PrevKey, mp3PrevBuf, "audio/mpeg");
+              await updateTrack(trackId, { mp3PreviewKey: ppk, mp3PreviewUrl: ppu });
+            } catch (e) { console.error(`[Watermark] MP3 preview failed for track ${trackId}:`, e); }
             // Re-download the 16-bit version for watermarking
             cleanPath && fs.existsSync(cleanPath) && fs.unlinkSync(cleanPath);
             const conv16SignedUrl = await storageGetSignedUrl(convKey);
@@ -580,6 +587,13 @@ export const appRouter = router({
               const conv16Key = `tracks/${trackId}/wav_16bit_${Date.now()}.wav`;
               const { key: convKey, url: convUrl } = await storagePut(conv16Key, wav16Buf, "audio/wav");
               await updateTrack(trackId, { wavKey: convKey, wavUrl: convUrl });
+              // Generate 192kbps MP3 preview for fast browser streaming
+              try {
+                const mp3PrevBuf = await generateMp3Preview(cleanPath);
+                const mp3PrevKey = `tracks/${trackId}/mp3preview_${Date.now()}.mp3`;
+                const { key: ppk, url: ppu } = await storagePut(mp3PrevKey, mp3PrevBuf, "audio/mpeg");
+                await updateTrack(trackId, { mp3PreviewKey: ppk, mp3PreviewUrl: ppu });
+              } catch (e) { console.error(`[Watermark] Bulk MP3 preview failed for track ${trackId}:`, e); }
               // Re-download 16-bit for watermarking
               cleanPath && fs.existsSync(cleanPath) && fs.unlinkSync(cleanPath);
               const conv16SignedUrl = await storageGetSignedUrl(convKey);

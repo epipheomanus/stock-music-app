@@ -156,3 +156,27 @@ export async function generateWaveformPeaks(wavPath: string, numSamples = 500): 
     try { fs.unlinkSync(tmpRaw); } catch { /* ignore */ }
   }
 }
+
+/**
+ * Convert a WAV file (any bit depth) to a 192kbps MP3 for browser streaming.
+ * Returns the MP3 as a Buffer. The caller is responsible for uploading it to storage.
+ *
+ * @param wavPath - Path to the source WAV file on disk
+ * @returns Buffer containing the 192kbps MP3
+ */
+export async function generateMp3Preview(wavPath: string): Promise<Buffer> {
+  const tmpMp3 = path.join(os.tmpdir(), `mp3prev_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`);
+  try {
+    await execFileAsync("ffmpeg", [
+      "-y", "-i", wavPath,
+      "-codec:a", "libmp3lame",
+      "-b:a", "192k",
+      "-ar", "44100",
+      "-ac", "2",
+      tmpMp3,
+    ]);
+    return fs.readFileSync(tmpMp3);
+  } finally {
+    try { fs.unlinkSync(tmpMp3); } catch { /* ignore */ }
+  }
+}

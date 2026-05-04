@@ -25,6 +25,7 @@ export interface GlobalTrack {
   coverArtUrl: string | null;
   watermarkedMp3Url: string | null;
   wavUrl: string | null;
+  mp3PreviewUrl: string | null;
   hasStems: boolean;
   watermarkStatus: string;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
@@ -91,7 +92,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const loadTrack = useCallback((track: GlobalTrack) => {
     // Use clean WAV for playback; watermarkedMp3Url is only for the Download Preview button
-    const url = track.wavUrl ?? "";
+    const url = track.mp3PreviewUrl ?? track.wavUrl ?? "";
     if (!url) return;
 
     setActiveTrackState(track);
@@ -167,7 +168,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     if (pendingTrackRef.current) {
       // Use clean WAV for playback
-      const url = pendingTrackRef.current.wavUrl ?? "";
+      const url = pendingTrackRef.current.mp3PreviewUrl ?? pendingTrackRef.current.wavUrl ?? "";
       if (url) {
         currentUrlRef.current = url;
         ws.load(url);
