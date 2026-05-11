@@ -254,3 +254,8 @@
 ## Round 40 — Persist Taxonomy Filters
 
 - [x] Persist Browse page Genre, Mood, and Attributes filters to localStorage (read on mount, write on change)
+
+## Round 41 — Restore Heading Font Weight
+
+- [x] Change h1-h6 font-weight from 500 (Medium) to 700 (Bold) in index.css to restore original bold appearance
+- [x] Update font-medium classes on key page headings to font-bold where appropriate
