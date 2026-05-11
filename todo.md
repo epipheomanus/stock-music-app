@@ -259,3 +259,9 @@
 
 - [x] Change h1-h6 font-weight from 500 (Medium) to 700 (Bold) in index.css to restore original bold appearance
 - [x] Update font-medium classes on key page headings to font-bold where appropriate
+
+## Round 42 — Fix Oswald Font Loading
+
+- [x] Diagnose why Google Fonts Oswald fails to load in sandbox (renders fallback system font)
+- [x] Self-host Oswald and Noticia Text font files to ensure reliable loading
+- [x] Verify correct font renders in sandbox browser
