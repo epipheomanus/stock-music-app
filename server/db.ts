@@ -296,7 +296,7 @@ export async function logDownload(userId: number, trackId: number, projectName: 
   await db.insert(downloads).values({ userId, trackId, projectName, fileType });
 }
 
-export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string })[]> {
+export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null })[]> {
   const db = await getDb();
   if (!db) return [];
   const rows = await db
@@ -310,12 +310,13 @@ export async function getAllDownloads(): Promise<(Download & { userName: string 
       userName: users.name,
       userEmail: users.email,
       trackTitle: tracks.title,
+      composerName: tracks.composerName,
     })
     .from(downloads)
     .leftJoin(users, eq(downloads.userId, users.id))
     .leftJoin(tracks, eq(downloads.trackId, tracks.id))
     .orderBy(desc(downloads.downloadedAt));
-  return rows as (Download & { userName: string | null; userEmail: string | null; trackTitle: string })[];
+  return rows as (Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null })[];
 }
 
 // ─── Watermark Config ─────────────────────────────────────────────────────────

@@ -283,3 +283,10 @@
 - [x] Remove delete button and deleteDownload mutation from user Profile.tsx
 - [x] Change deleteDownload tRPC procedure to adminProcedure (admin-only)
 - [x] Add delete button to each row on Admin Downloads (Analytics) page
+
+## Round 46 — Admin Downloads Page Enhancements
+
+- [x] Add composer field to adminList downloads query and Analytics table
+- [x] Add multi-select filter panel: filter by user, track, composer, file type (clean/watermarked), and date range
+- [x] Show dynamic summary stat (e.g. "42 downloads") that updates to reflect the current active filters
+- [x] Ensure quick-range buttons (Q1/Q2/Q3/Q4/YTD/Last 30) work in combination with other active filters
