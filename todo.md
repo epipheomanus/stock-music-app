@@ -1,4 +1,4 @@
-# SoundVault TODO
+# EpipheoMusic TODO
 
 ## Database & Schema
 - [x] Extend users table with firstName, lastName, company, username fields
@@ -265,3 +265,7 @@
 - [x] Diagnose why Google Fonts Oswald fails to load in sandbox (renders fallback system font)
 - [x] Self-host Oswald and Noticia Text font files to ensure reliable loading
 - [x] Verify correct font renders in sandbox browser
+
+## Round 43 — Project Rename to EpipheoMusic
+
+- [x] Replace all "SoundVault" references with "EpipheoMusic" in user-facing strings, page titles, and metadata
