@@ -237,13 +237,58 @@ export const appRouter = router({
   // ─── Invites ───────────────────────────────────────────────────────────────
   invites: router({
     create: adminOnly
-      .input(z.object({ origin: z.string(), role: z.enum(["user", "admin"]).default("user") }))
+      .input(z.object({
+        origin: z.string(),
+        role: z.enum(["user", "admin"]).default("user"),
+        email: z.string().email().optional(), // if provided, send invite email directly
+      }))
       .mutation(async ({ ctx, input }) => {
         const token = nanoid(32);
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
         await createInvite(token, ctx.user.id, expiresAt, input.role);
         const url = `${input.origin}/register?token=${token}`;
-        return { token, url, expiresAt, role: input.role };
+
+        // Optionally send invite email
+        if (input.email && ENV.resendApiKey) {
+          try {
+            const { Resend } = await import("resend");
+            const resend = new Resend(ENV.resendApiKey);
+            const senderName = ctx.user.firstName
+              ? `${ctx.user.firstName}${ctx.user.lastName ? " " + ctx.user.lastName : ""}`
+              : ctx.user.name ?? "The Epipheo Music team";
+            await resend.emails.send({
+              from: ENV.resendFrom,
+              to: input.email,
+              subject: "You've been invited to Epipheo Music",
+              html: `
+                <!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:40px 16px;"><tr><td align="center">
+                    <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                      <tr><td style="background:#1a1a2e;padding:28px 36px;">
+                        <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Epipheo <span style="color:#818cf8;">Music</span></p>
+                      </td></tr>
+                      <tr><td style="padding:40px 36px;">
+                        <h1 style="margin:0 0 14px;font-size:24px;font-weight:700;color:#111827;">You've been invited</h1>
+                        <p style="margin:0 0 28px;font-size:15px;color:#6b7280;line-height:1.65;">${senderName} has invited you to join <strong>Epipheo Music</strong> — a private library of original music for Epipheo projects. Click the button below to create your account.</p>
+                        <a href="${url}" style="display:inline-block;background:#6366f1;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;letter-spacing:0.1px;">Accept Invitation</a>
+                        <p style="margin:28px 0 0;font-size:13px;color:#9ca3af;line-height:1.6;">This invitation expires in <strong>7 days</strong>. If you weren't expecting this, you can safely ignore this email.</p>
+                      </td></tr>
+                      <tr><td style="background:#f9fafb;padding:20px 36px;border-top:1px solid #e5e7eb;">
+                        <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} Epipheo Music &middot; This is an automated message, please do not reply.</p>
+                      </td></tr>
+                    </table>
+                  </td></tr></table>
+                </body></html>
+              `,
+            });
+          } catch (e) {
+            console.error("[Resend] Failed to send invite email:", e);
+          }
+        } else if (input.email) {
+          console.log(`[Invite] Email for ${input.email}: ${url}`);
+        }
+
+        return { token, url, expiresAt, role: input.role, emailSent: !!input.email };
       }),
     list: adminOnly.query(async () => {
       return getAllInvites();

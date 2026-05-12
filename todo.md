@@ -332,3 +332,19 @@
 - [x] Replace browser confirm() with AlertDialog on My Projects page for project deletion
 - [x] Show project name in the confirmation dialog
 - [x] Apply same fix to archived projects delete button
+
+## Round 52 — Self-hosted Auth + Cloudflare R2 Storage
+
+- [x] Add passwordHash and emailVerified columns to users table; add sessions table (already existed)
+- [x] Add server-side procedures: auth.login, auth.register (invite-only), auth.logout, auth.me, auth.setPassword (already existed)
+- [x] Remove Manus OAuth routes and replace with self-hosted session cookie auth
+- [x] Update useAuth hook to use new auth.me procedure
+- [x] Replace Login page with email+password form (already existed)
+- [x] Replace Register page with set-password form (already existed)
+- [x] Update invite flow to send Resend email with set-password link
+- [x] Update TopNav to remove Manus OAuth login URL (already clean)
+- [x] Switch server/storage.ts to Cloudflare R2 using @aws-sdk/client-s3
+- [x] Add R2 environment variable secrets (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, R2_PUBLIC_URL)
+- [x] Update all storage references to use R2 URLs
+- [x] Add Railway build config (railway.json)
+- [x] Write/update tests for new auth procedures (23/23 passing)

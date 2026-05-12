@@ -1,15 +1,17 @@
 import { useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Copy, Check, Loader2, Link2, Clock, User, Shield } from "lucide-react";
+import { Plus, Copy, Check, Loader2, Link2, Clock, User, Shield, Mail, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export default function AdminInvites() {
   const utils = trpc.useUtils();
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [newRole, setNewRole] = useState<"user" | "admin">("user");
+  const [inviteEmail, setInviteEmail] = useState("");
 
   const invitesQuery = trpc.invites.list.useQuery();
   const invites = invitesQuery.data ?? [];
@@ -17,11 +19,21 @@ export default function AdminInvites() {
   const createMutation = trpc.invites.create.useMutation({
     onSuccess: (data) => {
       utils.invites.list.invalidate();
-      copyToClipboard(data.url, -1);
-      toast.success(`${data.role === "admin" ? "Admin" : "User"} invite link created and copied to clipboard!`);
+      if (data.emailSent) {
+        toast.success(`Invite email sent to ${inviteEmail}!`);
+        setInviteEmail("");
+      } else {
+        copyToClipboard(data.url, -1);
+        toast.success(`${data.role === "admin" ? "Admin" : "User"} invite link created and copied to clipboard!`);
+      }
     },
     onError: (err: { message?: string }) => toast.error(err.message || "Failed to create invite"),
   });
+
+  function handleCreate() {
+    const email = inviteEmail.trim() || undefined;
+    createMutation.mutate({ origin: window.location.origin, role: newRole, email });
+  }
 
   function copyToClipboard(url: string, id: number) {
     navigator.clipboard.writeText(url).then(() => {
@@ -41,14 +53,30 @@ export default function AdminInvites() {
   return (
     <AdminLayout>
       <div className="p-8">
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold mb-1">Invites</h1>
-            <p className="text-sm text-muted-foreground">Manage invite links for new user registration. Each link is one-time use only.</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold mb-1">Invites</h1>
+          <p className="text-sm text-muted-foreground">Invite employees or freelancers to join Epipheo Music. Each invite link is one-time use and expires in 7 days.</p>
+        </div>
+
+        {/* Create invite panel */}
+        <div className="rounded-xl border border-border/50 bg-card/50 p-6 mb-8">
+          <h2 className="text-sm font-semibold mb-4">Create New Invite</h2>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Email input */}
+            <div className="flex-1 relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                type="email"
+                placeholder="Enter email to send invite directly (optional)"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                className="pl-9"
+                onKeyDown={e => e.key === "Enter" && handleCreate()}
+              />
+            </div>
+
             {/* Role selector */}
-            <div className="flex rounded-lg border border-border overflow-hidden text-sm">
+            <div className="flex rounded-lg border border-border overflow-hidden text-sm shrink-0">
               <button
                 onClick={() => setNewRole("user")}
                 className={`flex items-center gap-1.5 px-3 py-2 transition-colors ${newRole === "user" ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted"}`}
@@ -64,15 +92,25 @@ export default function AdminInvites() {
                 Admin
               </button>
             </div>
+
             <Button
-              onClick={() => createMutation.mutate({ origin: window.location.origin, role: newRole })}
+              onClick={handleCreate}
               disabled={createMutation.isPending}
-              className="gap-2"
+              className="gap-2 shrink-0"
             >
-              {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Generate Invite Link
+              {createMutation.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : inviteEmail.trim()
+                  ? <Send className="h-4 w-4" />
+                  : <Plus className="h-4 w-4" />}
+              {inviteEmail.trim() ? "Send Invite" : "Generate Link"}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {inviteEmail.trim()
+              ? "An invitation email will be sent directly to this address."
+              : "Leave email blank to generate a link you can copy and share manually."}
+          </p>
         </div>
 
         {invitesQuery.isLoading ? (
@@ -80,7 +118,7 @@ export default function AdminInvites() {
         ) : invites.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-center">
             <Link2 className="h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">No invites yet. Generate your first invite link.</p>
+            <p className="text-muted-foreground">No invites yet. Create your first invite above.</p>
           </div>
         ) : (
           <div className="space-y-6">
