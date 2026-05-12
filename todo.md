@@ -302,3 +302,13 @@
 - [x] Remove results count badge from inside Export CSV button
 - [x] Add subtle dark/light mode toggle button to the app (TopNav and/or homepage)
 - [x] Persist dark/light mode preference to localStorage
+
+## Round 48 — Admin Downloads: Tooltips + Pagination
+
+- [x] Add hover tooltip to Track column showing full track title
+- [x] Add hover tooltip to Composer column showing full composer name
+- [x] Add hover tooltip to User column showing full name and email
+- [x] Add hover tooltip to Project column showing full project name
+- [x] Add pagination controls to Admin Downloads table (25/50/100 per page selector + page navigation)
+- [x] Persist page size preference to localStorage
+- [x] Reset to page 1 when filters change

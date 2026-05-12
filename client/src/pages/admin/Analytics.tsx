@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import {
   Download, Loader2, Music, User, Calendar, FolderOpen,
   FileSpreadsheet, X, Trash2, ChevronDown, Mic2, Filter,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +16,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState, useMemo } from "react";
+import {
+  Tooltip, TooltipContent, TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
+
+// ─── helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date | string) {
   return new Date(d).toLocaleString("en-US", {
@@ -28,6 +35,24 @@ function formatDate(d: Date | string) {
 function unique<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
 }
+
+// Renders truncated text with a tooltip showing the full value on hover
+function TipCell({ text, maxW = "max-w-[140px]", className = "" }: { text: string; maxW?: string; className?: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`truncate ${maxW} block cursor-default ${className}`}>{text || "—"}</span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs break-words text-xs">
+        {text || "—"}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+const PAGE_SIZE_KEY = "admin-downloads-page-size";
+
+// ─── component ───────────────────────────────────────────────────────────────
 
 export default function AdminAnalytics() {
   const downloadsQuery = trpc.downloads.adminList.useQuery();
@@ -56,6 +81,13 @@ export default function AdminAnalytics() {
   const [selectedTypes, setSelectedTypes]         = useState<string[]>([]);
   const [startDate, setStartDate]                 = useState("");
   const [endDate, setEndDate]                     = useState("");
+
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(() => {
+    const stored = localStorage.getItem(PAGE_SIZE_KEY);
+    return stored ? Number(stored) : 25;
+  });
 
   const userOptions     = useMemo(() => unique(downloads.map((d: any) => d.userName ?? "Unknown")).sort(), [downloads]);
   const trackOptions    = useMemo(() => unique(downloads.map((d: any) => d.trackTitle ?? "Unknown")).sort(), [downloads]);
@@ -93,6 +125,10 @@ export default function AdminAnalytics() {
     });
   }, [downloads, selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
 
+  // Reset to page 1 whenever filters change
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); },
+    [selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
+
   const hasFilters = !!(selectedUsers.length || selectedTracks.length || selectedComposers.length ||
                      selectedTypes.length || startDate || endDate);
 
@@ -101,16 +137,31 @@ export default function AdminAnalytics() {
     setSelectedTypes([]); setStartDate(""); setEndDate("");
   }
 
-  // selection helpers
-  const filteredIds = useMemo(() => filtered.map((d: any) => d.id as number), [filtered]);
-  const allSelected  = filteredIds.length > 0 && filteredIds.every(id => selectedIds.has(id));
-  const someSelected = filteredIds.some(id => selectedIds.has(id));
+  // pagination derived values
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage   = Math.min(page, totalPages);
+  const pageStart  = (safePage - 1) * pageSize;
+  const pageEnd    = Math.min(pageStart + pageSize, filtered.length);
+  const paginated  = filtered.slice(pageStart, pageEnd);
 
-  function toggleSelectAll() {
-    if (allSelected) {
-      setSelectedIds(prev => { const n = new Set(prev); filteredIds.forEach(id => n.delete(id)); return n; });
+  function handlePageSizeChange(val: string) {
+    const n = Number(val);
+    setPageSize(n);
+    setPage(1);
+    localStorage.setItem(PAGE_SIZE_KEY, String(n));
+  }
+
+  // selection helpers (operate on filtered, not just current page)
+  const filteredIds  = useMemo(() => filtered.map((d: any) => d.id as number), [filtered]);
+  const pageIds      = useMemo(() => paginated.map((d: any) => d.id as number), [paginated]);
+  const allPageSelected  = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+  const somePageSelected = pageIds.some(id => selectedIds.has(id));
+
+  function toggleSelectAllPage() {
+    if (allPageSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); pageIds.forEach(id => n.delete(id)); return n; });
     } else {
-      setSelectedIds(prev => { const n = new Set(prev); filteredIds.forEach(id => n.add(id)); return n; });
+      setSelectedIds(prev => { const n = new Set(prev); pageIds.forEach(id => n.add(id)); return n; });
     }
   }
 
@@ -325,94 +376,184 @@ export default function AdminAnalytics() {
             <p className="text-muted-foreground">{hasFilters ? "No results for the current filters." : "No downloads yet."}</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-border/50 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="px-4 py-3 w-10">
-                    <Checkbox
-                      checked={allSelected}
-                      onCheckedChange={toggleSelectAll}
-                      aria-label="Select all"
-                      className={someSelected && !allSelected ? "opacity-50" : ""}
-                    />
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Track</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Composer</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((d: any, i: number) => {
-                  const isSelected = selectedIds.has(d.id);
-                  return (
-                    <tr
-                      key={d.id}
-                      onClick={() => toggleSelectOne(d.id)}
-                      className={`border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer ${isSelected ? "bg-primary/5" : i % 2 === 0 ? "" : "bg-muted/5"}`}
-                    >
-                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectOne(d.id)} aria-label="Select row" />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Music className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="font-medium truncate max-w-[150px]">{d.trackTitle}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Mic2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="truncate max-w-[120px] text-muted-foreground">{d.composerName ?? "—"}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <div className="min-w-0">
-                            <p className="truncate max-w-[120px]">{d.userName ?? "Unknown"}</p>
-                            {d.userEmail && <p className="text-xs text-muted-foreground truncate max-w-[120px]">{d.userEmail}</p>}
+          <>
+            <div className="rounded-xl border border-border/50 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/30">
+                    <th className="px-4 py-3 w-10">
+                      <Checkbox
+                        checked={allPageSelected}
+                        onCheckedChange={toggleSelectAllPage}
+                        aria-label="Select all on this page"
+                        className={somePageSelected && !allPageSelected ? "opacity-50" : ""}
+                      />
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Track</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Composer</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-3 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginated.map((d: any, i: number) => {
+                    const isSelected = selectedIds.has(d.id);
+                    return (
+                      <tr
+                        key={d.id}
+                        onClick={() => toggleSelectOne(d.id)}
+                        className={`border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer ${isSelected ? "bg-primary/5" : i % 2 === 0 ? "" : "bg-muted/5"}`}
+                      >
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectOne(d.id)} aria-label="Select row" />
+                        </td>
+
+                        {/* Track */}
+                        <td className="px-4 py-3 max-w-[180px]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Music className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <TipCell text={d.trackTitle ?? ""} maxW="max-w-[140px]" className="font-medium" />
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span className="truncate max-w-[110px]">{d.projectName}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.fileType === "clean_wav" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
-                          {d.fileType === "clean_wav" ? "Clean WAV" : "Watermarked"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                          <Calendar className="h-3 w-3 shrink-0" />
-                          {formatDate(d.downloadedAt)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => setConfirmSingleId(d.id)}
-                          disabled={deleteDownloadMutation.isPending}
-                          title="Delete this record"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+
+                        {/* Composer */}
+                        <td className="px-4 py-3 max-w-[150px]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Mic2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <TipCell text={d.composerName ?? ""} maxW="max-w-[110px]" className="text-muted-foreground" />
+                          </div>
+                        </td>
+
+                        {/* User */}
+                        <td className="px-4 py-3 max-w-[170px]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <p className="truncate max-w-[120px] cursor-default">{d.userName ?? "Unknown"}</p>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-xs max-w-xs break-words">
+                                  <p className="font-medium">{d.userName ?? "Unknown"}</p>
+                                  {d.userEmail && <p className="text-muted-foreground">{d.userEmail}</p>}
+                                </TooltipContent>
+                              </Tooltip>
+                              {d.userEmail && <p className="text-xs text-muted-foreground truncate max-w-[120px]">{d.userEmail}</p>}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Project */}
+                        <td className="px-4 py-3 max-w-[150px]">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <TipCell text={d.projectName ?? ""} maxW="max-w-[110px]" />
+                          </div>
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${d.fileType === "clean_wav" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                            {d.fileType === "clean_wav" ? "Clean WAV" : "Watermarked"}
+                          </span>
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                            <Calendar className="h-3 w-3 shrink-0" />
+                            {formatDate(d.downloadedAt)}
+                          </div>
+                        </td>
+
+                        {/* Delete */}
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setConfirmSingleId(d.id)}
+                            disabled={deleteDownloadMutation.isPending}
+                            title="Delete this record"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination bar */}
+            <div className="flex items-center justify-between mt-4 gap-4 flex-wrap">
+              {/* Page size selector */}
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Rows per page:</span>
+                <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className="h-8 w-20 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Page info + navigation */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {pageStart + 1}–{pageEnd} of {filtered.length}
+                </span>
+                <Button
+                  variant="outline" size="icon" className="h-7 w-7"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+
+                {/* Page number buttons — show up to 5 around current page */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(n => n === 1 || n === totalPages || Math.abs(n - safePage) <= 2)
+                  .reduce<(number | "...")[]>((acc, n, idx, arr) => {
+                    if (idx > 0 && n - (arr[idx - 1] as number) > 1) acc.push("...");
+                    acc.push(n);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`ellipsis-${idx}`} className="text-xs text-muted-foreground px-1">…</span>
+                    ) : (
+                      <Button
+                        key={item}
+                        variant={safePage === item ? "default" : "outline"}
+                        size="icon"
+                        className="h-7 w-7 text-xs"
+                        onClick={() => setPage(item as number)}
+                      >
+                        {item}
+                      </Button>
+                    )
+                  )}
+
+                <Button
+                  variant="outline" size="icon" className="h-7 w-7"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
