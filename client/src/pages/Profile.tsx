@@ -24,6 +24,7 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  Trash2,
 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 
@@ -86,6 +87,23 @@ export default function Profile() {
   // ─── Download history ─────────────────────────────────────────────────────
   const downloadsQuery = trpc.auth.myDownloads.useQuery(undefined, {
     enabled: isAuthenticated,
+  });
+  const deleteDownloadMutation = trpc.auth.deleteDownload.useMutation({
+    onMutate: async ({ downloadId }) => {
+      await utils.auth.myDownloads.cancel();
+      const prev = utils.auth.myDownloads.getData();
+      utils.auth.myDownloads.setData(undefined, (old) =>
+        old ? old.filter((d) => d.id !== downloadId) : old
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) utils.auth.myDownloads.setData(undefined, ctx.prev);
+      toast.error("Failed to delete download entry");
+    },
+    onSuccess: () => {
+      toast.success("Download entry removed");
+    },
   });
 
   // ─── Redirect if not authenticated ───────────────────────────────────────
@@ -403,6 +421,18 @@ export default function Profile() {
                       <span>{new Date(dl.downloadedAt).toLocaleDateString()}</span>
                     </div>
                   </div>
+
+                  {/* Delete button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => deleteDownloadMutation.mutate({ downloadId: dl.id })}
+                    disabled={deleteDownloadMutation.isPending}
+                    title="Remove from history"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               ))}
             </div>

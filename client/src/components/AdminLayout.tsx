@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { usePlayer } from "@/contexts/PlayerContext";
 import { LayoutDashboard, Music, BarChart3, Mic2, LogOut, ChevronLeft, UserCog, Link2, Tags } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -25,6 +26,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [isAuthenticated, loading, user, navigate]);
 
+  const { activeTrackId, isCollapsed: playerCollapsed } = usePlayer();
+  const playerPb = activeTrackId ? (playerCollapsed ? 56 : 96) : 0;
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => { window.location.href = "/"; },
   });
@@ -72,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-border/50 space-y-1">
+        <div className="p-3 border-t border-border/50 space-y-1" style={{ paddingBottom: `${12 + playerPb}px` }}>
           <Link href="/browse">
             <button className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
               <ChevronLeft className="h-4 w-4" />

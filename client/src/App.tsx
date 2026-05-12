@@ -7,6 +7,18 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
 import { PlayerProvider } from "./contexts/PlayerContext";
 import GlobalPlayerBar from "./components/GlobalPlayerBar";
+import { usePlayer } from "./contexts/PlayerContext";
+
+// Adds bottom padding equal to the player bar height when a track is active
+function PlayerPaddingWrapper({ children }: { children: React.ReactNode }) {
+  const { activeTrackId, isCollapsed } = usePlayer();
+  const paddingBottom = activeTrackId ? (isCollapsed ? 56 : 96) : 0;
+  return (
+    <div style={{ paddingBottom }} className="transition-[padding] duration-300">
+      {children}
+    </div>
+  );
+}
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import Login from "./pages/Login";
@@ -61,7 +73,9 @@ function App() {
           <CartProvider>
             <PlayerProvider>
               <Toaster position="bottom-right" theme="light" />
-              <Router />
+              <PlayerPaddingWrapper>
+                <Router />
+              </PlayerPaddingWrapper>
               <GlobalPlayerBar />
             </PlayerProvider>
           </CartProvider>

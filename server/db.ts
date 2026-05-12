@@ -538,3 +538,11 @@ export async function reorderPlaylistTracks(playlistId: number, orderedTrackIds:
     )
   );
 }
+
+// ─── Download History ────────────────────────────────────────────────────────
+export async function deleteDownloadEntry(downloadId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Only delete if the download belongs to the requesting user
+  await db.delete(downloads).where(and(eq(downloads.id, downloadId), eq(downloads.userId, userId)));
+}

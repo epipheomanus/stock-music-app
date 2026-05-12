@@ -269,3 +269,11 @@
 ## Round 43 — Project Rename to EpipheoMusic
 
 - [x] Replace all "SoundVault" references with "EpipheoMusic" in user-facing strings, page titles, and metadata
+
+## Round 44 — UX Improvements
+
+- [x] Add deleteDownload tRPC procedure to remove a specific download history entry
+- [x] Add delete button to each row in My Profile download history
+- [x] Enable waveform seek-by-click on Browse page track rows (not just GlobalPlayerBar)
+- [x] Fix GlobalPlayerBar overlap: add bottom padding to page content when player is visible so buttons are never obscured
+- [x] Add player-aware bottom padding to CartDrawer footer and AdminLayout sidebar footer so Sign out / Back to site / Download buttons are never hidden

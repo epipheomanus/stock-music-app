@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { usePlayer } from "@/contexts/PlayerContext";
 import { useLocation } from "wouter";
 import { X, ShoppingCart, Trash2, Download, FileArchive, Loader2, Music, CheckCircle2, ArrowLeft, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ export default function CartDrawer() {
   const [projectName, setProjectName] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const { activeTrackId, isCollapsed: playerCollapsed } = usePlayer();
+  const playerPb = activeTrackId ? (playerCollapsed ? 56 : 96) : 0;
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadComplete, setDownloadComplete] = useState(false);
   const [downloadedCount, setDownloadedCount] = useState(0);
@@ -241,7 +244,7 @@ export default function CartDrawer() {
 
             {/* Footer */}
             {items.length > 0 && (
-              <div className="px-6 py-4 border-t border-border">
+              <div className="px-6 py-4 border-t border-border" style={{ paddingBottom: `${16 + playerPb}px` }}>
                 <Button
                   className="w-full gap-2 font-semibold"
                   onClick={() => setShowCheckout(true)}

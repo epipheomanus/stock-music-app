@@ -27,6 +27,7 @@ import {
   getTrackDownloadCounts,
   reorderPlaylistTracks,
   getUserDownloads,
+  deleteDownloadEntry,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -96,6 +97,14 @@ export const appRouter = router({
     myDownloads: protectedProcedure.query(async ({ ctx }) => {
       return getUserDownloads(ctx.user.id);
     }),
+
+    // Delete a specific download history entry
+    deleteDownload: protectedProcedure
+      .input(z.object({ downloadId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await deleteDownloadEntry(input.downloadId, ctx.user.id);
+        return { success: true };
+      }),
 
     // Change password (requires current password verification)
     changePassword: protectedProcedure

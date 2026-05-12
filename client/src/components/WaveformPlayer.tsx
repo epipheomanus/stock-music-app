@@ -44,7 +44,7 @@ export default function WaveformPlayer({
   const [localDuration, setLocalDuration] = useState(0);
 
   // Pull live progress from global context when this is the active track
-  const { activeTrackId, currentTime: globalTime, duration: globalDuration, isPlaying: globalIsPlaying, togglePlayPause } = usePlayer();
+  const { activeTrackId, currentTime: globalTime, duration: globalDuration, isPlaying: globalIsPlaying, togglePlayPause, seek } = usePlayer();
   const isActiveGlobal = activeTrackId === trackId;
 
   const displayTime = isActiveGlobal ? globalTime : 0;
@@ -141,12 +141,20 @@ export default function WaveformPlayer({
         )}
       </Button>
 
-      {/* Waveform — visual display only */}
+      {/* Waveform — click seeks when active, otherwise starts playback */}
       <div
         ref={containerRef}
         className="flex-1 min-w-0 cursor-pointer"
         style={{ minHeight: compact ? 36 : 48 }}
-        onClick={handlePlayPause}
+        onClick={(e) => {
+          if (isActiveGlobal && displayDuration > 0) {
+            const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+            const ratio = (e.clientX - rect.left) / rect.width;
+            seek(ratio * displayDuration);
+          } else {
+            handlePlayPause();
+          }
+        }}
       />
 
       {/* Time display */}
