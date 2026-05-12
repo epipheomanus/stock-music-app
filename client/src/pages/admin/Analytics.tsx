@@ -3,7 +3,7 @@ import { trpc } from "@/lib/trpc";
 import {
   Download, Loader2, Music, User, Calendar, FolderOpen,
   FileSpreadsheet, X, Trash2, ChevronDown, Mic2, Filter,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -74,6 +75,9 @@ export default function AdminAnalytics() {
   // checkbox selection
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
+  // search
+  const [searchQuery, setSearchQuery] = useState("");
+
   // filter state
   const [selectedUsers, setSelectedUsers]         = useState<string[]>([]);
   const [selectedTracks, setSelectedTracks]       = useState<string[]>([]);
@@ -110,7 +114,18 @@ export default function AdminAnalytics() {
   const filtered = useMemo(() => {
     const start = startDate ? new Date(startDate + "T00:00:00").getTime() : null;
     const end   = endDate   ? new Date(endDate   + "T23:59:59").getTime() : null;
+    const q = searchQuery.trim().toLowerCase();
     return downloads.filter((d: any) => {
+      if (q) {
+        const haystack = [
+          d.trackTitle ?? "",
+          d.composerName ?? "",
+          d.userName ?? "",
+          d.userEmail ?? "",
+          d.projectName ?? "",
+        ].join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       if (selectedUsers.length     && !selectedUsers.includes(d.userName ?? "Unknown"))         return false;
       if (selectedTracks.length    && !selectedTracks.includes(d.trackTitle ?? "Unknown"))      return false;
       if (selectedComposers.length && !selectedComposers.includes(d.composerName ?? "Unknown")) return false;
@@ -123,16 +138,17 @@ export default function AdminAnalytics() {
       if (end   && ts > end)   return false;
       return true;
     });
-  }, [downloads, selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
+  }, [downloads, searchQuery, selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
 
-  // Reset to page 1 whenever filters change
+  // Reset to page 1 whenever filters or search change
   useEffect(() => { setPage(1); setSelectedIds(new Set()); },
-    [selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
+    [searchQuery, selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
 
-  const hasFilters = !!(selectedUsers.length || selectedTracks.length || selectedComposers.length ||
+  const hasFilters = !!(searchQuery.trim() || selectedUsers.length || selectedTracks.length || selectedComposers.length ||
                      selectedTypes.length || startDate || endDate);
 
   function clearAll() {
+    setSearchQuery("");
     setSelectedUsers([]); setSelectedTracks([]); setSelectedComposers([]);
     setSelectedTypes([]); setStartDate(""); setEndDate("");
   }
@@ -310,6 +326,26 @@ export default function AdminAnalytics() {
             <FileSpreadsheet className="h-4 w-4" />
             Export CSV
           </Button>
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by track, composer, user, email, or project…"
+            className="pl-9 pr-9 h-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Filter bar */}

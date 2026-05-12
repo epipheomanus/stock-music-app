@@ -312,3 +312,11 @@
 - [x] Add pagination controls to Admin Downloads table (25/50/100 per page selector + page navigation)
 - [x] Persist page size preference to localStorage
 - [x] Reset to page 1 when filters change
+
+## Round 49 — Admin Downloads: Search Bar
+
+- [x] Add a search bar above the filter bar that searches across track title, composer, user name, user email, and project name
+- [x] Search is case-insensitive and matches partial strings
+- [x] Search combines with existing filters (AND logic)
+- [x] Clearing the search resets to page 1
+- [x] Show a clear (×) button inside the search input when text is present
