@@ -540,6 +540,12 @@ export async function reorderPlaylistTracks(playlistId: number, orderedTrackIds:
 }
 
 // ─── Download History ────────────────────────────────────────────────────────
+export async function deleteDownloadAdmin(downloadId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(downloads).where(eq(downloads.id, downloadId));
+}
+
 export async function deleteDownloadEntry(downloadId: number, userId: number): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

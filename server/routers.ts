@@ -28,6 +28,7 @@ import {
   reorderPlaylistTracks,
   getUserDownloads,
   deleteDownloadEntry,
+  deleteDownloadAdmin,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -98,13 +99,7 @@ export const appRouter = router({
       return getUserDownloads(ctx.user.id);
     }),
 
-    // Delete a specific download history entry
-    deleteDownload: protectedProcedure
-      .input(z.object({ downloadId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        await deleteDownloadEntry(input.downloadId, ctx.user.id);
-        return { success: true };
-      }),
+
 
     // Change password (requires current password verification)
     changePassword: protectedProcedure
@@ -861,6 +856,12 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "Cannot delete admin accounts" });
         }
         await deleteUser(input.userId);
+        return { success: true };
+      }),
+    deleteDownload: adminOnly
+      .input(z.object({ downloadId: z.number() }))
+      .mutation(async ({ input }) => {
+        await deleteDownloadAdmin(input.downloadId);
         return { success: true };
       }),
     stats: adminOnly.query(async () => {

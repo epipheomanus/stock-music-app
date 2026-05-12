@@ -277,3 +277,9 @@
 - [x] Enable waveform seek-by-click on Browse page track rows (not just GlobalPlayerBar)
 - [x] Fix GlobalPlayerBar overlap: add bottom padding to page content when player is visible so buttons are never obscured
 - [x] Add player-aware bottom padding to CartDrawer footer and AdminLayout sidebar footer so Sign out / Back to site / Download buttons are never hidden
+
+## Round 45 — Move Delete Download to Admin
+
+- [x] Remove delete button and deleteDownload mutation from user Profile.tsx
+- [x] Change deleteDownload tRPC procedure to adminProcedure (admin-only)
+- [x] Add delete button to each row on Admin Downloads (Analytics) page

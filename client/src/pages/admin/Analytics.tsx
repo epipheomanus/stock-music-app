@@ -1,6 +1,6 @@
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Download, Loader2, Music, User, Calendar, FolderOpen, FileSpreadsheet, Search, X } from "lucide-react";
+import { Download, Loader2, Music, User, Calendar, FolderOpen, FileSpreadsheet, Search, X, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,14 @@ export default function AdminAnalytics() {
   const [endDate, setEndDate] = useState("");
   const downloadsQuery = trpc.downloads.adminList.useQuery();
   const downloads = downloadsQuery.data ?? [];
+  const utils = trpc.useUtils();
+  const deleteDownloadMutation = trpc.admin.deleteDownload.useMutation({
+    onSuccess: () => {
+      utils.downloads.adminList.invalidate();
+      toast.success("Download record deleted.");
+    },
+    onError: () => toast.error("Failed to delete record."),
+  });
 
   function applyPreset(preset: "q1" | "q2" | "q3" | "q4" | "ytd" | "last30") {
     const now = new Date();
@@ -149,6 +157,7 @@ export default function AdminAnalytics() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -185,6 +194,18 @@ export default function AdminAnalytics() {
                         <Calendar className="h-3 w-3 shrink-0" />
                         {formatDate(d.downloadedAt)}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => deleteDownloadMutation.mutate({ downloadId: d.id })}
+                        disabled={deleteDownloadMutation.isPending}
+                        title="Delete this record"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
