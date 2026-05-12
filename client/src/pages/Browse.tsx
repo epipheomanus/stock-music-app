@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import TopNav from "@/components/TopNav";
-import CartDrawer from "@/components/CartDrawer";
 import WaveformPlayer from "@/components/WaveformPlayer";
 import { WatermarkConfirmDialog } from "@/components/WatermarkConfirmDialog";
 import { trpc } from "@/lib/trpc";
@@ -257,7 +256,6 @@ export default function Browse() {
   return (
     <div className="min-h-screen bg-background text-foreground pb-28">
       <TopNav />
-      <CartDrawer />
       <div className="container py-8">
         {/* Header */}
         <div className="mb-5">

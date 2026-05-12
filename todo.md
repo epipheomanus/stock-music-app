@@ -320,3 +320,9 @@
 - [x] Search combines with existing filters (AND logic)
 - [x] Clearing the search resets to page 1
 - [x] Show a clear (×) button inside the search input when text is present
+
+## Round 50 — Cart Button Fix (All Pages)
+
+- [x] Investigate why cart button fails on Home page and My Projects page
+- [x] Fix cart add/remove to work correctly from any page
+- [x] Verify cart count badge in TopNav updates correctly from all pages

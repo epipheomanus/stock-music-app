@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
 import { PlayerProvider } from "./contexts/PlayerContext";
 import GlobalPlayerBar from "./components/GlobalPlayerBar";
+import CartDrawer from "./components/CartDrawer";
 import { usePlayer } from "./contexts/PlayerContext";
 
 // Adds bottom padding equal to the player bar height when a track is active
@@ -84,6 +85,7 @@ function App() {
                 <Router />
               </PlayerPaddingWrapper>
               <GlobalPlayerBar />
+              <CartDrawer />
             </PlayerProvider>
           </CartProvider>
         </TooltipProvider>
