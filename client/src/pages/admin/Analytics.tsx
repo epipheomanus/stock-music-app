@@ -6,14 +6,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-
-// ─── helpers ────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date | string) {
   return new Date(d).toLocaleString("en-US", {
@@ -26,37 +29,42 @@ function unique<T>(arr: T[]): T[] {
   return Array.from(new Set(arr));
 }
 
-// ─── component ───────────────────────────────────────────────────────────────
-
 export default function AdminAnalytics() {
-  // ── data ──────────────────────────────────────────────────────────────────
   const downloadsQuery = trpc.downloads.adminList.useQuery();
   const downloads = (downloadsQuery.data ?? []) as any[];
   const utils = trpc.useUtils();
 
   const deleteDownloadMutation = trpc.admin.deleteDownload.useMutation({
-    onSuccess: () => { utils.downloads.adminList.invalidate(); toast.success("Download record deleted."); },
+    onSuccess: () => {
+      utils.downloads.adminList.invalidate();
+      toast.success("Download record deleted.");
+    },
     onError: () => toast.error("Failed to delete record."),
   });
 
-  // ── filter state ──────────────────────────────────────────────────────────
-  const [selectedUsers, setSelectedUsers]       = useState<string[]>([]);
-  const [selectedTracks, setSelectedTracks]     = useState<string[]>([]);
-  const [selectedComposers, setSelectedComposers] = useState<string[]>([]);
-  const [selectedTypes, setSelectedTypes]       = useState<string[]>([]);   // "clean_wav" | "watermarked"
-  const [startDate, setStartDate]               = useState("");
-  const [endDate, setEndDate]                   = useState("");
+  // confirmation dialogs
+  const [confirmSingleId, setConfirmSingleId] = useState<number | null>(null);
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
 
-  // ── derived option lists ──────────────────────────────────────────────────
+  // checkbox selection
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // filter state
+  const [selectedUsers, setSelectedUsers]         = useState<string[]>([]);
+  const [selectedTracks, setSelectedTracks]       = useState<string[]>([]);
+  const [selectedComposers, setSelectedComposers] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes]         = useState<string[]>([]);
+  const [startDate, setStartDate]                 = useState("");
+  const [endDate, setEndDate]                     = useState("");
+
   const userOptions     = useMemo(() => unique(downloads.map((d: any) => d.userName ?? "Unknown")).sort(), [downloads]);
   const trackOptions    = useMemo(() => unique(downloads.map((d: any) => d.trackTitle ?? "Unknown")).sort(), [downloads]);
   const composerOptions = useMemo(() => unique(downloads.map((d: any) => d.composerName ?? "Unknown")).sort(), [downloads]);
 
-  // ── date preset ───────────────────────────────────────────────────────────
   function applyPreset(preset: "q1" | "q2" | "q3" | "q4" | "ytd" | "last30") {
     const now = new Date();
     const y = now.getFullYear();
-    if (preset === "q1")    { setStartDate(`${y}-01-01`); setEndDate(`${y}-03-31`); }
+    if (preset === "q1")      { setStartDate(`${y}-01-01`); setEndDate(`${y}-03-31`); }
     else if (preset === "q2") { setStartDate(`${y}-04-01`); setEndDate(`${y}-06-30`); }
     else if (preset === "q3") { setStartDate(`${y}-07-01`); setEndDate(`${y}-09-30`); }
     else if (preset === "q4") { setStartDate(`${y}-10-01`); setEndDate(`${y}-12-31`); }
@@ -67,13 +75,12 @@ export default function AdminAnalytics() {
     }
   }
 
-  // ── filtered rows ─────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     const start = startDate ? new Date(startDate + "T00:00:00").getTime() : null;
     const end   = endDate   ? new Date(endDate   + "T23:59:59").getTime() : null;
     return downloads.filter((d: any) => {
-      if (selectedUsers.length    && !selectedUsers.includes(d.userName ?? "Unknown"))     return false;
-      if (selectedTracks.length   && !selectedTracks.includes(d.trackTitle ?? "Unknown"))  return false;
+      if (selectedUsers.length     && !selectedUsers.includes(d.userName ?? "Unknown"))         return false;
+      if (selectedTracks.length    && !selectedTracks.includes(d.trackTitle ?? "Unknown"))      return false;
       if (selectedComposers.length && !selectedComposers.includes(d.composerName ?? "Unknown")) return false;
       if (selectedTypes.length) {
         const t = d.fileType === "clean_wav" ? "clean_wav" : "watermarked";
@@ -86,24 +93,58 @@ export default function AdminAnalytics() {
     });
   }, [downloads, selectedUsers, selectedTracks, selectedComposers, selectedTypes, startDate, endDate]);
 
-  const hasFilters = selectedUsers.length || selectedTracks.length || selectedComposers.length ||
-                     selectedTypes.length || startDate || endDate;
+  const hasFilters = !!(selectedUsers.length || selectedTracks.length || selectedComposers.length ||
+                     selectedTypes.length || startDate || endDate);
 
   function clearAll() {
     setSelectedUsers([]); setSelectedTracks([]); setSelectedComposers([]);
     setSelectedTypes([]); setStartDate(""); setEndDate("");
   }
 
-  // ── active filter badges ──────────────────────────────────────────────────
+  // selection helpers
+  const filteredIds = useMemo(() => filtered.map((d: any) => d.id as number), [filtered]);
+  const allSelected  = filteredIds.length > 0 && filteredIds.every(id => selectedIds.has(id));
+  const someSelected = filteredIds.some(id => selectedIds.has(id));
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); filteredIds.forEach(id => n.delete(id)); return n; });
+    } else {
+      setSelectedIds(prev => { const n = new Set(prev); filteredIds.forEach(id => n.add(id)); return n; });
+    }
+  }
+
+  function toggleSelectOne(id: number) {
+    setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+
+  const selectedCount = filteredIds.filter(id => selectedIds.has(id)).length;
+
+  // delete handlers
+  function executeSingleDelete() {
+    if (confirmSingleId === null) return;
+    deleteDownloadMutation.mutate({ downloadId: confirmSingleId });
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(confirmSingleId!); return n; });
+    setConfirmSingleId(null);
+  }
+
+  function executeBulkDelete() {
+    const ids = filteredIds.filter(id => selectedIds.has(id));
+    ids.forEach(id => deleteDownloadMutation.mutate({ downloadId: id }));
+    setSelectedIds(new Set());
+    setConfirmBulkOpen(false);
+    toast.success(`Deleting ${ids.length} record${ids.length !== 1 ? "s" : ""}...`);
+  }
+
+  // active filter badges
   const activeBadges: { label: string; onRemove: () => void }[] = [
     ...selectedUsers.map(u => ({ label: `User: ${u}`, onRemove: () => setSelectedUsers(p => p.filter(x => x !== u)) })),
     ...selectedTracks.map(t => ({ label: `Track: ${t}`, onRemove: () => setSelectedTracks(p => p.filter(x => x !== t)) })),
     ...selectedComposers.map(c => ({ label: `Composer: ${c}`, onRemove: () => setSelectedComposers(p => p.filter(x => x !== c)) })),
     ...selectedTypes.map(t => ({ label: t === "clean_wav" ? "Type: Clean WAV" : "Type: Watermarked", onRemove: () => setSelectedTypes(p => p.filter(x => x !== t)) })),
-    ...(startDate || endDate ? [{ label: `Date: ${startDate || "…"} → ${endDate || "…"}`, onRemove: () => { setStartDate(""); setEndDate(""); } }] : []),
+    ...(startDate || endDate ? [{ label: `Date: ${startDate || "..."} to ${endDate || "..."}`, onRemove: () => { setStartDate(""); setEndDate(""); } }] : []),
   ];
 
-  // ── CSV export ────────────────────────────────────────────────────────────
   function exportToCSV() {
     if (filtered.length === 0) { toast.error("No data to export."); return; }
     const headers = ["Name", "Email", "Track", "Composer", "Project Name", "File Type", "Date Downloaded"];
@@ -125,7 +166,6 @@ export default function AdminAnalytics() {
     toast.success(`Exported ${filtered.length} row${filtered.length !== 1 ? "s" : ""} to CSV`);
   }
 
-  // ── multi-select dropdown helper ──────────────────────────────────────────
   function MultiSelect({
     label, icon, options, selected, onChange,
   }: {
@@ -149,12 +189,7 @@ export default function AdminAnalytics() {
           <DropdownMenuLabel className="text-xs">{label}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {options.map(opt => (
-            <DropdownMenuCheckboxItem
-              key={opt}
-              checked={selected.includes(opt)}
-              onCheckedChange={() => toggle(opt)}
-              className="text-xs"
-            >
+            <DropdownMenuCheckboxItem key={opt} checked={selected.includes(opt)} onCheckedChange={() => toggle(opt)} className="text-xs">
               {opt}
             </DropdownMenuCheckboxItem>
           ))}
@@ -163,7 +198,6 @@ export default function AdminAnalytics() {
     );
   }
 
-  // ── date range dropdown ───────────────────────────────────────────────────
   function DateRangeDropdown() {
     const active = !!(startDate || endDate);
     return (
@@ -210,7 +244,6 @@ export default function AdminAnalytics() {
     );
   }
 
-  // ── render ────────────────────────────────────────────────────────────────
   return (
     <AdminLayout>
       <div className="p-8">
@@ -218,18 +251,13 @@ export default function AdminAnalytics() {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold mb-1">Download Analytics</h1>
-            {/* Dynamic summary: shows filtered count when filters are active */}
             <p className="text-sm text-muted-foreground">
-              {hasFilters
-                ? <><span className="font-semibold text-foreground">{filtered.length}</span> result{filtered.length !== 1 ? "s" : ""} <span className="text-muted-foreground/60">of {downloads.length} total</span></>
-                : <><span className="font-semibold text-foreground">{downloads.length}</span> total download{downloads.length !== 1 ? "s" : ""} logged</>
-              }
+              {downloads.length} total download{downloads.length !== 1 ? "s" : ""} logged
             </p>
           </div>
           <Button variant="outline" className="gap-2" onClick={exportToCSV} disabled={filtered.length === 0}>
             <FileSpreadsheet className="h-4 w-4" />
             Export CSV
-            {hasFilters && <span className="text-xs text-primary">({filtered.length})</span>}
           </Button>
         </div>
 
@@ -238,44 +266,50 @@ export default function AdminAnalytics() {
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground mr-1">Filter by:</span>
-
-            <MultiSelect
-              label="User" icon={<User className="h-3.5 w-3.5" />}
-              options={userOptions} selected={selectedUsers} onChange={setSelectedUsers}
-            />
-            <MultiSelect
-              label="Track" icon={<Music className="h-3.5 w-3.5" />}
-              options={trackOptions} selected={selectedTracks} onChange={setSelectedTracks}
-            />
-            <MultiSelect
-              label="Composer" icon={<Mic2 className="h-3.5 w-3.5" />}
-              options={composerOptions} selected={selectedComposers} onChange={setSelectedComposers}
-            />
-            <MultiSelect
-              label="File Type" icon={<Download className="h-3.5 w-3.5" />}
-              options={["clean_wav", "watermarked"]}
-              selected={selectedTypes} onChange={setSelectedTypes}
-            />
+            <MultiSelect label="User" icon={<User className="h-3.5 w-3.5" />} options={userOptions} selected={selectedUsers} onChange={setSelectedUsers} />
+            <MultiSelect label="Track" icon={<Music className="h-3.5 w-3.5" />} options={trackOptions} selected={selectedTracks} onChange={setSelectedTracks} />
+            <MultiSelect label="Composer" icon={<Mic2 className="h-3.5 w-3.5" />} options={composerOptions} selected={selectedComposers} onChange={setSelectedComposers} />
+            <MultiSelect label="File Type" icon={<Download className="h-3.5 w-3.5" />} options={["clean_wav", "watermarked"]} selected={selectedTypes} onChange={setSelectedTypes} />
             <DateRangeDropdown />
-
             {hasFilters && (
               <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground h-8 text-xs ml-auto" onClick={clearAll}>
                 <X className="h-3 w-3" /> Clear all
               </Button>
             )}
           </div>
-
-          {/* Active filter badges */}
           {activeBadges.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {activeBadges.map((b, i) => (
                 <span key={i} className="inline-flex items-center gap-1 text-[11px] bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-0.5">
                   {b.label}
-                  <button onClick={b.onRemove} className="hover:text-primary/60 transition-colors">
-                    <X className="h-2.5 w-2.5" />
-                  </button>
+                  <button onClick={b.onRemove} className="hover:text-primary/60 transition-colors"><X className="h-2.5 w-2.5" /></button>
                 </span>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Results count + bulk actions bar */}
+        <div className="flex items-center justify-between mb-3 min-h-[32px]">
+          <p className="text-sm font-semibold text-foreground">
+            {hasFilters ? (
+              <>{filtered.length} result{filtered.length !== 1 ? "s" : ""}<span className="font-normal text-muted-foreground"> of {downloads.length} total</span></>
+            ) : (
+              <>Showing all {downloads.length} record{downloads.length !== 1 ? "s" : ""}</>
+            )}
+          </p>
+          {selectedCount > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{selectedCount} selected</span>
+              <Button variant="destructive" size="sm" className="gap-1.5 h-7 text-xs"
+                onClick={() => setConfirmBulkOpen(true)} disabled={deleteDownloadMutation.isPending}>
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete {selectedCount} record{selectedCount !== 1 ? "s" : ""}
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                onClick={() => setSelectedIds(new Set())}>
+                Deselect all
+              </Button>
             </div>
           )}
         </div>
@@ -295,6 +329,14 @@ export default function AdminAnalytics() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
+                  <th className="px-4 py-3 w-10">
+                    <Checkbox
+                      checked={allSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                      className={someSelected && !allSelected ? "opacity-50" : ""}
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Track</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Composer</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
@@ -305,64 +347,110 @@ export default function AdminAnalytics() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((d: any, i: number) => (
-                  <tr key={d.id} className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${i % 2 === 0 ? "" : "bg-muted/5"}`}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Music className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-medium truncate max-w-[160px]">{d.trackTitle}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <Mic2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate max-w-[130px] text-muted-foreground">{d.composerName ?? "—"}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <div className="min-w-0">
-                          <p className="truncate max-w-[130px]">{d.userName ?? "Unknown"}</p>
-                          {d.userEmail && <p className="text-xs text-muted-foreground truncate max-w-[130px]">{d.userEmail}</p>}
+                {filtered.map((d: any, i: number) => {
+                  const isSelected = selectedIds.has(d.id);
+                  return (
+                    <tr
+                      key={d.id}
+                      onClick={() => toggleSelectOne(d.id)}
+                      className={`border-b border-border/30 hover:bg-muted/20 transition-colors cursor-pointer ${isSelected ? "bg-primary/5" : i % 2 === 0 ? "" : "bg-muted/5"}`}
+                    >
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectOne(d.id)} aria-label="Select row" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Music className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-medium truncate max-w-[150px]">{d.trackTitle}</span>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate max-w-[120px]">{d.projectName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${d.fileType === "clean_wav" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {d.fileType === "clean_wav" ? "Clean WAV" : "Watermarked"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                        <Calendar className="h-3 w-3 shrink-0" />
-                        {formatDate(d.downloadedAt)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Button
-                        variant="ghost" size="icon"
-                        className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => deleteDownloadMutation.mutate({ downloadId: d.id })}
-                        disabled={deleteDownloadMutation.isPending}
-                        title="Delete this record"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Mic2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate max-w-[120px] text-muted-foreground">{d.composerName ?? "—"}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <p className="truncate max-w-[120px]">{d.userName ?? "Unknown"}</p>
+                            {d.userEmail && <p className="text-xs text-muted-foreground truncate max-w-[120px]">{d.userEmail}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <FolderOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate max-w-[110px]">{d.projectName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${d.fileType === "clean_wav" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
+                          {d.fileType === "clean_wav" ? "Clean WAV" : "Watermarked"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          {formatDate(d.downloadedAt)}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-7 w-7 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setConfirmSingleId(d.id)}
+                          disabled={deleteDownloadMutation.isPending}
+                          title="Delete this record"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* Single-delete confirmation */}
+      <AlertDialog open={confirmSingleId !== null} onOpenChange={open => { if (!open) setConfirmSingleId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete download record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this download entry from the analytics log. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={executeSingleDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk-delete confirmation */}
+      <AlertDialog open={confirmBulkOpen} onOpenChange={setConfirmBulkOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedCount} record{selectedCount !== 1 ? "s" : ""}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {selectedCount} download {selectedCount !== 1 ? "entries" : "entry"} from the analytics log. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={executeBulkDelete}>
+              Delete {selectedCount} record{selectedCount !== 1 ? "s" : ""}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

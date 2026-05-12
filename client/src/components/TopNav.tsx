@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, LogOut, Settings, Menu, X, FolderOpen, User } from "lucide-react";
+import { ShoppingCart, LogOut, Settings, Menu, X, FolderOpen, User, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,12 +11,14 @@ import {
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useCart } from "@/contexts/CartContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useState } from "react";
 
 export default function TopNav() {
   const [location, navigate] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { toggleCart } = useCart();
+  const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const logoutMutation = trpc.auth.logout.useMutation({
@@ -138,6 +140,20 @@ export default function TopNav() {
                   </Button>
                 </Link>
               </>
+            )}
+
+            {/* Dark/light mode toggle */}
+            {toggleTheme && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground hover:text-foreground opacity-60 hover:opacity-100 transition-opacity"
+                onClick={toggleTheme}
+                aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                title={theme === "light" ? "Dark mode" : "Light mode"}
+              >
+                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              </Button>
             )}
 
             {/* Mobile menu toggle */}

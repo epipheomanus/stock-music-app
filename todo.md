@@ -290,3 +290,15 @@
 - [x] Add multi-select filter panel: filter by user, track, composer, file type (clean/watermarked), and date range
 - [x] Show dynamic summary stat (e.g. "42 downloads") that updates to reflect the current active filters
 - [x] Ensure quick-range buttons (Q1/Q2/Q3/Q4/YTD/Last 30) work in combination with other active filters
+
+## Round 47 — Admin Downloads UX + Dark Mode
+
+- [x] Add confirmation dialog before deleting a single download record on Admin Downloads page
+- [x] Add checkbox selection system to Admin Downloads table rows
+- [x] Add "Select all" checkbox in table header
+- [x] Add bulk delete button (appears when 1+ rows are selected) with confirmation dialog
+- [x] Move filter results count to a prominent location below the filter bar (not inside the Export CSV button)
+- [x] Change filter results count text to black/foreground color for better readability
+- [x] Remove results count badge from inside Export CSV button
+- [x] Add subtle dark/light mode toggle button to the app (TopNav and/or homepage)
+- [x] Persist dark/light mode preference to localStorage

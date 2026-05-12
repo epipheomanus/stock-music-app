@@ -3,7 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { ThemeProvider } from "./contexts/ThemeContext";
+import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { CartProvider } from "./contexts/CartContext";
 import { PlayerProvider } from "./contexts/PlayerContext";
 import GlobalPlayerBar from "./components/GlobalPlayerBar";
@@ -19,6 +19,13 @@ function PlayerPaddingWrapper({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+// Toaster that follows the active theme
+function ThemedToaster() {
+  const { theme } = useTheme();
+  return <Toaster position="bottom-right" theme={theme} />;
+}
+
 import Home from "./pages/Home";
 import Browse from "./pages/Browse";
 import Login from "./pages/Login";
@@ -68,11 +75,11 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <CartProvider>
             <PlayerProvider>
-              <Toaster position="bottom-right" theme="light" />
+              <ThemedToaster />
               <PlayerPaddingWrapper>
                 <Router />
               </PlayerPaddingWrapper>
