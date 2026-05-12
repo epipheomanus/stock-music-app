@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FolderOpen, Archive, Trash2, Loader2, FolderArchive } from "lucide-react";
 import { Link } from "wouter";
@@ -20,6 +24,7 @@ export default function MyProjects() {
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState<{ id: number; name: string } | null>(null);
 
   const projectsQuery = trpc.projects.list.useQuery(undefined, { enabled: !!user });
   const projects = projectsQuery.data ?? [];
@@ -101,11 +106,7 @@ export default function MyProjects() {
                 key={project.id}
                 project={project}
                 onArchive={() => archiveMutation.mutate({ id: project.id, status: "archived" })}
-                onDelete={() => {
-                  if (confirm(`Delete "${project.name}"? This cannot be undone.`)) {
-                    deleteMutation.mutate({ id: project.id });
-                  }
-                }}
+                onDelete={() => setConfirmDeleteProject({ id: project.id, name: project.name })}
               />
             ))}
           </div>
@@ -128,11 +129,7 @@ export default function MyProjects() {
                     project={project}
                     isArchived
                     onRestore={() => archiveMutation.mutate({ id: project.id, status: "active" })}
-                    onDelete={() => {
-                      if (confirm(`Delete "${project.name}"? This cannot be undone.`)) {
-                        deleteMutation.mutate({ id: project.id });
-                      }
-                    }}
+                    onDelete={() => setConfirmDeleteProject({ id: project.id, name: project.name })}
                   />
                 ))}
               </div>
@@ -140,6 +137,37 @@ export default function MyProjects() {
           </div>
         )}
       </div>
+
+      {/* Delete project confirmation */}
+      <AlertDialog
+        open={confirmDeleteProject !== null}
+        onOpenChange={open => { if (!open) setConfirmDeleteProject(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{" "}
+              <strong>&ldquo;{confirmDeleteProject?.name}&rdquo;</strong>? This will permanently remove
+              the project and all its playlists. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (confirmDeleteProject) {
+                  deleteMutation.mutate({ id: confirmDeleteProject.id });
+                  setConfirmDeleteProject(null);
+                }
+              }}
+            >
+              Delete Project
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-md">

@@ -326,3 +326,9 @@
 - [x] Investigate why cart button fails on Home page and My Projects page
 - [x] Fix cart add/remove to work correctly from any page
 - [x] Verify cart count badge in TopNav updates correctly from all pages
+
+## Round 51 — Project Delete Confirmation Dialog
+
+- [x] Replace browser confirm() with AlertDialog on My Projects page for project deletion
+- [x] Show project name in the confirmation dialog
+- [x] Apply same fix to archived projects delete button
