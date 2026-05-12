@@ -17,7 +17,9 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  if (window.location.pathname !== "/login") {
+  // Don't redirect away from auth pages — they are intentionally unauthenticated
+  const authPaths = ["/login", "/register", "/forgot-password", "/reset-password"];
+  if (!authPaths.includes(window.location.pathname)) {
     window.location.href = "/login";
   }
 };

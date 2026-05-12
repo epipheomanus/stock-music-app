@@ -348,3 +348,10 @@
 - [x] Update all storage references to use R2 URLs
 - [x] Add Railway build config (railway.json)
 - [x] Write/update tests for new auth procedures (23/23 passing)
+
+## Round 53 — Re-registration Bug Fix
+
+- [x] Audit deleteUser DB helper to confirm user row is fully hard-deleted (confirmed: hard delete on line 513)
+- [x] Confirm register procedure email/username conflict check excludes deleted users (no issue here)
+- [x] Fix any soft-delete or leftover row issue preventing re-registration with same email
+- [x] Fix root cause: global UNAUTHORIZED redirect in main.tsx was redirecting /register to /login; now excludes all auth pages
