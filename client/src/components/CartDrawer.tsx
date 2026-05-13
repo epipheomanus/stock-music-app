@@ -39,6 +39,7 @@ export default function CartDrawer() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadComplete, setDownloadComplete] = useState(false);
   const [downloadedCount, setDownloadedCount] = useState(0);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; title: string } | null>(null);
   const [pendingCheckout, setPendingCheckout] = useState<{ projectName: string } | null>(null);
 
   const utils = trpc.useUtils();
@@ -48,56 +49,58 @@ export default function CartDrawer() {
   });
   const checkoutMutation = trpc.downloads.checkout.useMutation({
     onSuccess: async (data) => {
-      setIsDownloading(false);
       setShowDisclaimer(false);
       setShowCheckout(false);
       setProjectName("");
       utils.cart.list.invalidate();
 
-      // Trigger downloads
-      for (const file of data.files) {
-        if (file.hasStems && file.stemsZipUrl) {
-          triggerDownload(file.stemsZipUrl, `${file.title}_with_stems.zip`);
-        } else {
-          triggerDownload(file.wavUrl, `${file.title}.wav`);
-        }
-        await new Promise(r => setTimeout(r, 300));
+      // Download tracks one at a time — browsers block simultaneous programmatic downloads
+      const total = data.files.length;
+      for (let i = 0; i < total; i++) {
+        const file = data.files[i];
+        const url = file.hasStems && file.stemsZipUrl ? file.stemsZipUrl : file.wavUrl;
+        const filename = file.hasStems && file.stemsZipUrl
+          ? `${file.title}_with_stems.zip`
+          : `${file.title}.wav`;
+        setDownloadProgress({ current: i + 1, total, title: file.title });
+        await triggerDownload(url, filename);
+        // Small gap between downloads so the browser registers each as a separate save
+        if (i < total - 1) await new Promise(r => setTimeout(r, 800));
       }
 
-      setDownloadedCount(data.files.length);
+      setDownloadProgress(null);
+      setIsDownloading(false);
+      setDownloadedCount(total);
       setDownloadComplete(true);
-      toast.success(`Downloaded ${data.files.length} track${data.files.length > 1 ? "s" : ""}`);
+      toast.success(`Downloaded ${total} track${total > 1 ? "s" : ""}`);
     },
     onError: (err) => {
       setIsDownloading(false);
+      setDownloadProgress(null);
       toast.error(err.message);
     },
   });
 
   const items = cartQuery.data ?? [];
 
-  async function triggerDownload(url: string, filename: string) {
-    try {
-      // Fetch as blob to force a true file download (avoids browser opening a media player/viewer tab)
-      const res = await fetch(url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-    } catch {
-      // Fallback: direct link
+  async function triggerDownload(url: string, filename: string): Promise<void> {
+    return new Promise((resolve) => {
+      // Use a hidden <a> with the download attribute — most reliable cross-browser approach.
+      // We do NOT fetch as blob here because large audio files (50–200 MB) would stall
+      // the UI while the entire file buffers in memory before the save dialog appears.
+      // Direct link lets the browser stream straight to disk.
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-    }
+      // Give the browser a moment to register the click before we move to the next file
+      setTimeout(() => {
+        document.body.removeChild(a);
+        resolve();
+      }, 200);
+    });
   }
 
   function handleCheckoutSubmit(e: React.FormEvent) {
@@ -324,7 +327,9 @@ export default function CartDrawer() {
               className="gap-2"
             >
               {isDownloading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Preparing...</>
+                downloadProgress
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Downloading {downloadProgress.current}/{downloadProgress.total}…</>
+                  : <><Loader2 className="h-4 w-4 animate-spin" /> Preparing…</>
               ) : (
                 <><Download className="h-4 w-4" /> I Agree & Download</>
               )}

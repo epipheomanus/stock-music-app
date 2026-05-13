@@ -355,3 +355,10 @@
 - [x] Confirm register procedure email/username conflict check excludes deleted users (no issue here)
 - [x] Fix any soft-delete or leftover row issue preventing re-registration with same email
 - [x] Fix root cause: global UNAUTHORIZED redirect in main.tsx was redirecting /register to /login; now excludes all auth pages
+
+## Round 54 — Cart Checkout Multi-Download Fix
+
+- [x] Audit cart checkout flow — root cause: simultaneous programmatic downloads are blocked by browsers; only first one goes through
+- [x] Fix checkout to trigger individual file downloads sequentially with 800ms gap between each
+- [x] Each track already logged separately server-side (confirmed); client fix ensures all files actually reach the user
+- [x] Cart clears after all downloads complete; progress indicator shows "Downloading X/Y" during multi-track checkout
