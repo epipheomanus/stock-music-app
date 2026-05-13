@@ -84,23 +84,32 @@ export default function CartDrawer() {
   const items = cartQuery.data ?? [];
 
   async function triggerDownload(url: string, filename: string): Promise<void> {
-    return new Promise((resolve) => {
-      // Use a hidden <a> with the download attribute — most reliable cross-browser approach.
-      // We do NOT fetch as blob here because large audio files (50–200 MB) would stall
-      // the UI while the entire file buffers in memory before the save dialog appears.
-      // Direct link lets the browser stream straight to disk.
+    try {
+      // Fetch as blob first — this forces the browser to show a "Save As" dialog
+      // instead of navigating to the URL and opening it in the media player.
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Revoke after a short delay to ensure the download has started
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    } catch {
+      // Fallback: direct link (may open in browser tab for some URL types)
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
-      // Give the browser a moment to register the click before we move to the next file
-      setTimeout(() => {
-        document.body.removeChild(a);
-        resolve();
-      }, 200);
-    });
+      document.body.removeChild(a);
+    }
   }
 
   function handleCheckoutSubmit(e: React.FormEvent) {

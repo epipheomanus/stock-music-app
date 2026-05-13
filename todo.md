@@ -362,3 +362,9 @@
 - [x] Fix checkout to trigger individual file downloads sequentially with 800ms gap between each
 - [x] Each track already logged separately server-side (confirmed); client fix ensures all files actually reach the user
 - [x] Cart clears after all downloads complete; progress indicator shows "Downloading X/Y" during multi-track checkout
+
+## Round 55 — Cart Download Flow Fix
+
+- [x] Diagnose: bare <a href> click navigates to audio URL in media player; blob-fetch approach is required to force Save dialog
+- [x] Restored blob-fetch approach (sequential, one at a time) so browser shows Save dialog instead of navigating
+- [x] All tracks download sequentially via blob-fetch with 800ms gap; progress indicator shows X/Y during multi-track checkout
