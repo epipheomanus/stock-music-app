@@ -368,3 +368,10 @@
 - [x] Diagnose: bare <a href> click navigates to audio URL in media player; blob-fetch approach is required to force Save dialog
 - [x] Restored blob-fetch approach (sequential, one at a time) so browser shows Save dialog instead of navigating
 - [x] All tracks download sequentially via blob-fetch with 800ms gap; progress indicator shows X/Y during multi-track checkout
+
+## Round 56 — Manus → Cloudflare R2 Migration
+
+- [x] Query DB for all track file URLs (wavUrl, watermarkedWavUrl, mp3PreviewUrl, coverArtUrl, stemsZipUrl)
+- [x] Write migration script to fetch each file and re-upload to R2
+- [x] Update DB rows with new R2 URLs after successful upload
+- [x] Verify all tracks play and download from R2 URLs after migration (0 Manus URLs remaining)

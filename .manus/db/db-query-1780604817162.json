@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as remaining_manus_urls FROM tracks WHERE wavUrl LIKE '/manus-storage/%' OR originalWavUrl LIKE '/manus-storage/%' OR mp3PreviewUrl LIKE '/manus-storage/%' OR stemsZipUrl LIKE '/manus-storage/%' OR watermarkedMp3Url LIKE '/manus-storage/%' OR coverArtUrl LIKE '/manus-storage/%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT COUNT(*) as remaining_manus_urls FROM tracks WHERE wavUrl LIKE '/manus-storage/%' OR originalWavUrl LIKE '/manus-storage/%' OR mp3PreviewUrl LIKE '/manus-storage/%' OR stemsZipUrl LIKE '/manus-storage/%' OR watermarkedMp3Url LIKE '/manus-storage/%' OR coverArtUrl LIKE '/manus-storage/%';",
+  "rows": [
+    {
+      "remaining_manus_urls": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "remaining_manus_urls\n0\n",
+  "stderr": "",
+  "execution_time_ms": 788
+}

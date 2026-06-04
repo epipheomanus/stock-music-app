@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, title, wav_url, watermarked_wav_url, mp3_preview_url, cover_art_url, stems_zip_url FROM tracks ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, title, wav_url, watermarked_wav_url, mp3_preview_url, cover_art_url, stems_zip_url FROM tracks ORDER BY id;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'wav_url' in 'field list'"
+  ]
+}
