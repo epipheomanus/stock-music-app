@@ -375,3 +375,7 @@
 - [x] Write migration script to fetch each file and re-upload to R2
 - [x] Update DB rows with new R2 URLs after successful upload
 - [x] Verify all tracks play and download from R2 URLs after migration (0 Manus URLs remaining)
+## Round 57 — Railway Deployment Bug Fixes (Fonts, Audio CORS, Waveforms)
+- [x] Upload 8 font files (Oswald 400/500/600/700, Noticia Text 400/700/400i/700i) from Manus storage to Cloudflare R2 at fonts/ prefix
+- [x] Update client/index.html @font-face src URLs from /manus-storage/ paths to R2 public URLs (https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/fonts/*)
+- [x] Configure CORS policy on Cloudflare R2 bucket (epipheo-music) to allow GET/HEAD from all origins — fixes silent audio playback and waveform rendering on Railway
