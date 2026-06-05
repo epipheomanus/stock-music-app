@@ -47,39 +47,47 @@ export default function CartDrawer() {
   const removeMutation = trpc.cart.remove.useMutation({
     onSuccess: () => utils.cart.list.invalidate(),
   });
-  const checkoutMutation = trpc.downloads.checkout.useMutation({
-    onSuccess: async (data) => {
-      setShowDisclaimer(false);
-      setShowCheckout(false);
-      setProjectName("");
-      utils.cart.list.invalidate();
-
-      // Download tracks one at a time — browsers block simultaneous programmatic downloads
-      const total = data.files.length;
-      for (let i = 0; i < total; i++) {
-        const file = data.files[i];
-        const url = file.hasStems && file.stemsZipUrl ? file.stemsZipUrl : file.wavUrl;
-        const filename = file.hasStems && file.stemsZipUrl
-          ? `${file.title}_with_stems.zip`
-          : `${file.title}.wav`;
-        setDownloadProgress({ current: i + 1, total, title: file.title });
-        await triggerDownload(url, filename);
-        // Small gap between downloads so the browser registers each as a separate save
-        if (i < total - 1) await new Promise(r => setTimeout(r, 800));
+  async function handleZipDownload(projectName: string, trackIds: number[]) {
+    setIsDownloading(true);
+    setDownloadProgress({ current: 0, total: trackIds.length, title: "Preparing download…" });
+    try {
+      const params = new URLSearchParams({
+        projectName,
+        trackIds: trackIds.join(","),
+      });
+      const resp = await fetch(`/api/download/cart-zip?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Download failed" }));
+        throw new Error(err.error ?? "Download failed");
       }
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      // Use zip name for multi-track, original filename for single track
+      const cd = resp.headers.get("content-disposition") ?? "";
+      const match = cd.match(/filename="([^"]+)"/);
+      a.download = match?.[1] ?? (trackIds.length === 1 ? "track.wav" : `${projectName}.zip`);
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
 
+      utils.cart.list.invalidate();
       setDownloadProgress(null);
       setIsDownloading(false);
-      setDownloadedCount(total);
+      setDownloadedCount(trackIds.length);
       setDownloadComplete(true);
-      toast.success(`Downloaded ${total} track${total > 1 ? "s" : ""}`);
-    },
-    onError: (err) => {
+      toast.success(`Downloaded ${trackIds.length} track${trackIds.length > 1 ? "s" : ""}`);
+    } catch (err: any) {
       setIsDownloading(false);
       setDownloadProgress(null);
-      toast.error(err.message);
-    },
-  });
+      toast.error(err.message ?? "Download failed");
+    }
+  }
 
   const items = cartQuery.data ?? [];
 
@@ -122,11 +130,10 @@ export default function CartDrawer() {
 
   function handleDisclaimerConfirm() {
     if (!pendingCheckout) return;
-    setIsDownloading(true);
-    checkoutMutation.mutate({
-      projectName: pendingCheckout.projectName,
-      trackIds: items.map(i => i!.trackId),
-    });
+    handleZipDownload(pendingCheckout.projectName, items.map(i => i!.trackId));
+    setShowDisclaimer(false);
+    setPendingCheckout(null);
+    setProjectName("");
   }
 
   function handleClose() {

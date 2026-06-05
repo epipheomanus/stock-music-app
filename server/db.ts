@@ -290,13 +290,19 @@ export async function clearCart(userId: number): Promise<void> {
 
 // ─── Downloads ────────────────────────────────────────────────────────────────
 
-export async function logDownload(userId: number, trackId: number, projectName: string, fileType: "clean_wav" | "watermarked_mp3"): Promise<void> {
+export async function logDownload(
+  userId: number | null,
+  trackId: number,
+  projectName: string,
+  fileType: "clean_wav" | "watermarked_mp3",
+  ipAddress?: string | null
+): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.insert(downloads).values({ userId, trackId, projectName, fileType });
+  await db.insert(downloads).values({ userId, trackId, projectName, fileType, ipAddress: ipAddress ?? null });
 }
 
-export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null })[]> {
+export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[]> {
   const db = await getDb();
   if (!db) return [];
   const rows = await db
@@ -307,6 +313,7 @@ export async function getAllDownloads(): Promise<(Download & { userName: string 
       projectName: downloads.projectName,
       downloadedAt: downloads.downloadedAt,
       fileType: downloads.fileType,
+      ipAddress: downloads.ipAddress,
       userName: users.name,
       userEmail: users.email,
       trackTitle: tracks.title,
@@ -316,7 +323,7 @@ export async function getAllDownloads(): Promise<(Download & { userName: string 
     .leftJoin(users, eq(downloads.userId, users.id))
     .leftJoin(tracks, eq(downloads.trackId, tracks.id))
     .orderBy(desc(downloads.downloadedAt));
-  return rows as (Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null })[];
+  return rows as (Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[];
 }
 
 // ─── Watermark Config ─────────────────────────────────────────────────────────

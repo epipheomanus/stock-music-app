@@ -111,11 +111,12 @@ export type CartItem = typeof cartItems.$inferSelect;
 // ─── Downloads ────────────────────────────────────────────────────────────────
 export const downloads = mysqlTable("downloads", {
   id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+  userId: int("userId"),           // null for anonymous (guest) downloads
   trackId: int("trackId").notNull(),
   projectName: varchar("projectName", { length: 256 }).notNull(),
   downloadedAt: timestamp("downloadedAt").defaultNow().notNull(),
   fileType: mysqlEnum("fileType", ["clean_wav", "watermarked_mp3"]).default("clean_wav").notNull(),
+  ipAddress: varchar("ipAddress", { length: 64 }),  // IP of the downloader (populated for guests)
 });
 
 export type Download = typeof downloads.$inferSelect;

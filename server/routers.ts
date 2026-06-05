@@ -860,9 +860,17 @@ export const appRouter = router({
         const track = await getTrackById(input.trackId);
         if (!track || !track.isPublished) throw new TRPCError({ code: "NOT_FOUND" });
         if (!track.watermarkedMp3Url) throw new TRPCError({ code: "BAD_REQUEST", message: "Watermarked version not available yet" });
-        if (ctx.user) {
-          await logDownload(ctx.user.id, input.trackId, "watermarked_preview", "watermarked_mp3");
-        }
+        // Always log watermarked downloads — use userId if logged in, otherwise log IP
+        const ip = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+          ?? ctx.req.socket?.remoteAddress
+          ?? "unknown";
+        await logDownload(
+          ctx.user?.id ?? null,
+          input.trackId,
+          "watermarked_preview",
+          "watermarked_mp3",
+          ctx.user ? null : ip
+        );
         return { url: track.watermarkedMp3Url, title: track.title };
       }),
 

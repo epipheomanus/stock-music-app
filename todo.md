@@ -379,3 +379,9 @@
 - [x] Upload 8 font files (Oswald 400/500/600/700, Noticia Text 400/700/400i/700i) from Manus storage to Cloudflare R2 at fonts/ prefix
 - [x] Update client/index.html @font-face src URLs from /manus-storage/ paths to R2 public URLs (https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/fonts/*)
 - [x] Configure CORS policy on Cloudflare R2 bucket (epipheo-music) to allow GET/HEAD from all origins — fixes silent audio playback and waveform rendering on Railway
+## Round 59 — Multi-track Checkout Fix + Anonymous Browse/Download
+- [x] Fix cart checkout so ALL tracks in the cart download (not just the first one) — server-side /api/download/cart-zip endpoint streams all tracks as a single ZIP file
+- [x] Open Browse page, audio preview, and watermarked track download to unauthenticated visitors (no login required)
+- [x] Block cart/clean-WAV download for unauthenticated users (show login prompt instead)
+- [x] Track anonymous watermarked downloads in the downloads table — log IP address and show "Guest (IP)" in the Admin Downloads page name column
+- [x] Ensure anonymous users cannot register (invite-only remains enforced)

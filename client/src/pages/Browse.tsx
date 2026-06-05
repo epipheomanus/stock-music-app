@@ -469,6 +469,7 @@ export default function Browse() {
       {/* Watermark preview confirmation dialog */}
       <WatermarkConfirmDialog
         open={wmConfirmOpen}
+        showDoNotShow={isAuthenticated}
         onConfirm={() => {
           setWmConfirmOpen(false);
           if (pendingWatermarkTrackId !== null) {

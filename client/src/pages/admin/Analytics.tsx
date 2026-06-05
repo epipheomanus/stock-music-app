@@ -93,7 +93,14 @@ export default function AdminAnalytics() {
     return stored ? Number(stored) : 25;
   });
 
-  const userOptions     = useMemo(() => unique(downloads.map((d: any) => d.userName ?? "Unknown")).sort(), [downloads]);
+  // For anonymous downloads, show "Guest (IP)" or just "Guest" as the display name
+  function displayName(d: any): string {
+    if (d.userName) return d.userName;
+    if (d.ipAddress) return `Guest (${d.ipAddress})`;
+    return "Guest";
+  }
+
+  const userOptions     = useMemo(() => unique(downloads.map((d: any) => displayName(d))).sort(), [downloads]);
   const trackOptions    = useMemo(() => unique(downloads.map((d: any) => d.trackTitle ?? "Unknown")).sort(), [downloads]);
   const composerOptions = useMemo(() => unique(downloads.map((d: any) => d.composerName ?? "Unknown")).sort(), [downloads]);
 
@@ -123,10 +130,11 @@ export default function AdminAnalytics() {
           d.userName ?? "",
           d.userEmail ?? "",
           d.projectName ?? "",
+          d.ipAddress ?? "",
         ].join(" ").toLowerCase();
         if (!haystack.includes(q)) return false;
       }
-      if (selectedUsers.length     && !selectedUsers.includes(d.userName ?? "Unknown"))         return false;
+      if (selectedUsers.length     && !selectedUsers.includes(displayName(d)))         return false;
       if (selectedTracks.length    && !selectedTracks.includes(d.trackTitle ?? "Unknown"))      return false;
       if (selectedComposers.length && !selectedComposers.includes(d.composerName ?? "Unknown")) return false;
       if (selectedTypes.length) {
@@ -216,7 +224,9 @@ export default function AdminAnalytics() {
     if (filtered.length === 0) { toast.error("No data to export."); return; }
     const headers = ["Name", "Email", "Track", "Composer", "Project Name", "File Type", "Date Downloaded"];
     const rows = filtered.map((d: any) => [
-      d.userName ?? "", d.userEmail ?? "", d.trackTitle ?? "",
+      d.userName ?? (d.ipAddress ? `Guest (${d.ipAddress})` : "Guest"),
+      d.userEmail ?? "",
+      d.trackTitle ?? "",
       d.composerName ?? "", d.projectName ?? "",
       d.fileType === "clean_wav" ? "Clean WAV" : "Watermarked MP3",
       formatDate(d.downloadedAt),
@@ -470,14 +480,18 @@ export default function AdminAnalytics() {
                             <div className="min-w-0">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <p className="truncate max-w-[120px] cursor-default">{d.userName ?? "Unknown"}</p>
+                                  <p className={`truncate max-w-[120px] cursor-default ${!d.userName ? "text-muted-foreground italic" : ""}`}>
+                                    {d.userName ?? (d.ipAddress ? `Guest` : "Guest")}
+                                  </p>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="text-xs max-w-xs break-words">
-                                  <p className="font-medium">{d.userName ?? "Unknown"}</p>
+                                  <p className="font-medium">{d.userName ?? "Guest (not signed in)"}</p>
                                   {d.userEmail && <p className="text-muted-foreground">{d.userEmail}</p>}
+                                  {!d.userName && d.ipAddress && <p className="text-muted-foreground">IP: {d.ipAddress}</p>}
                                 </TooltipContent>
                               </Tooltip>
                               {d.userEmail && <p className="text-xs text-muted-foreground truncate max-w-[120px]">{d.userEmail}</p>}
+                              {!d.userName && d.ipAddress && <p className="text-xs text-muted-foreground truncate max-w-[120px]">IP: {d.ipAddress}</p>}
                             </div>
                           </div>
                         </td>

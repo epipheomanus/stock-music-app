@@ -482,6 +482,100 @@ export function registerUploadRoutes(app: any) {
     }
   );
 
+  // ─── GET /api/download/cart-zip ─────────────────────────────────────────────
+  // Streams all cart tracks for the authenticated user as a single ZIP archive.
+  // Query params: projectName (string), trackIds (comma-separated numbers)
+  router.get("/api/download/cart-zip", async (req: Request, res: Response) => {
+    try {
+      // Authenticate
+      let user: any;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch {
+        res.status(401).json({ error: "Authentication required" });
+        return;
+      }
+
+      const projectName = (req.query.projectName as string)?.trim();
+      const trackIdsRaw = req.query.trackIds as string;
+      if (!projectName || !trackIdsRaw) {
+        res.status(400).json({ error: "projectName and trackIds are required" });
+        return;
+      }
+
+      const trackIds = trackIdsRaw.split(",").map(Number).filter(n => !isNaN(n) && n > 0);
+      if (trackIds.length === 0) {
+        res.status(400).json({ error: "No valid trackIds provided" });
+        return;
+      }
+
+      // Resolve tracks
+      const { getTrackById, logDownload, clearCart } = await import("./db");
+      const resolvedTracks: { title: string; url: string; filename: string }[] = [];
+      for (const trackId of trackIds) {
+        const track = await getTrackById(trackId);
+        if (!track || !track.wavUrl) continue;
+        const downloadUrl = track.originalWavUrl ?? track.wavUrl;
+        const safeTitle = track.title.replace(/[^a-zA-Z0-9 _\-]/g, "").trim();
+        const hasStems = track.hasStems && track.stemsZipUrl;
+        resolvedTracks.push({
+          title: track.title,
+          url: hasStems ? track.stemsZipUrl! : downloadUrl,
+          filename: hasStems ? `${safeTitle}_with_stems.zip` : `${safeTitle}.wav`,
+        });
+        await logDownload(user.id, trackId, projectName, "clean_wav");
+      }
+
+      if (resolvedTracks.length === 0) {
+        res.status(404).json({ error: "No downloadable tracks found" });
+        return;
+      }
+
+      // Clear cart after logging
+      await clearCart(user.id);
+
+      // If only one track, redirect directly to the file URL
+      if (resolvedTracks.length === 1) {
+        const t = resolvedTracks[0];
+        res.setHeader("Content-Disposition", `attachment; filename="${t.filename}"`);
+        const fileResp = await fetch(t.url);
+        if (!fileResp.ok) throw new Error(`Failed to fetch track: ${fileResp.status}`);
+        res.setHeader("Content-Type", fileResp.headers.get("content-type") ?? "application/octet-stream");
+        const cl = fileResp.headers.get("content-length");
+        if (cl) res.setHeader("Content-Length", cl);
+        const { Readable } = await import("stream");
+        Readable.fromWeb(fileResp.body as any).pipe(res);
+        return;
+      }
+
+      // Multiple tracks: stream as ZIP
+      const safeProjName = projectName.replace(/[^a-zA-Z0-9 _\-]/g, "").trim() || "tracks";
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeProjName}.zip"`);
+
+      const archive = archiver("zip", { zlib: { level: 1 } }); // level 1 = fast, audio is already compressed
+      archive.pipe(res);
+
+      for (const t of resolvedTracks) {
+        const fileResp = await fetch(t.url);
+        if (!fileResp.ok) {
+          console.error(`[cart-zip] Failed to fetch ${t.filename}: ${fileResp.status}`);
+          continue;
+        }
+        const { Readable } = await import("stream");
+        const nodeStream = Readable.fromWeb(fileResp.body as any);
+        archive.append(nodeStream, { name: t.filename });
+      }
+
+      await archive.finalize();
+    } catch (err) {
+      console.error("[cart-zip] Error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to create download archive" });
+      }
+    }
+  });
+
   app.use(router);
 }
 

@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE downloads MODIFY COLUMN userId INT NULL;\nALTER TABLE downloads ADD COLUMN ipAddress VARCHAR(64) NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute \nALTER TABLE downloads MODIFY COLUMN userId INT NULL;\nALTER TABLE downloads ADD COLUMN ipAddress VARCHAR(64) NULL;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 939
+}
