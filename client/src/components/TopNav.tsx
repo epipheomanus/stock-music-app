@@ -42,12 +42,12 @@ export default function TopNav() {
           {/* Epipheo Logo */}
           <Link href="/" className="flex items-center shrink-0">
             <img
-              src="/manus-storage/epipheo-logo-black-transparent_5380d099.png"
+              src="https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/assets/epipheo-logo-black-transparent.png"
               alt="Epipheo"
               className="h-8 w-auto object-contain dark:hidden"
             />
             <img
-              src="/manus-storage/epipheo-logo-white-transparent_1da09ee5.png"
+              src="https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/assets/epipheo-logo-white-transparent.png"
               alt="Epipheo"
               className="h-8 w-auto object-contain hidden dark:block"
             />

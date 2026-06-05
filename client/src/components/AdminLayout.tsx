@@ -42,12 +42,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="px-4 py-5 border-b border-border/50">
           <Link href="/" className="inline-flex items-center">
             <img
-              src="/manus-storage/epipheo-logo-black-transparent_5380d099.png"
+              src="https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/assets/epipheo-logo-black-transparent.png"
               alt="Epipheo"
               className="h-7 w-auto object-contain dark:hidden"
             />
             <img
-              src="/manus-storage/epipheo-logo-white-transparent_1da09ee5.png"
+              src="https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/assets/epipheo-logo-white-transparent.png"
               alt="Epipheo"
               className="h-7 w-auto object-contain hidden dark:block"
             />
