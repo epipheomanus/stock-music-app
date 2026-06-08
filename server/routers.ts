@@ -42,6 +42,10 @@ const adminOnly = adminProcedure.use(({ ctx, next }) => {
   return next({ ctx });
 });
 
+// Per-IP rate limit store for anonymous watermarked downloads
+// Map<ip, timestamp[]> — timestamps of downloads within the rolling window
+const anonDownloadRateLimit = new Map<string, number[]>();
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const appRouter = router({
@@ -864,6 +868,22 @@ export const appRouter = router({
         const ip = (ctx.req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
           ?? ctx.req.socket?.remoteAddress
           ?? "unknown";
+        // Per-IP rate limit for anonymous users: max 10 watermarked downloads per rolling hour
+        if (!ctx.user) {
+          const now = Date.now();
+          const windowMs = 60 * 60 * 1000; // 1 hour
+          const limit = 10;
+          const existing = anonDownloadRateLimit.get(ip) ?? [];
+          const recent = existing.filter((t: number) => now - t < windowMs);
+          if (recent.length >= limit) {
+            throw new TRPCError({
+              code: "TOO_MANY_REQUESTS",
+              message: "You have reached the hourly limit for watermarked preview downloads. Please try again later or sign in for unlimited access.",
+            });
+          }
+          recent.push(now);
+          anonDownloadRateLimit.set(ip, recent);
+        }
         await logDownload(
           ctx.user?.id ?? null,
           input.trackId,

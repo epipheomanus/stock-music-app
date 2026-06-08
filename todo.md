@@ -385,3 +385,8 @@
 - [x] Block cart/clean-WAV download for unauthenticated users (show login prompt instead)
 - [x] Track anonymous watermarked downloads in the downloads table — log IP address and show "Guest (IP)" in the Admin Downloads page name column
 - [x] Ensure anonymous users cannot register (invite-only remains enforced)
+
+## Round 60 — Rate Limiting + Guest Messaging
+- [x] Add per-IP hourly rate limit (10 downloads/hour) for anonymous watermarked downloads in downloadWatermarked procedure
+- [x] Add guest info banner at bottom of Browse page (invite-only, contact sound@epipheo.com)
+- [x] Add guest info footer section on Home page (invite-only, contact sound@epipheo.com)

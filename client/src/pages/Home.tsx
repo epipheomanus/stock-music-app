@@ -62,6 +62,29 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Guest invite info section — shown only to unauthenticated visitors */}
+      {!isAuthenticated && (
+        <section className="border-t border-border/50 bg-muted/30">
+          <div className="container py-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="max-w-lg">
+              <p className="font-display font-bold text-base uppercase tracking-widest text-foreground mb-2">Access &amp; Support</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Clean WAV downloads are available to registered users only. Epipheo Music is{" "}
+                <span className="font-semibold text-foreground">invite-only</span> — if you’re part of the Epipheo team or a collaborator,
+                reach out to request an invite or get support.
+              </p>
+            </div>
+            <a
+              href="mailto:sound@epipheo.com"
+              className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border bg-background text-sm font-medium hover:bg-muted transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+              sound@epipheo.com
+            </a>
+          </div>
+        </section>
+      )}
+
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-4">
