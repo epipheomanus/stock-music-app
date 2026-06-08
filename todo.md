@@ -386,6 +386,9 @@
 - [x] Track anonymous watermarked downloads in the downloads table — log IP address and show "Guest (IP)" in the Admin Downloads page name column
 - [x] Ensure anonymous users cannot register (invite-only remains enforced)
 
+## Round 61 — Mobile Player Bar Fix
+- [x] Redesign GlobalPlayerBar for mobile portrait: two-row layout (track info + transport on row 1, waveform + actions on row 2), desktop single-row unchanged
+
 ## Round 60 — Rate Limiting + Guest Messaging
 - [x] Add per-IP hourly rate limit (10 downloads/hour) for anonymous watermarked downloads in downloadWatermarked procedure
 - [x] Add guest info banner at bottom of Browse page (invite-only, contact sound@epipheo.com)
