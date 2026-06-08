@@ -185,10 +185,49 @@ export async function getAllInvites(): Promise<Invite[]> {
 export async function createTrack(data: InsertTrack): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(tracks).values(data).$returningId();
-  const id = result[0]?.id;
-  if (!id) throw new Error("Failed to get inserted track ID");
-  return id;
+  // Build raw SQL INSERT to avoid Drizzle ORM including nullable columns with undefined values
+  const cols: string[] = ["title", "isPublished"];
+  const vals: unknown[] = [data.title, data.isPublished ?? false];
+  const optionals: Array<[string, unknown]> = [
+    ["composerName", data.composerName],
+    ["description", data.description],
+    ["durationSeconds", data.durationSeconds],
+    ["bpm", data.bpm],
+    ["keySignature", data.keySignature],
+    ["wavKey", data.wavKey],
+    ["wavUrl", data.wavUrl],
+    ["originalWavKey", data.originalWavKey],
+    ["originalWavUrl", data.originalWavUrl],
+    ["mp3PreviewKey", data.mp3PreviewKey],
+    ["mp3PreviewUrl", data.mp3PreviewUrl],
+    ["stemsZipKey", data.stemsZipKey],
+    ["stemsZipUrl", data.stemsZipUrl],
+    ["watermarkedMp3Key", data.watermarkedMp3Key],
+    ["watermarkedMp3Url", data.watermarkedMp3Url],
+    ["coverArtKey", data.coverArtKey],
+    ["coverArtUrl", data.coverArtUrl],
+    ["waveformPeaks", data.waveformPeaks],
+    ["hasStems", data.hasStems],
+    ["watermarkStatus", data.watermarkStatus],
+  ];
+  for (const [col, val] of optionals) {
+    if (val !== undefined && val !== null) { cols.push(col); vals.push(val); }
+  }
+  const colList = cols.map(c => `\`${c}\``).join(", ");
+  // Build a Drizzle sql template with proper parameterization
+  const sqlChunks: ReturnType<typeof sql>[] = [
+    sql.raw(`INSERT INTO tracks (${colList}) VALUES (`),
+  ];
+  vals.forEach((v, i) => {
+    sqlChunks.push(sql`${v}`);
+    if (i < vals.length - 1) sqlChunks.push(sql.raw(", "));
+  });
+  sqlChunks.push(sql.raw(")"));
+  const finalSql = sql.join(sqlChunks, sql.raw(""));
+  const result = await db.execute(finalSql);
+  const insertId = (result[0] as any).insertId;
+  if (!insertId) throw new Error("Failed to get inserted track ID");
+  return insertId;
 }
 
 export async function updateTrack(id: number, data: Partial<InsertTrack>): Promise<void> {
@@ -407,8 +446,18 @@ export async function getUserProjects(userId: number): Promise<Project[]> {
 export async function createProject(data: { userId: number; name: string; description?: string; shareToken: string }): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(projects).values({ userId: data.userId, name: data.name, description: data.description, shareToken: data.shareToken });
-  return (result[0] as any).insertId;
+  // Use raw SQL to avoid Drizzle ORM including nullable columns with undefined values
+  if (data.description) {
+    const result = await db.execute(
+      sql`INSERT INTO projects (userId, name, description, shareToken) VALUES (${data.userId}, ${data.name}, ${data.description}, ${data.shareToken})`
+    );
+    return (result[0] as any).insertId;
+  } else {
+    const result = await db.execute(
+      sql`INSERT INTO projects (userId, name, shareToken) VALUES (${data.userId}, ${data.name}, ${data.shareToken})`
+    );
+    return (result[0] as any).insertId;
+  }
 }
 export async function updateProject(id: number, userId: number, data: { name?: string; description?: string; status?: "active" | "archived" }): Promise<void> {
   const db = await getDb();
