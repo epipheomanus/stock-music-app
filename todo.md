@@ -403,3 +403,9 @@
 ## Round 63 — Resend Invite Button
 - [x] Add invites.resendEmail tRPC procedure that re-sends the invite email for an active invite by ID
 - [x] Add "Resend" button to active InviteRow entries that have an email address saved
+
+## Round 64 — Delete Invite
+
+- [x] Add deleteInvite DB helper (hard delete by invite ID)
+- [x] Add invites.delete tRPC procedure (admin only, prevents deleting used invites)
+- [x] Add Delete button to Admin Invites page (red destructive style, confirmation dialog, removes row on success)

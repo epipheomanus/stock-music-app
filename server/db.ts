@@ -180,6 +180,12 @@ export async function getAllInvites(): Promise<Invite[]> {
   return db.select().from(invites).orderBy(desc(invites.createdAt));
 }
 
+export async function deleteInvite(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(invites).where(eq(invites.id, id));
+}
+
 // ─── Tracks ───────────────────────────────────────────────────────────────────
 
 export async function createTrack(data: InsertTrack): Promise<number> {

@@ -11,7 +11,7 @@ import { signJwt, verifyJwt } from "./_core/jwt";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
-  addToCart, clearCart, createInvite, createLocalUser, deleteTrack,
+  addToCart, clearCart, createInvite, createLocalUser, deleteInvite, deleteTrack,
   deleteUser, getAllDownloads, getAllInvites, getAllTracks, getAllUsers, getCartItems,
   getDb, getInviteByToken, getPublishedTracks, getTagsForTrack,
   getTagsForTracks, getTrackById, getUserByEmail, getUserByOpenId,
@@ -341,6 +341,21 @@ export const appRouter = router({
             </body></html>
           `,
         });
+        return { success: true };
+      }),
+
+    delete: adminOnly
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        // Fetch invite to check it hasn't been used
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { invites: invitesTable } = await import("../drizzle/schema");
+        const rows = await db.select().from(invitesTable).where(eq(invitesTable.id, input.id)).limit(1);
+        const inv = rows[0];
+        if (!inv) throw new TRPCError({ code: "NOT_FOUND", message: "Invite not found" });
+        if (inv.usedById) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot delete an invite that has already been used" });
+        await deleteInvite(input.id);
         return { success: true };
       }),
   }),

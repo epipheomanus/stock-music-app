@@ -1,10 +1,20 @@
 import { useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Copy, Check, Loader2, Link2, Clock, User, Shield, Mail, Send } from "lucide-react";
+import { Plus, Copy, Check, Loader2, Link2, Clock, User, Shield, Mail, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export default function AdminInvites() {
@@ -166,6 +176,7 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
   status: "active" | "used" | "expired";
 }) {
   const utils = trpc.useUtils();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const inviteUrl = `${window.location.origin}/register?token=${invite.token}`;
   const statusColors = {
     active: "bg-green-500/15 text-green-400 border-green-500/30",
@@ -182,65 +193,114 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
     onError: (err: { message?: string }) => toast.error(err.message || "Failed to resend invite email"),
   });
 
+  const deleteMutation = trpc.invites.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Invite deleted.");
+      utils.invites.list.invalidate();
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "Failed to delete invite"),
+  });
+
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl border border-border/50 bg-card/50">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <code className="text-xs font-mono text-muted-foreground truncate max-w-xs">{invite.token}</code>
-          <Badge className={`text-[10px] ${statusColors[status]}`}>{status}</Badge>
-          {isAdmin && (
-            <Badge className="text-[10px] bg-amber-500/15 text-amber-400 border-amber-500/30 gap-1">
-              <Shield className="h-2.5 w-2.5" />
-              Admin
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-          {invite.email && (
-            <span className="flex items-center gap-1 font-medium text-foreground/70">
-              <Mail className="h-3 w-3" />
-              {invite.email}
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            Expires {formatDate(invite.expiresAt)}
-          </span>
-          {invite.usedById && (
+    <>
+      <div className="flex items-center gap-4 p-4 rounded-xl border border-border/50 bg-card/50">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <code className="text-xs font-mono text-muted-foreground truncate max-w-xs">{invite.token}</code>
+            <Badge className={`text-[10px] ${statusColors[status]}`}>{status}</Badge>
+            {isAdmin && (
+              <Badge className="text-[10px] bg-amber-500/15 text-amber-400 border-amber-500/30 gap-1">
+                <Shield className="h-2.5 w-2.5" />
+                Admin
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+            {invite.email && (
+              <span className="flex items-center gap-1 font-medium text-foreground/70">
+                <Mail className="h-3 w-3" />
+                {invite.email}
+              </span>
+            )}
             <span className="flex items-center gap-1">
-              <User className="h-3 w-3" />
-              Used {formatDate(invite.usedAt ?? invite.createdAt)}
+              <Clock className="h-3 w-3" />
+              Expires {formatDate(invite.expiresAt)}
             </span>
-          )}
-          <span>Created {formatDate(invite.createdAt)}</span>
+            {invite.usedById && (
+              <span className="flex items-center gap-1">
+                <User className="h-3 w-3" />
+                Used {formatDate(invite.usedAt ?? invite.createdAt)}
+              </span>
+            )}
+            <span>Created {formatDate(invite.createdAt)}</span>
+          </div>
         </div>
-      </div>
-      {status === "active" && (
         <div className="flex items-center gap-2 shrink-0">
-          {invite.email && (
+          {status === "active" && (
+            <>
+              {invite.email && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={resendMutation.isPending}
+                  onClick={() => resendMutation.mutate({ inviteId: invite.id, origin: window.location.origin })}
+                >
+                  {resendMutation.isPending
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <Send className="h-3.5 w-3.5" />}
+                  Resend
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => onCopy(inviteUrl, invite.id)}
+              >
+                {copiedId === invite.id ? <><Check className="h-3.5 w-3.5 text-green-400" />Copied!</> : <><Copy className="h-3.5 w-3.5" />Copy Link</>}
+              </Button>
+            </>
+          )}
+          {/* Delete button — available on active and expired invites (not used ones) */}
+          {status !== "used" && (
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5"
-              disabled={resendMutation.isPending}
-              onClick={() => resendMutation.mutate({ inviteId: invite.id, origin: window.location.origin })}
+              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+              disabled={deleteMutation.isPending}
+              onClick={() => setConfirmDeleteOpen(true)}
             >
-              {resendMutation.isPending
+              {deleteMutation.isPending
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                : <Send className="h-3.5 w-3.5" />}
-              Resend
+                : <Trash2 className="h-3.5 w-3.5" />}
+              Delete
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => onCopy(inviteUrl, invite.id)}
-          >
-            {copiedId === invite.id ? <><Check className="h-3.5 w-3.5 text-green-400" />Copied!</> : <><Copy className="h-3.5 w-3.5" />Copy Link</>}
-          </Button>
         </div>
-      )}
-    </div>
+      </div>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this invite?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {invite.email
+                ? `The invite sent to ${invite.email} will be permanently deleted. The link will no longer work.`
+                : "This invite link will be permanently deleted and can no longer be used to register."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteMutation.mutate({ id: invite.id })}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
