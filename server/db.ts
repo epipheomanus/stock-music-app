@@ -143,9 +143,16 @@ export async function getAllUsers(): Promise<User[]> {
 export async function createInvite(token: string, createdById: number, expiresAt: Date, role: "user" | "admin" = "user", email?: string): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const values: Record<string, unknown> = { token, createdById, expiresAt, role };
-  if (email) values.email = email;
-  await db.insert(invites).values(values as any);
+  // Use raw SQL to avoid Drizzle ORM including all nullable columns in the INSERT
+  if (email) {
+    await db.execute(
+      sql`INSERT INTO invites (token, createdById, expiresAt, role, email) VALUES (${token}, ${createdById}, ${expiresAt}, ${role}, ${email})`
+    );
+  } else {
+    await db.execute(
+      sql`INSERT INTO invites (token, createdById, expiresAt, role) VALUES (${token}, ${createdById}, ${expiresAt}, ${role})`
+    );
+  }
 }
 
 export async function getInviteByToken(token: string): Promise<Invite | undefined> {
