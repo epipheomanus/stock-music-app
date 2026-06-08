@@ -6,7 +6,7 @@
   },
   "deploy": {
     "startCommand": "node dist/index.js",
-    "healthcheckPath": "/api/trpc/auth.me",
+    "healthcheckPath": "/health",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
