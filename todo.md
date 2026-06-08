@@ -409,3 +409,8 @@
 - [x] Add deleteInvite DB helper (hard delete by invite ID)
 - [x] Add invites.delete tRPC procedure (admin only, prevents deleting used invites)
 - [x] Add Delete button to Admin Invites page (red destructive style, confirmation dialog, removes row on success)
+
+## Round 65 — Bug Fixes
+
+- [x] Fix upload route auth: replace sdk.authenticateRequest (expects Manus OAuth JWT shape) with cookie-based verifyJwt (same as tRPC context) so local-login admins can upload tracks
+- [x] Fix waveform not rendering in GlobalPlayerBar: use a single stable hidden container instead of dual mobile/desktop containers so WaveSurfer always has a valid DOM target

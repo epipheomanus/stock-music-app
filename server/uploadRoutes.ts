@@ -22,7 +22,10 @@ import {
 import { generateWatermarkedMp3, downloadToTemp, convert16BitWav, generateWaveformPeaks, generateMp3Preview } from "./watermark";
 import { parse as csvParse } from "csv-parse/sync";
 import unzipper from "unzipper";
-import { sdk } from "./_core/sdk";
+import { verifyJwt } from "./_core/jwt";
+import { getUserByOpenId } from "./db";
+import { COOKIE_NAME } from "@shared/const";
+import { parse as parseCookieHeader } from "cookie";
 
 // ─── Multer config (memory storage) ─────────────────────────────────────────
 const upload = multer({
@@ -30,10 +33,20 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB per file
 });
 
-// ─── Auth middleware ─────────────────────────────────────────────────────────
+// ─── Auth middleware ───────────────────────────────────────────────────────────
+// Uses the same cookie-based JWT verification as tRPC context (verifyJwt + getUserByOpenId)
+// so local-login admins (username/password) are authenticated correctly.
 async function requireAdmin(req: Request, res: Response, next: Function) {
   try {
-    const user = await sdk.authenticateRequest(req);
+    const cookieHeader = req.headers.cookie;
+    const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+    const sessionToken = cookies[COOKIE_NAME];
+    const session = await verifyJwt(sessionToken);
+    if (!session?.openId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const user = await getUserByOpenId(session.openId);
     if (!user || user.role !== "admin") {
       res.status(403).json({ error: "Admin access required" });
       return;

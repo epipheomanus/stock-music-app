@@ -6,8 +6,13 @@
  * Layout:
  *  - Mobile portrait (< sm): two-row stacked layout inside a taller bar
  *  - Tablet/desktop (≥ sm): single-row layout
+ *
+ * IMPORTANT: There is ONE waveform container div that is always rendered (never inside
+ * a conditionally-hidden branch). It is positioned absolutely and its dimensions are
+ * driven by a sibling "slot" div via a ResizeObserver. This prevents the bug where
+ * WaveSurfer attaches to a `display:none` container and the visible slot never gets it.
  */
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -42,17 +47,50 @@ export default function GlobalPlayerBar() {
     onError: (err) => toast.error(err.message),
   });
   const { isAuthenticated, user } = useAuth();
+
+  // Single stable waveform container — always in the DOM, never conditionally hidden.
   const waveContainerRef = useRef<HTMLDivElement | null>(null);
+  // Slot div whose bounding rect drives the waveform container position.
+  const waveSlotRef = useRef<HTMLDivElement | null>(null);
+
   const [prevVolume, setPrevVolume] = useState(1);
   const [wmConfirmOpen, setWmConfirmOpen] = useState(false);
 
-  // Initialize WaveSurfer once the container div is mounted
+  // Initialize WaveSurfer once the stable container is mounted.
   const setWaveContainerRef = useCallback((el: HTMLDivElement | null) => {
     if (el && !waveContainerRef.current) {
       waveContainerRef.current = el;
       initWaveSurfer(el);
     }
   }, [initWaveSurfer]);
+
+  // Keep the waveform container positioned over the visible slot.
+  useEffect(() => {
+    const slot = waveSlotRef.current;
+    const wave = waveContainerRef.current;
+    if (!slot || !wave) return;
+
+    function syncPosition() {
+      if (!slot || !wave) return;
+      const rect = slot.getBoundingClientRect();
+      wave.style.position = "fixed";
+      wave.style.left = `${rect.left}px`;
+      wave.style.top = `${rect.top}px`;
+      wave.style.width = `${rect.width}px`;
+      wave.style.height = `${rect.height}px`;
+      wave.style.zIndex = "51";
+      wave.style.pointerEvents = "auto";
+    }
+
+    syncPosition();
+    const ro = new ResizeObserver(syncPosition);
+    ro.observe(slot);
+    window.addEventListener("resize", syncPosition);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncPosition);
+    };
+  }, [activeTrack, isCollapsed]);
 
   const watermarkedDownloadMutation = trpc.downloads.downloadWatermarked.useMutation({
     onSuccess: async (data) => {
@@ -123,11 +161,18 @@ export default function GlobalPlayerBar() {
 
   return (
     <>
+      {/* ── Single always-rendered WaveSurfer container (positioned via syncPosition) ── */}
+      <div
+        ref={setWaveContainerRef}
+        onClick={handleSeekClick}
+        style={{ position: "fixed", zIndex: 51, cursor: "pointer" }}
+      />
+
       <div
         className={`fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)] transition-all duration-300 ${
           isCollapsed
             ? "h-14"
-            : "h-auto sm:h-24" // auto height on mobile, fixed on desktop
+            : "h-auto sm:h-24"
         }`}
       >
         {/* ── Collapsed mini-bar ── */}
@@ -235,14 +280,15 @@ export default function GlobalPlayerBar() {
                 </div>
               </div>
 
-              {/* Row 2: time + waveform + time + action buttons */}
+              {/* Row 2: time + waveform slot + time + action buttons */}
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground w-8 text-right flex-shrink-0">
                   {formatTime(currentTime)}
                 </span>
+                {/* Waveform slot — invisible placeholder; actual waveform is positioned over it */}
                 <div
-                  ref={setWaveContainerRef}
-                  className="flex-1 cursor-pointer"
+                  ref={waveSlotRef}
+                  className="flex-1"
                   style={{ height: 32 }}
                 />
                 <span className="text-xs text-muted-foreground w-8 flex-shrink-0">
@@ -312,14 +358,14 @@ export default function GlobalPlayerBar() {
                 </Button>
               </div>
 
-              {/* Waveform */}
+              {/* Waveform slot — invisible placeholder; actual waveform is positioned over it */}
               <div className="flex-1 min-w-0 flex items-center gap-2">
                 <span className="text-xs text-muted-foreground w-9 text-right flex-shrink-0">
                   {formatTime(currentTime)}
                 </span>
                 <div
-                  ref={setWaveContainerRef}
-                  className="flex-1 cursor-pointer"
+                  ref={waveSlotRef}
+                  className="flex-1"
                   style={{ height: 40 }}
                 />
                 <span className="text-xs text-muted-foreground w-9 flex-shrink-0">
