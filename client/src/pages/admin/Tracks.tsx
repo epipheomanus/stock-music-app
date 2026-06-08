@@ -356,6 +356,10 @@ export default function AdminTracks() {
     }
   }
 
+  const presignUploadMutation = trpc.tracks.presignUpload.useMutation();
+  const confirmUploadMutation = trpc.tracks.confirmUpload.useMutation();
+  const generateWatermarkForTrack = trpc.tracks.generateWatermark.useMutation();
+
   function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!wavFile) { toast.error("Please select a WAV file"); return; }
@@ -364,50 +368,91 @@ export default function AdminTracks() {
 
     // Capture values before closing the modal
     const trackTitle = form.title.trim();
-    const fd = new FormData();
-    fd.append("title", form.title);
-    fd.append("composerName", form.composerName);
-    fd.append("description", form.description);
-    fd.append("bpm", form.bpm);
-    fd.append("keySignature", form.keySignature);
-    fd.append("isPublished", String(form.isPublished));
-    fd.append("tags", JSON.stringify([
-      ...form.genres.map(v => ({ type: "genre", value: v })),
-      ...form.moods.map(v => ({ type: "mood", value: v })),
-      ...form.attributes.map(v => ({ type: "attribute", value: v })),
-      ...form.hiddenTags.map(v => ({ type: "hidden", value: v })),
-    ]));
-    fd.append("wav", wavFile);
-    if (coverFile) fd.append("cover", coverFile);
-    stemsFiles.forEach(f => fd.append("stems", f));
+    const capturedWav = wavFile;
+    const capturedCover = coverFile;
+    const capturedStems = [...stemsFiles];
+    const capturedForm = { ...form };
 
     // Close the modal immediately so the admin can start the next track
     setShowUploadDialog(false);
     setForm(DEFAULT_FORM);
     setWavFile(null); setStemsFiles([]); setCoverFile(null);
 
-    // Show an in-progress toast
     const toastId = toast.loading(`Uploading "${trackTitle}"…`);
 
-    // Run the upload in the background
-    fetch("/api/admin/upload-track", { method: "POST", body: fd, credentials: "include" })
-      .then(async (res) => {
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ error: "Upload failed" }));
-          throw new Error(err.error || "Upload failed");
+    // Helper: upload a file directly to S3 via presigned URL
+    async function uploadFileDirect(trackId: number, file: File, fileType: "wav" | "stems" | "cover") {
+      const { uploadUrl, key, publicUrl } = await presignUploadMutation.mutateAsync({
+        trackId,
+        fileType,
+        mimeType: file.type || "application/octet-stream",
+        fileName: file.name,
+      });
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`S3 upload failed (${res.status})`);
+      return { key, publicUrl };
+    }
+
+    (async () => {
+      try {
+        // Step 1: create track metadata
+        const { id: trackId } = await utils.client.tracks.create.mutate({
+          title: capturedForm.title,
+          composerName: capturedForm.composerName,
+          description: capturedForm.description,
+          bpm: capturedForm.bpm ? Number(capturedForm.bpm) : undefined,
+          genres: capturedForm.genres,
+          moods: capturedForm.moods,
+          attributes: capturedForm.attributes,
+          hiddenTags: capturedForm.hiddenTags,
+        });
+
+        // Step 2: upload WAV directly to S3
+        toast.loading(`Uploading WAV for "${trackTitle}"…`, { id: toastId });
+        const { key: wavKey, publicUrl: wavUrl } = await uploadFileDirect(trackId, capturedWav, "wav");
+        await confirmUploadMutation.mutateAsync({ trackId, fileType: "wav", key: wavKey, publicUrl: wavUrl });
+
+        // Step 3: upload cover art if provided
+        if (capturedCover) {
+          toast.loading(`Uploading cover art…`, { id: toastId });
+          const { key: coverKey, publicUrl: coverUrl } = await uploadFileDirect(trackId, capturedCover, "cover");
+          await confirmUploadMutation.mutateAsync({ trackId, fileType: "cover", key: coverKey, publicUrl: coverUrl });
         }
+
+        // Step 4: upload stems if provided
+        if (capturedStems.length > 0) {
+          toast.loading(`Uploading stems…`, { id: toastId });
+          // Combine multiple stems files into one upload (use first file if multiple)
+          const stemsFile = capturedStems[0];
+          const { key: stemsKey, publicUrl: stemsUrl } = await uploadFileDirect(trackId, stemsFile, "stems");
+          await confirmUploadMutation.mutateAsync({ trackId, fileType: "stems", key: stemsKey, publicUrl: stemsUrl });
+        }
+
+        // Step 5: trigger watermark generation
+        toast.loading(`Generating watermark for "${trackTitle}"…`, { id: toastId });
+        await generateWatermarkForTrack.mutateAsync({ id: trackId });
+
+        // Update published status if needed
+        if (!capturedForm.isPublished) {
+          await utils.client.tracks.update.mutate({ id: trackId, isPublished: false });
+        }
+
         await utils.tracks.adminList.invalidate();
         await utils.tracks.filterOptions.invalidate();
         toast.success(`"${trackTitle}" uploaded! Watermark generating in background.`, { id: toastId });
-      })
-      .catch((err: any) => {
+      } catch (err: any) {
         if (err.message?.includes("already exists")) {
           toast.error(err.message, { id: toastId });
           setDuplicateAlertMsg(err.message);
         } else {
           toast.error(`Upload failed: ${err.message || "Unknown error"}`, { id: toastId });
         }
-      });
+      }
+    })();
   }
 
   function openEdit(track: any) {

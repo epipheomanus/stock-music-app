@@ -144,7 +144,7 @@ export default function AdminInvites() {
             )}
             {usedInvites.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Used ({usedInvites.length})</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Claimed ({usedInvites.length})</h2>
                 <div className="space-y-2">
                   {usedInvites.map(invite => (
                     <InviteRow key={invite.id} invite={invite} copiedId={copiedId} onCopy={copyToClipboard} formatDate={formatDate} status="used" />
@@ -180,9 +180,10 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
   const inviteUrl = `${window.location.origin}/register?token=${invite.token}`;
   const statusColors = {
     active: "bg-green-500/15 text-green-400 border-green-500/30",
-    used: "bg-muted text-muted-foreground",
+    used: "bg-blue-500/15 text-blue-400 border-blue-500/30",
     expired: "bg-red-500/15 text-red-400 border-red-500/30",
   };
+  const statusLabels = { active: "Active", used: "Claimed", expired: "Expired" };
   const isAdmin = invite.role === "admin";
 
   const resendMutation = trpc.invites.resendEmail.useMutation({
@@ -207,7 +208,7 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <code className="text-xs font-mono text-muted-foreground truncate max-w-xs">{invite.token}</code>
-            <Badge className={`text-[10px] ${statusColors[status]}`}>{status}</Badge>
+            <Badge className={`text-[10px] ${statusColors[status]}`}>{statusLabels[status]}</Badge>
             {isAdmin && (
               <Badge className="text-[10px] bg-amber-500/15 text-amber-400 border-amber-500/30 gap-1">
                 <Shield className="h-2.5 w-2.5" />

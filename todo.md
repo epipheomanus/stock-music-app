@@ -428,3 +428,9 @@
 - [x] Fix WM Error on retry — generateWatermark tRPC procedure may not use bundled ffmpeg path
 - [x] Fix server error on invite signup (account creates successfully but returns error)
 - [x] Fix wrong logo on signup/register page (shows SoundVault logo instead of Epipheo logo)
+
+### Round 68 — Direct-to-S3 Upload (Fix Railway 180s Timeout)
+- [x] Add tRPC procedure to generate presigned S3 PUT URL for WAV/stems/cover uploads
+- [x] Update Admin Tracks upload flow: get presigned URL → upload directly from browser to S3 → call server to save metadata and trigger watermark
+- [x] Remove the old multipart upload route for WAV files (keep metadata save endpoint)
+- [x] Fix invite status: show "Claimed" (not "Active") when usedById is set on an invite

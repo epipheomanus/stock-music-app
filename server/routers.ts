@@ -32,7 +32,7 @@ import {
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
-import { storagePut, storageGetSignedUrl } from "./storage";
+import { storagePut, storageGetSignedUrl, storagePresignPut } from "./storage";
 import { downloadToTemp, generateWatermarkedMp3, convert16BitWav, generateMp3Preview } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -580,51 +580,52 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Admin: upload WAV file for a track
-    uploadWav: adminOnly
+    // Admin: get a presigned PUT URL for direct browser-to-S3 upload (bypasses Railway 180s timeout)
+    presignUpload: adminOnly
       .input(z.object({
-        id: z.number(),
+        trackId: z.number(),
+        fileType: z.enum(["wav", "stems", "cover"]),
+        mimeType: z.string(),
         fileName: z.string(),
-        fileBase64: z.string(),
-        mimeType: z.string().default("audio/wav"),
       }))
       .mutation(async ({ input }) => {
-        const buf = Buffer.from(input.fileBase64, "base64");
-        const key = `tracks/${input.id}/mixdown_${Date.now()}.wav`;
-        const { url } = await storagePut(key, buf, input.mimeType);
-        await updateTrack(input.id, { wavKey: key, wavUrl: url, watermarkStatus: "pending" });
-        return { success: true, url };
+        const ext = input.fileName.split(".").pop() ?? "bin";
+        const prefix = input.fileType === "wav" ? "mixdown" : input.fileType === "stems" ? "stems" : "cover";
+        const relKey = `tracks/${input.trackId}/${prefix}_${Date.now()}.${ext}`;
+        const { uploadUrl, key, publicUrl } = await storagePresignPut(relKey, input.mimeType, 3600);
+        return { uploadUrl, key, publicUrl };
       }),
 
-    // Admin: upload stems ZIP
-    uploadStems: adminOnly
+    // Admin: confirm upload after browser has PUT the file directly to S3
+    confirmUpload: adminOnly
       .input(z.object({
-        id: z.number(),
-        fileName: z.string(),
-        fileBase64: z.string(),
+        trackId: z.number(),
+        fileType: z.enum(["wav", "stems", "cover"]),
+        key: z.string(),
+        publicUrl: z.string(),
+        durationSeconds: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
-        const buf = Buffer.from(input.fileBase64, "base64");
-        const key = `tracks/${input.id}/stems_${Date.now()}.zip`;
-        const { url } = await storagePut(key, buf, "application/zip");
-        await updateTrack(input.id, { stemsZipKey: key, stemsZipUrl: url, hasStems: true });
-        return { success: true, url };
-      }),
-
-    // Admin: upload cover art
-    uploadCoverArt: adminOnly
-      .input(z.object({
-        id: z.number(),
-        fileName: z.string(),
-        fileBase64: z.string(),
-        mimeType: z.string().default("image/jpeg"),
-      }))
-      .mutation(async ({ input }) => {
-        const buf = Buffer.from(input.fileBase64, "base64");
-        const key = `tracks/${input.id}/cover_${Date.now()}`;
-        const { url } = await storagePut(key, buf, input.mimeType);
-        await updateTrack(input.id, { coverArtKey: key, coverArtUrl: url });
-        return { success: true, url };
+        if (input.fileType === "wav") {
+          await updateTrack(input.trackId, {
+            wavKey: input.key,
+            wavUrl: input.publicUrl,
+            watermarkStatus: "pending",
+            ...(input.durationSeconds ? { durationSeconds: input.durationSeconds } : {}),
+          });
+        } else if (input.fileType === "stems") {
+          await updateTrack(input.trackId, {
+            stemsZipKey: input.key,
+            stemsZipUrl: input.publicUrl,
+            hasStems: true,
+          });
+        } else if (input.fileType === "cover") {
+          await updateTrack(input.trackId, {
+            coverArtKey: input.key,
+            coverArtUrl: input.publicUrl,
+          });
+        }
+        return { success: true };
       }),
 
     // Admin: trigger watermark generation for a track

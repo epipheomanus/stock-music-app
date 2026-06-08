@@ -158,6 +158,44 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
 }
 
 /**
+ * Generate a presigned PUT URL so the browser can upload directly to R2,
+ * bypassing the server entirely (avoids Railway's 180s request timeout).
+ * Returns { uploadUrl, key, publicUrl } — browser PUTs to uploadUrl,
+ * then passes key+publicUrl to the server to save in the database.
+ */
+export async function storagePresignPut(
+  relKey: string,
+  contentType = "application/octet-stream",
+  expiresIn = 3600
+): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
+  const key = appendHashSuffix(normalizeKey(relKey));
+
+  if (!isR2Configured()) {
+    // Forge fallback: get a presigned PUT URL from Forge
+    const forgeUrl = ENV.forgeApiUrl?.replace(/\/+$/, "");
+    const forgeKey = ENV.forgeApiKey;
+    if (!forgeUrl || !forgeKey) throw new Error("Storage not configured.");
+    const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
+    presignUrl.searchParams.set("path", key);
+    const resp = await fetch(presignUrl, { headers: { Authorization: `Bearer ${forgeKey}` } });
+    if (!resp.ok) throw new Error(`Forge presign PUT failed (${resp.status})`);
+    const { url: uploadUrl } = (await resp.json()) as { url: string };
+    return { uploadUrl, key, publicUrl: `/manus-storage/${key}` };
+  }
+
+  const client = getR2Client();
+  const bucket = getBucketName();
+  const command = new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+  });
+  const uploadUrl = await getSignedUrl(client, command, { expiresIn });
+  const publicUrl = await buildPublicUrl(key);
+  return { uploadUrl, key, publicUrl };
+}
+
+/**
  * Generate a presigned GET URL for a stored key (valid 1 hour).
  * Useful for private buckets or time-limited download links.
  */
