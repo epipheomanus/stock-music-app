@@ -26,8 +26,8 @@ export default function Register() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: () => {
-      toast.success("Account created! Please sign in.");
-      navigate("/login");
+      toast.success("Welcome! Your account has been created.");
+      navigate("/");
     },
     onError: (err: { message?: string }) => toast.error(err.message || "Registration failed"),
   });
@@ -103,7 +103,7 @@ export default function Register() {
             <Music2 className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold text-lg tracking-tight">
-            Sound<span className="text-primary">Vault</span>
+            Epipheo <span className="text-primary">Music</span>
           </span>
         </Link>
       </header>

@@ -166,10 +166,23 @@ export const appRouter = router({
         if (!claimed) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already used" });
         const user = await getUserById_local(userId);
         if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        const token = await signJwt({ openId: user.openId, id: user.id });
+        const jwtToken = await signJwt({ openId: user.openId, id: user.id });
         const cookieOptions = getSessionCookieOptions(ctx.req);
-        ctx.res.cookie(COOKIE_NAME, token, cookieOptions);
-        return { success: true, user };
+        ctx.res.cookie(COOKIE_NAME, jwtToken, cookieOptions);
+        // Return only safe fields — never expose passwordHash
+        return {
+          success: true,
+          user: {
+            id: user.id,
+            openId: user.openId,
+            name: user.name,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            role: user.role,
+            username: user.username,
+          },
+        };
       }),
 
     // Forgot password — generate reset token

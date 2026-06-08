@@ -422,3 +422,9 @@
 - [ ] Show persistent upload progress indicator (bottom-right corner) while uploads are in flight
 - [ ] Show success/error toast when each upload job completes
 - [ ] Diagnose and fix watermark generation error on Railway (WM Error status on uploaded tracks)
+
+## Round 67 — Bug Fixes
+
+- [x] Fix WM Error on retry — generateWatermark tRPC procedure may not use bundled ffmpeg path
+- [x] Fix server error on invite signup (account creates successfully but returns error)
+- [x] Fix wrong logo on signup/register page (shows SoundVault logo instead of Epipheo logo)
