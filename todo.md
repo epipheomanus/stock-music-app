@@ -399,3 +399,7 @@
 - [x] Fix cart-zip "failed to create download archive" error — same root cause as above, fixed by raw SQL
 - [x] Fix invite email not being sent — root cause: epipheo.com domain not verified in Resend (user action required)
 - [x] Show invited email address next to invite code in Admin Invites list — added email column to invites table and updated UI
+
+## Round 63 — Resend Invite Button
+- [x] Add invites.resendEmail tRPC procedure that re-sends the invite email for an active invite by ID
+- [x] Add "Resend" button to active InviteRow entries that have an email address saved

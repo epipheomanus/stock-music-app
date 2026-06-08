@@ -165,6 +165,7 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
   formatDate: (d: Date | string) => string;
   status: "active" | "used" | "expired";
 }) {
+  const utils = trpc.useUtils();
   const inviteUrl = `${window.location.origin}/register?token=${invite.token}`;
   const statusColors = {
     active: "bg-green-500/15 text-green-400 border-green-500/30",
@@ -172,6 +173,14 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
     expired: "bg-red-500/15 text-red-400 border-red-500/30",
   };
   const isAdmin = invite.role === "admin";
+
+  const resendMutation = trpc.invites.resendEmail.useMutation({
+    onSuccess: () => {
+      toast.success(`Invite email resent to ${invite.email}!`);
+      utils.invites.list.invalidate();
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "Failed to resend invite email"),
+  });
 
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl border border-border/50 bg-card/50">
@@ -207,14 +216,30 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
         </div>
       </div>
       {status === "active" && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 shrink-0"
-          onClick={() => onCopy(inviteUrl, invite.id)}
-        >
-          {copiedId === invite.id ? <><Check className="h-3.5 w-3.5 text-green-400" />Copied!</> : <><Copy className="h-3.5 w-3.5" />Copy Link</>}
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          {invite.email && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={resendMutation.isPending}
+              onClick={() => resendMutation.mutate({ inviteId: invite.id, origin: window.location.origin })}
+            >
+              {resendMutation.isPending
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Send className="h-3.5 w-3.5" />}
+              Resend
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => onCopy(inviteUrl, invite.id)}
+          >
+            {copiedId === invite.id ? <><Check className="h-3.5 w-3.5 text-green-400" />Copied!</> : <><Copy className="h-3.5 w-3.5" />Copy Link</>}
+          </Button>
+        </div>
       )}
     </div>
   );

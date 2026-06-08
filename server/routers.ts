@@ -297,6 +297,52 @@ export const appRouter = router({
     list: adminOnly.query(async () => {
       return getAllInvites();
     }),
+
+    resendEmail: adminOnly
+      .input(z.object({ inviteId: z.number(), origin: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        // Fetch invite directly from DB by ID
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { invites: invitesTable } = await import("../drizzle/schema");
+        const rows = await db.select().from(invitesTable).where(eq(invitesTable.id, input.inviteId)).limit(1);
+        const inv = rows[0];
+        if (!inv) throw new TRPCError({ code: "NOT_FOUND", message: "Invite not found" });
+        if (inv.usedById) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has already been used" });
+        if (new Date() > inv.expiresAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has expired" });
+        if (!inv.email) throw new TRPCError({ code: "BAD_REQUEST", message: "No email address on this invite" });
+        const url = `${input.origin}/register?token=${inv.token}`;
+        const senderName = ctx.user.firstName ? `${ctx.user.firstName} ${ctx.user.lastName ?? ""}`.trim() : "An Epipheo admin";
+        if (!ENV.resendApiKey) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Email service not configured" });
+        const { Resend } = await import("resend");
+        const resend = new Resend(ENV.resendApiKey);
+        await resend.emails.send({
+          from: ENV.resendFrom,
+          to: inv.email,
+          subject: "You've been invited to Epipheo Music",
+          html: `
+            <!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:40px 16px;"><tr><td align="center">
+                <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+                  <tr><td style="background:#1a1a2e;padding:28px 36px;">
+                    <p style="margin:0;font-size:22px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Epipheo <span style="color:#818cf8;">Music</span></p>
+                  </td></tr>
+                  <tr><td style="padding:40px 36px;">
+                    <h1 style="margin:0 0 14px;font-size:24px;font-weight:700;color:#111827;">You've been invited</h1>
+                    <p style="margin:0 0 28px;font-size:15px;color:#6b7280;line-height:1.65;">${senderName} has invited you to join <strong>Epipheo Music</strong> — a private library of original music for Epipheo projects. Click the button below to create your account.</p>
+                    <a href="${url}" style="display:inline-block;background:#6366f1;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;letter-spacing:0.1px;">Accept Invitation</a>
+                    <p style="margin:28px 0 0;font-size:13px;color:#9ca3af;line-height:1.6;">This invitation expires on <strong>${new Date(inv.expiresAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</strong>. If you weren't expecting this, you can safely ignore this email.</p>
+                  </td></tr>
+                  <tr><td style="background:#f9fafb;padding:20px 36px;border-top:1px solid #e5e7eb;">
+                    <p style="margin:0;font-size:12px;color:#9ca3af;">&copy; ${new Date().getFullYear()} Epipheo Music &middot; This is an automated message, please do not reply.</p>
+                  </td></tr>
+                </table>
+              </td></tr></table>
+            </body></html>
+          `,
+        });
+        return { success: true };
+      }),
   }),
   // ─── Tracks ────────────────────────────────────────────────────────────────────────────
   tracks: router({
