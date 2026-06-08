@@ -364,25 +364,19 @@ export async function logDownload(
 export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[]> {
   const db = await getDb();
   if (!db) return [];
-  const rows = await db
-    .select({
-      id: downloads.id,
-      userId: downloads.userId,
-      trackId: downloads.trackId,
-      projectName: downloads.projectName,
-      downloadedAt: downloads.downloadedAt,
-      fileType: downloads.fileType,
-      ipAddress: downloads.ipAddress,
-      userName: users.name,
-      userEmail: users.email,
-      trackTitle: tracks.title,
-      composerName: tracks.composerName,
-    })
-    .from(downloads)
-    .leftJoin(users, eq(downloads.userId, users.id))
-    .leftJoin(tracks, eq(downloads.trackId, tracks.id))
-    .orderBy(desc(downloads.downloadedAt));
-  return rows as (Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[];
+  // Use raw SQL to avoid Drizzle ORM 500 errors caused by nullable column handling on MySQL strict mode
+  const result = await db.execute(sql`
+    SELECT
+      d.id, d.userId, d.trackId, d.projectName, d.downloadedAt, d.fileType, d.ipAddress,
+      u.name AS userName, u.email AS userEmail,
+      COALESCE(t.title, 'Unknown Track') AS trackTitle,
+      t.composerName
+    FROM downloads d
+    LEFT JOIN users u ON d.userId = u.id
+    LEFT JOIN tracks t ON d.trackId = t.id
+    ORDER BY d.downloadedAt DESC
+  `);
+  return ((result as unknown as any[][])[0]) as (Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[];
 }
 
 // ─── Watermark Config ─────────────────────────────────────────────────────────
