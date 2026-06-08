@@ -414,3 +414,11 @@
 
 - [x] Fix upload route auth: replace sdk.authenticateRequest (expects Manus OAuth JWT shape) with cookie-based verifyJwt (same as tRPC context) so local-login admins can upload tracks
 - [x] Fix waveform not rendering in GlobalPlayerBar: use a single stable hidden container instead of dual mobile/desktop containers so WaveSurfer always has a valid DOM target
+
+## Round 66 — Background Track Uploads
+
+- [ ] Create useUploadQueue hook to manage concurrent background upload jobs with status tracking
+- [ ] Update Admin Tracks upload modal to close immediately on submit and run upload in background
+- [ ] Show persistent upload progress indicator (bottom-right corner) while uploads are in flight
+- [ ] Show success/error toast when each upload job completes
+- [ ] Diagnose and fix watermark generation error on Railway (WM Error status on uploaded tracks)

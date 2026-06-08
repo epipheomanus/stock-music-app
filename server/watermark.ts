@@ -3,8 +3,15 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { promisify } from "util";
+// Use bundled binaries so the app works on Railway (no system ffmpeg/ffprobe)
+import ffmpegPath from "ffmpeg-static";
+import ffprobeInstaller from "@ffprobe-installer/ffprobe";
 
 const execFileAsync = promisify(execFile);
+
+// Resolve binary paths: prefer bundled, fall back to system PATH
+const FFMPEG_BIN = (ffmpegPath as unknown as string) || "ffmpeg";
+const FFPROBE_BIN = ffprobeInstaller?.path || "ffprobe";
 
 /**
  * Generates a watermarked MP3 from a clean WAV file.
@@ -24,7 +31,7 @@ export async function generateWatermarkedMp3(
   const outPath = path.join(tmpDir, `wm_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`);
 
   // Get duration of clean track
-  const { stdout: durationOut } = await execFileAsync("ffprobe", [
+  const { stdout: durationOut } = await execFileAsync(FFPROBE_BIN, [
     "-v", "error",
     "-show_entries", "format=duration",
     "-of", "default=noprint_wrappers=1:nokey=1",
@@ -51,7 +58,7 @@ export async function generateWatermarkedMp3(
 
   if (numWatermarks === 0) {
     // Track is shorter than one interval — just encode without watermark
-    await execFileAsync("ffmpeg", [
+    await execFileAsync(FFMPEG_BIN, [
       "-y", "-i", cleanWavPath,
       "-codec:a", "libmp3lame", "-qscale:a", "2",
       outPath,
@@ -71,7 +78,7 @@ export async function generateWatermarkedMp3(
   filterParts.push(`${amixInputs}amix=inputs=${mixInputs.length}:duration=first:dropout_transition=0[out]`);
   const filterComplex = filterParts.join(";");
 
-  await execFileAsync("ffmpeg", [
+  await execFileAsync(FFMPEG_BIN, [
     "-y",
     ...inputArgs,
     "-filter_complex", filterComplex,
@@ -107,7 +114,7 @@ export async function downloadToTemp(url: string, ext: string): Promise<string> 
 export async function convert16BitWav(inputPath: string): Promise<Buffer> {
   const tmpOut = path.join(os.tmpdir(), `conv16_${Date.now()}_${Math.random().toString(36).slice(2)}.wav`);
   try {
-    await execFileAsync("ffmpeg", [
+    await execFileAsync(FFMPEG_BIN, [
       "-y", "-i", inputPath,
       "-acodec", "pcm_s16le",
       tmpOut,
@@ -130,7 +137,7 @@ export async function generateWaveformPeaks(wavPath: string, numSamples = 500): 
   const targetRate = numSamples * 10;
   const tmpRaw = path.join(os.tmpdir(), `peaks_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);
   try {
-    await execFileAsync("ffmpeg", [
+    await execFileAsync(FFMPEG_BIN, [
       "-y", "-i", wavPath,
       "-ac", "1",                    // mono
       "-ar", String(targetRate),     // target sample rate
@@ -167,7 +174,7 @@ export async function generateWaveformPeaks(wavPath: string, numSamples = 500): 
 export async function generateMp3Preview(wavPath: string): Promise<Buffer> {
   const tmpMp3 = path.join(os.tmpdir(), `mp3prev_${Date.now()}_${Math.random().toString(36).slice(2)}.mp3`);
   try {
-    await execFileAsync("ffmpeg", [
+    await execFileAsync(FFMPEG_BIN, [
       "-y", "-i", wavPath,
       "-codec:a", "libmp3lame",
       "-b:a", "192k",

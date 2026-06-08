@@ -5,7 +5,10 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { Router, Request, Response } from "express";
+import ffmpegPath from "ffmpeg-static";
+import ffprobeInstaller from "@ffprobe-installer/ffprobe";
 const execFileAsync = promisify(execFile);
+const FFPROBE_BIN = ffprobeInstaller?.path || "ffprobe";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
@@ -163,7 +166,7 @@ export function registerUploadRoutes(app: any) {
         try {
           const tmpDurPath = path.join(os.tmpdir(), `dur_${Date.now()}.wav`);
           fs.writeFileSync(tmpDurPath, wavFile.buffer);
-          const { stdout } = await execFileAsync("ffprobe", [
+          const { stdout } = await execFileAsync(FFPROBE_BIN, [
             "-v", "error",
             "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
@@ -414,7 +417,7 @@ export function registerUploadRoutes(app: any) {
           // 5. Get duration
           let durationSeconds: number | undefined;
           try {
-            const { stdout } = await execFileAsync("ffprobe", [
+            const { stdout } = await execFileAsync(FFPROBE_BIN, [
               "-v", "error",
               "-show_entries", "format=duration",
               "-of", "default=noprint_wrappers=1:nokey=1",

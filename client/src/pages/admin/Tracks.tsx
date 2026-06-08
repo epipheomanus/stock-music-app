@@ -183,7 +183,6 @@ export default function AdminTracks() {
   const [wavFile, setWavFile] = useState<File | null>(null);
   const [stemsFiles, setStemsFiles] = useState<File[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   // Sort & filter state — persisted to localStorage
   const LS_KEY = "admin-tracks-filters";
   function loadFilters() {
@@ -357,55 +356,58 @@ export default function AdminTracks() {
     }
   }
 
-  async function handleUpload(e: React.FormEvent) {
+  function handleUpload(e: React.FormEvent) {
     e.preventDefault();
     if (!wavFile) { toast.error("Please select a WAV file"); return; }
     if (!form.title.trim()) { toast.error("Title is required"); return; }
     if (!form.composerName.trim()) { toast.error("Composer is required"); return; }
 
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("title", form.title);
-      fd.append("composerName", form.composerName);
-      fd.append("description", form.description);
-      fd.append("bpm", form.bpm);
-      fd.append("keySignature", form.keySignature);
-      fd.append("isPublished", String(form.isPublished));
-      fd.append("tags", JSON.stringify([
-        ...form.genres.map(v => ({ type: "genre", value: v })),
-        ...form.moods.map(v => ({ type: "mood", value: v })),
-        ...form.attributes.map(v => ({ type: "attribute", value: v })),
-        ...form.hiddenTags.map(v => ({ type: "hidden", value: v })),
-      ]));
-      fd.append("wav", wavFile);
-      if (coverFile) fd.append("cover", coverFile);
-      stemsFiles.forEach(f => fd.append("stems", f));
+    // Capture values before closing the modal
+    const trackTitle = form.title.trim();
+    const fd = new FormData();
+    fd.append("title", form.title);
+    fd.append("composerName", form.composerName);
+    fd.append("description", form.description);
+    fd.append("bpm", form.bpm);
+    fd.append("keySignature", form.keySignature);
+    fd.append("isPublished", String(form.isPublished));
+    fd.append("tags", JSON.stringify([
+      ...form.genres.map(v => ({ type: "genre", value: v })),
+      ...form.moods.map(v => ({ type: "mood", value: v })),
+      ...form.attributes.map(v => ({ type: "attribute", value: v })),
+      ...form.hiddenTags.map(v => ({ type: "hidden", value: v })),
+    ]));
+    fd.append("wav", wavFile);
+    if (coverFile) fd.append("cover", coverFile);
+    stemsFiles.forEach(f => fd.append("stems", f));
 
-      const res = await fetch("/api/admin/upload-track", {
-        method: "POST", body: fd, credentials: "include",
+    // Close the modal immediately so the admin can start the next track
+    setShowUploadDialog(false);
+    setForm(DEFAULT_FORM);
+    setWavFile(null); setStemsFiles([]); setCoverFile(null);
+
+    // Show an in-progress toast
+    const toastId = toast.loading(`Uploading "${trackTitle}"…`);
+
+    // Run the upload in the background
+    fetch("/api/admin/upload-track", { method: "POST", body: fd, credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: "Upload failed" }));
+          throw new Error(err.error || "Upload failed");
+        }
+        await utils.tracks.adminList.invalidate();
+        await utils.tracks.filterOptions.invalidate();
+        toast.success(`"${trackTitle}" uploaded! Watermark generating in background.`, { id: toastId });
+      })
+      .catch((err: any) => {
+        if (err.message?.includes("already exists")) {
+          toast.error(err.message, { id: toastId });
+          setDuplicateAlertMsg(err.message);
+        } else {
+          toast.error(`Upload failed: ${err.message || "Unknown error"}`, { id: toastId });
+        }
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Upload failed" }));
-        throw new Error(err.error || "Upload failed");
-      }
-
-      await utils.tracks.adminList.invalidate();
-      await utils.tracks.filterOptions.invalidate();
-      toast.success("Track uploaded! Watermark is being generated in the background.");
-      setShowUploadDialog(false);
-      setForm(DEFAULT_FORM);
-      setWavFile(null); setStemsFiles([]); setCoverFile(null);
-    } catch (err: any) {
-      if (err.message?.includes("already exists")) {
-        setDuplicateAlertMsg(err.message);
-      } else {
-        toast.error(err.message || "Upload failed");
-      }
-    } finally {
-      setUploading(false);
-    }
   }
 
   function openEdit(track: any) {
@@ -802,9 +804,9 @@ export default function AdminTracks() {
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowUploadDialog(false)} disabled={uploading}>Cancel</Button>
-              <Button type="submit" disabled={uploading || !wavFile} className="gap-2">
-                {uploading ? <><Loader2 className="h-4 w-4 animate-spin" />Uploading…</> : <><Upload className="h-4 w-4" />Upload Track</>}
+              <Button type="button" variant="outline" onClick={() => setShowUploadDialog(false)}>Cancel</Button>
+              <Button type="submit" disabled={!wavFile} className="gap-2">
+                <Upload className="h-4 w-4" />Upload Track
               </Button>
             </DialogFooter>
           </form>
