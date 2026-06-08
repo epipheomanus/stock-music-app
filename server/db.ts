@@ -299,7 +299,11 @@ export async function logDownload(
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.insert(downloads).values({ userId, trackId, projectName, fileType, ipAddress: ipAddress ?? null });
+  // Explicitly omit ipAddress when not provided to avoid MySQL strict mode
+  // rejecting an empty-string placeholder for a nullable varchar column.
+  const values: Record<string, unknown> = { userId, trackId, projectName, fileType };
+  if (ipAddress != null && ipAddress !== "") values.ipAddress = ipAddress;
+  await db.insert(downloads).values(values as any);
 }
 
 export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[]> {

@@ -487,10 +487,21 @@ export function registerUploadRoutes(app: any) {
   // Query params: projectName (string), trackIds (comma-separated numbers)
   router.get("/api/download/cart-zip", async (req: Request, res: Response) => {
     try {
-      // Authenticate
+      // Authenticate via session cookie (same mechanism as tRPC context)
       let user: any;
       try {
-        user = await sdk.authenticateRequest(req);
+        const { parse: parseCookieHeader } = await import("cookie");
+        const { verifyJwt } = await import("./_core/jwt");
+        const { getUserByOpenId } = await import("./db");
+        const { COOKIE_NAME } = await import("../shared/const");
+        const cookieHeader = req.headers.cookie;
+        const cookies = cookieHeader ? parseCookieHeader(cookieHeader) : {};
+        const sessionToken = cookies[COOKIE_NAME];
+        const session = await verifyJwt(sessionToken);
+        if (!session?.openId) throw new Error("No session");
+        const dbUser = await getUserByOpenId(session.openId);
+        if (!dbUser) throw new Error("User not found");
+        user = dbUser;
       } catch {
         res.status(401).json({ error: "Authentication required" });
         return;
