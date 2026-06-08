@@ -393,3 +393,9 @@
 - [x] Add per-IP hourly rate limit (10 downloads/hour) for anonymous watermarked downloads in downloadWatermarked procedure
 - [x] Add guest info banner at bottom of Browse page (invite-only, contact sound@epipheo.com)
 - [x] Add guest info footer section on Home page (invite-only, contact sound@epipheo.com)
+
+## Round 62 — Bug Fixes
+- [x] Fix watermarked download DB insert error — switched to raw SQL INSERT to bypass Drizzle ORM column inclusion
+- [x] Fix cart-zip "failed to create download archive" error — same root cause as above, fixed by raw SQL
+- [x] Fix invite email not being sent — root cause: epipheo.com domain not verified in Resend (user action required)
+- [x] Show invited email address next to invite code in Admin Invites list — added email column to invites table and updated UI

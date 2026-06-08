@@ -45,6 +45,7 @@ export const invites = mysqlTable("invites", {
   usedAt: timestamp("usedAt"),
   expiresAt: timestamp("expiresAt").notNull(),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  email: varchar("email", { length: 320 }),  // email address the invite was sent to (if any)
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

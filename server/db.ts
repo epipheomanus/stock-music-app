@@ -140,10 +140,12 @@ export async function getAllUsers(): Promise<User[]> {
 
 // ─── Invites ──────────────────────────────────────────────────────────────────
 
-export async function createInvite(token: string, createdById: number, expiresAt: Date, role: "user" | "admin" = "user"): Promise<void> {
+export async function createInvite(token: string, createdById: number, expiresAt: Date, role: "user" | "admin" = "user", email?: string): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.insert(invites).values({ token, createdById, expiresAt, role });
+  const values: Record<string, unknown> = { token, createdById, expiresAt, role };
+  if (email) values.email = email;
+  await db.insert(invites).values(values as any);
 }
 
 export async function getInviteByToken(token: string): Promise<Invite | undefined> {
@@ -299,11 +301,18 @@ export async function logDownload(
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Explicitly omit ipAddress when not provided to avoid MySQL strict mode
-  // rejecting an empty-string placeholder for a nullable varchar column.
-  const values: Record<string, unknown> = { userId, trackId, projectName, fileType };
-  if (ipAddress != null && ipAddress !== "") values.ipAddress = ipAddress;
-  await db.insert(downloads).values(values as any);
+  // Use raw SQL to avoid Drizzle ORM including all schema columns in the INSERT
+  // even when they are not provided, which causes MySQL strict mode errors.
+  const hasIp = ipAddress != null && ipAddress !== "";
+  if (hasIp) {
+    await db.execute(
+      sql`INSERT INTO downloads (userId, trackId, projectName, fileType, ipAddress) VALUES (${userId}, ${trackId}, ${projectName}, ${fileType}, ${ipAddress})`
+    );
+  } else {
+    await db.execute(
+      sql`INSERT INTO downloads (userId, trackId, projectName, fileType) VALUES (${userId}, ${trackId}, ${projectName}, ${fileType})`
+    );
+  }
 }
 
 export async function getAllDownloads(): Promise<(Download & { userName: string | null; userEmail: string | null; trackTitle: string; composerName: string | null; ipAddress: string | null })[]> {

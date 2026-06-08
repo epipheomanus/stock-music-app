@@ -186,7 +186,13 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+          {invite.email && (
+            <span className="flex items-center gap-1 font-medium text-foreground/70">
+              <Mail className="h-3 w-3" />
+              {invite.email}
+            </span>
+          )}
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             Expires {formatDate(invite.expiresAt)}

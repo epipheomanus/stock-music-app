@@ -249,7 +249,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const token = nanoid(32);
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7); // 7 days
-        await createInvite(token, ctx.user.id, expiresAt, input.role);
+        await createInvite(token, ctx.user.id, expiresAt, input.role, input.email);
         const url = `${input.origin}/register?token=${token}`;
 
         // Optionally send invite email
