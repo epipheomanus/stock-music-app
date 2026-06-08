@@ -641,12 +641,10 @@ export const appRouter = router({
         await updateTrack(input.id, { watermarkStatus: "processing" });
 
         // Run async — don't block the response
-        // IMPORTANT: wavKey in DB is the pre-hash key; the actual S3 object uses the hashed key
-        // embedded in wavUrl (e.g. /manus-storage/tracks/wav/..._ed4cd96d.wav).
-        // Derive the real key from wavUrl so the signed URL request succeeds.
-        const realWavKey = track.wavUrl
-          ? track.wavUrl.replace(/^\/manus-storage\//, "")
-          : track.wavKey!;
+        // Use wavKey directly — it is the actual S3 object key stored in the DB.
+        // Do NOT derive from wavUrl: with direct-to-S3 uploads wavUrl is a full R2 public URL,
+        // not a /manus-storage/ path, so stripping that prefix gives the wrong key.
+        const realWavKey = track.wavKey!;
         const wmAudioKey = wmConfig.audioKey!;
         const trackId = input.id;
         (async () => {
@@ -734,9 +732,8 @@ export const appRouter = router({
         for (const track of eligible) {
           await updateTrack(track.id, { watermarkStatus: "processing" });
 
-          const realWavKey = track.wavUrl
-            ? track.wavUrl.replace(/^\/manus-storage\//, "")
-            : track.wavKey!;
+          // Use wavKey directly (same reason as generateWatermark above)
+          const realWavKey = track.wavKey!;
           const trackId = track.id;
 
           (async () => {

@@ -1,0 +1,45 @@
+{
+  "query": "SELECT id, title, wavKey, wavUrl, watermarkStatus FROM tracks ORDER BY id DESC LIMIT 5",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, title, wavKey, wavUrl, watermarkStatus FROM tracks ORDER BY id DESC LIMIT 5",
+  "rows": [
+    {
+      "id": "2250002",
+      "title": "Your Standard Tech",
+      "wavKey": "tracks/wav/1777924999244_Your_Standard_Tech_cd58c6bf.wav",
+      "wavUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777924999244_Your_Standard_Tech_cd58c6bf.wav",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "2250001",
+      "title": "You're Inspiring",
+      "wavKey": "tracks/wav/1777924865735_You're_Inspiring_7529c998.wav",
+      "wavUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777924865735_You're_Inspiring_7529c998.wav",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "2220001",
+      "title": "Wholesome Tech",
+      "wavKey": "tracks/wav/1777924726460_Wholesome_Tech_6e1ac522.wav",
+      "wavUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777924726460_Wholesome_Tech_6e1ac522.wav",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "2190001",
+      "title": "Vacation Time",
+      "wavKey": "tracks/wav/1777920526457_Vacation_Time_deac7458.wav",
+      "wavUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777920526457_Vacation_Time_deac7458.wav",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "2160001",
+      "title": "Unique New York",
+      "wavKey": "tracks/wav/1777920381078_Unique_New_York_fbfd7142.wav",
+      "wavUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777920381078_Unique_New_York_fbfd7142.wav",
+      "watermarkStatus": "done"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\twavKey\twavUrl\twatermarkStatus\n2250002\tYour Standard Tech\ttracks/wav/1777924999244_Your_Standard_Tech_cd58c6bf.wav\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777924999244_Your_Standard_Tech_cd58c6bf.wav\tdone\n2250001\tYou're Inspiring\ttracks/wav/1777924865735_You're_Inspiring_7529c998.wav\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777924865735_You're_Inspiring_7529c998.wav\tdone\n2220001\tWholesome Tech\ttracks/wav/1777924726460_Wholesome_Tech_6e1ac522.wav\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777924726460_Wholesome_Tech_6e1ac522.wav\tdone\n2190001\tVacation Time\ttracks/wav/1777920526457_Vacation_Time_deac7458.wav\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777920526457_Vacation_Time_deac7458.wav\tdone\n2160001\tUnique New York\ttracks/wav/1777920381078_Unique_New_York_fbfd7142.wav\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/wav/1777920381078_Unique_New_York_fbfd7142.wav\tdone\n",
+  "stderr": "",
+  "execution_time_ms": 738
+}
