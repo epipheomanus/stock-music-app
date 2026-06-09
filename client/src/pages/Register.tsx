@@ -26,10 +26,20 @@ export default function Register() {
 
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: () => {
-      toast.success("Welcome! Your account has been created.");
+      toast.success("Account Successfully Created! Welcome to Epipheo Music.");
       navigate("/");
     },
-    onError: (err: { message?: string }) => toast.error(err.message || "Registration failed"),
+    onError: (err: { message?: string }) => {
+      // If the error message indicates the account was created but session setup
+      // failed (e.g., TiDB replication lag), treat it as a success and redirect
+      // to login so the user can sign in with their new credentials.
+      if (err.message?.includes("Account created")) {
+        toast.success("Account Successfully Created! Please sign in to continue.");
+        navigate("/login");
+        return;
+      }
+      toast.error(err.message || "Registration failed");
+    },
   });
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {

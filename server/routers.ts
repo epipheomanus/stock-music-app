@@ -164,8 +164,19 @@ export const appRouter = router({
         });
         const claimed = await markInviteUsed(input.token, userId);
         if (!claimed) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already used" });
-        const user = await getUserById_local(userId);
-        if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        // Fetch the newly created user — fall back to email lookup in case of
+        // TiDB replication lag where insertId lookup returns undefined briefly.
+        let user = await getUserById_local(userId);
+        if (!user) {
+          // Retry once after a short delay
+          await new Promise(r => setTimeout(r, 300));
+          user = await getUserById_local(userId);
+        }
+        if (!user) {
+          // Final fallback: look up by email (guaranteed unique)
+          user = await getUserByEmail(input.email);
+        }
+        if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Account created but could not retrieve user — please try logging in." });
         const jwtToken = await signJwt({ openId: user.openId, id: user.id });
         const cookieOptions = getSessionCookieOptions(ctx.req);
         ctx.res.cookie(COOKIE_NAME, jwtToken, cookieOptions);
