@@ -603,8 +603,16 @@ export const appRouter = router({
         const ext = input.fileName.split(".").pop() ?? "bin";
         const prefix = input.fileType === "wav" ? "mixdown" : input.fileType === "stems" ? "stems" : "cover";
         const relKey = `tracks/${input.trackId}/${prefix}_${Date.now()}.${ext}`;
-        const { uploadUrl, key, publicUrl } = await storagePresignPut(relKey, input.mimeType, 3600);
-        return { uploadUrl, key, publicUrl };
+        // Normalize MIME type for known file types to avoid R2 signature mismatch.
+        // R2 requires the Content-Type in the PUT request to exactly match the signed URL.
+        // Browser file.type can be empty or inconsistent for zip/wav files.
+        const normalizedMime =
+          input.fileType === "stems" ? "application/zip" :
+          input.fileType === "wav" ? "audio/wav" :
+          input.fileType === "cover" ? (input.mimeType || "image/jpeg") :
+          (input.mimeType || "application/octet-stream");
+        const { uploadUrl, key, publicUrl } = await storagePresignPut(relKey, normalizedMime, 3600);
+        return { uploadUrl, key, publicUrl, normalizedMime };
       }),
 
     // Admin: confirm upload after browser has PUT the file directly to S3
@@ -689,6 +697,12 @@ export const appRouter = router({
               const { key: ppk, url: ppu } = await storagePut(mp3PrevKey, mp3PrevBuf, "audio/mpeg");
               await updateTrack(trackId, { mp3PreviewKey: ppk, mp3PreviewUrl: ppu });
             } catch (e) { console.error(`[Watermark] MP3 preview failed for track ${trackId}:`, e); }
+            // Generate RMS waveform peaks for visual display (from original 24-bit WAV for best accuracy)
+            try {
+              const peaksJson = await generateWaveformPeaks(cleanPath);
+              await updateTrack(trackId, { waveformPeaks: peaksJson });
+              console.log(`[Watermark] Waveform peaks generated for track ${trackId}`);
+            } catch (e) { console.error(`[Watermark] Waveform peaks failed for track ${trackId}:`, e); }
             // Re-download the 16-bit version for watermarking
             cleanPath && fs.existsSync(cleanPath) && fs.unlinkSync(cleanPath);
             const conv16SignedUrl = await storageGetSignedUrl(convKey);

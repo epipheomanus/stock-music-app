@@ -394,15 +394,18 @@ export default function AdminTracks() {
 
     // Helper: upload a file directly to S3 via presigned URL
     async function uploadFileDirect(trackId: number, file: File, fileType: "wav" | "stems" | "cover") {
-      const { uploadUrl, key, publicUrl } = await presignUploadMutation.mutateAsync({
+      const { uploadUrl, key, publicUrl, normalizedMime } = await presignUploadMutation.mutateAsync({
         trackId,
         fileType,
         mimeType: file.type || "application/octet-stream",
         fileName: file.name,
       });
+      // Use normalizedMime from server — must match what was used to sign the presigned URL.
+      // R2 rejects uploads where Content-Type doesn't match the signed value.
+      const contentType = normalizedMime || file.type || "application/octet-stream";
       const res = await fetch(uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
+        headers: { "Content-Type": contentType },
         body: file,
       });
       if (!res.ok) throw new Error(`S3 upload failed (${res.status})`);
