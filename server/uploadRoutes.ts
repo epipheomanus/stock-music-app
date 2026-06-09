@@ -592,9 +592,15 @@ export function registerUploadRoutes(app: any) {
       // Clear cart after logging
       await clearCart(user.id);
 
-      // If only one track, redirect directly to the file URL
+      // If only one track, redirect directly to the file URL (avoids proxying large files through server)
       if (resolvedTracks.length === 1) {
         const t = resolvedTracks[0];
+        // Use redirect for absolute URLs — client downloads directly from R2 at full speed
+        if (t.url.startsWith("http")) {
+          res.redirect(302, t.url);
+          return;
+        }
+        // Fallback: proxy for relative/signed URLs
         res.setHeader("Content-Disposition", `attachment; filename="${t.filename}"`);
         const fileResp = await fetch(t.url);
         if (!fileResp.ok) throw new Error(`Failed to fetch track: ${fileResp.status}`);
