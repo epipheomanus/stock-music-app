@@ -52,7 +52,7 @@ function processPeaks(raw: string | number[] | null | undefined): number[] {
   //
   // Formula: log(1 + k*v) / log(1 + k)  where k controls the compression strength.
   // k=200 means even values as small as 0.001 map to ~0.27 (27% bar height).
-  const k = 80;
+  const k = 50;
   const logK = Math.log(1 + k);
   return normalized.map(v => Math.log(1 + k * v) / logK);
 }
