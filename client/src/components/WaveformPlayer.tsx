@@ -46,10 +46,15 @@ function processPeaks(raw: string | number[] | null | undefined): number[] {
   if (max <= 0) return arr;
   const normalized = arr.map(v => v / max);
 
-  // Sqrt perceptual curve: boosts quiet values so they're visible,
-  // compresses loud ones so they don't dominate. Matches WaveSurfer's
-  // internal normalization behaviour when it decodes audio via WebAudio.
-  return normalized.map(v => Math.sqrt(v));
+  // Logarithmic perceptual curve — matches what WaveSurfer's WebAudio backend
+  // produced visually. The key insight: sqrt(0.0001) = 0.01 (still invisible),
+  // but log-based scaling maps the full 0..1 range to a visible 0..1 display range.
+  //
+  // Formula: log(1 + k*v) / log(1 + k)  where k controls the compression strength.
+  // k=200 means even values as small as 0.001 map to ~0.27 (27% bar height).
+  const k = 200;
+  const logK = Math.log(1 + k);
+  return normalized.map(v => Math.log(1 + k * v) / logK);
 }
 
 /** Draw the waveform bars onto the canvas. */
