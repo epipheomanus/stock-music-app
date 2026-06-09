@@ -152,7 +152,11 @@ export default function WaveformPlayer({
     return document.documentElement.classList.contains("dark");
   }, []);
 
-  // Redraw canvas whenever progress or size changes
+  // Redraw canvas whenever progress or size changes.
+  // ResizeObserver fires synchronously on first observe, so we don't need a
+  // separate initial draw() call — this also handles the case where the canvas
+  // starts with zero clientWidth (e.g. hidden tab, lazy-rendered row) and only
+  // gets its real size after layout settles.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -161,11 +165,18 @@ export default function WaveformPlayer({
       drawWaveform(canvas, processedPeaks.current, progressRatio, isDark());
     };
 
+    // Observe size changes — fires immediately on first observe with current size
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width > 0 && height > 0) draw();
+    });
+    ro.observe(canvas);
+
+    // Also redraw when progress changes (size hasn't changed, only ratio)
     draw();
 
-    // Redraw on resize
-    const ro = new ResizeObserver(draw);
-    ro.observe(canvas);
     return () => ro.disconnect();
   }, [progressRatio, isDark]);
 

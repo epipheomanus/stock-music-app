@@ -165,7 +165,15 @@ export default function GlobalPlayerBar() {
       <div
         ref={setWaveContainerRef}
         onClick={handleSeekClick}
-        style={{ position: "fixed", zIndex: 51, cursor: "pointer" }}
+        style={{
+          position: "fixed",
+          zIndex: 51,
+          cursor: "pointer",
+          // Hide the waveform entirely when the player is collapsed — the slot
+          // div it tracks is inside the full-bar section which is not rendered
+          // when collapsed, so without this the waveform floats off-screen.
+          display: isCollapsed ? "none" : "block",
+        }}
       />
 
       <div
