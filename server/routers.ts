@@ -33,7 +33,7 @@ import {
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
 import { storagePut, storageGetSignedUrl, storagePresignPut } from "./storage";
-import { downloadToTemp, generateWatermarkedMp3, convert16BitWav, generateMp3Preview } from "./watermark";
+import { downloadToTemp, generateWatermarkedMp3, convert16BitWav, generateMp3Preview, generateWaveformPeaks } from "./watermark";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -790,6 +790,43 @@ export const appRouter = router({
         }
 
         return { count: eligible.length, message: `Queued watermark generation for ${eligible.length} track(s)` };
+      }),
+
+    // Admin: regenerate waveform peaks for all tracks using the RMS algorithm.
+    // Run this once after upgrading from peak-per-block to RMS to fix flat waveforms.
+    regenerateAllPeaks: adminOnly
+      .mutation(async () => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const allTracks = await getAllTracks();
+        const eligible = allTracks.filter(t => t.wavKey || t.mp3PreviewKey);
+        if (eligible.length === 0) return { count: 0, message: "No tracks with audio found" };
+
+        // Run async in background — returns immediately with count
+        (async () => {
+          let done = 0;
+          for (const track of eligible) {
+            let tmpPath: string | null = null;
+            try {
+              // Prefer original WAV for best quality peaks; fall back to mp3Preview
+              const audioKey = track.wavKey ?? track.mp3PreviewKey;
+              const ext = track.wavKey ? ".wav" : ".mp3";
+              const signedUrl = await storageGetSignedUrl(audioKey!);
+              tmpPath = await downloadToTemp(signedUrl, ext);
+              const peaksJson = await generateWaveformPeaks(tmpPath);
+              await updateTrack(track.id, { waveformPeaks: peaksJson });
+              done++;
+              if (done % 10 === 0) console.log(`[Peaks] Regenerated ${done}/${eligible.length}`);
+            } catch (err) {
+              console.error(`[Peaks] Failed for track ${track.id}:`, err);
+            } finally {
+              if (tmpPath && fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+            }
+          }
+          console.log(`[Peaks] Done: regenerated ${done}/${eligible.length} tracks`);
+        })();
+
+        return { count: eligible.length, message: `Queued RMS peak regeneration for ${eligible.length} track(s) — runs in background` };
       }),
 
     // Admin: delete a global tag value from all tracks

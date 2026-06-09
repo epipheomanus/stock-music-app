@@ -283,6 +283,13 @@ export default function AdminTracks() {
     onError: (err: { message?: string }) => toast.error(err.message || "Retry failed"),
   });
 
+  const regenerateAllPeaksMutation = trpc.tracks.regenerateAllPeaks.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "Peak regeneration failed"),
+  });
+
   const retryAllStuckMutation = trpc.tracks.retryAllStuck.useMutation({
     onSuccess: (data) => {
       utils.tracks.adminList.invalidate();
@@ -576,6 +583,20 @@ export default function AdminTracks() {
                 Retry All Stuck ({stuckCount})
               </Button>
             )}
+            <Button
+              variant="outline"
+              className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+              onClick={() => regenerateAllPeaksMutation.mutate()}
+              disabled={regenerateAllPeaksMutation.isPending}
+              title="Regenerate waveform peaks for all tracks using RMS algorithm"
+            >
+              {regenerateAllPeaksMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Regen Peaks
+            </Button>
             <Button
               variant="outline"
               className="gap-2"

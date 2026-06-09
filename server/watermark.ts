@@ -127,38 +127,53 @@ export async function convert16BitWav(inputPath: string): Promise<Buffer> {
 
 /**
  * Generate waveform peak data from a WAV file for instant canvas rendering.
- * Returns a JSON string of normalized float values (0..1) sampled at numSamples points.
+ * Returns a JSON string of RMS-normalized float values (0..1) at numSamples points.
+ *
+ * Uses RMS (Root Mean Square) per block rather than peak-per-block so that quiet
+ * passages are represented by their average energy rather than a single loud sample.
+ * This produces much more visually consistent waveforms, especially for orchestral
+ * or sparse tracks that have low overall amplitude but real musical content.
+ *
+ * The values are then globally normalized so the loudest block = 1.0.
  *
  * @param wavPath - Path to the WAV file on disk
- * @param numSamples - Number of peak samples to generate (default 500)
+ * @param numSamples - Number of RMS blocks to generate (default 500)
  */
 export async function generateWaveformPeaks(wavPath: string, numSamples = 500): Promise<string> {
-  // Use ffmpeg to extract raw PCM samples as 16-bit mono at a low sample rate
-  const targetRate = numSamples * 10;
+  // Decode to raw 16-bit mono PCM at a reasonable sample rate.
+  // 22050 Hz is enough resolution for waveform display purposes.
   const tmpRaw = path.join(os.tmpdir(), `peaks_${Date.now()}_${Math.random().toString(36).slice(2)}.raw`);
   try {
     await execFileAsync(FFMPEG_BIN, [
       "-y", "-i", wavPath,
-      "-ac", "1",                    // mono
-      "-ar", String(targetRate),     // target sample rate
-      "-f", "s16le",                 // raw 16-bit signed little-endian
+      "-ac", "1",        // mono
+      "-ar", "22050",    // 22 kHz — sufficient for waveform display
+      "-f", "s16le",     // raw 16-bit signed little-endian
       tmpRaw,
     ]);
     const rawBuf = fs.readFileSync(tmpRaw);
     const totalSamples = rawBuf.length / 2; // 2 bytes per s16le sample
     const blockSize = Math.max(1, Math.floor(totalSamples / numSamples));
-    const peaks: number[] = [];
+    const rms: number[] = [];
+
     for (let i = 0; i < numSamples; i++) {
-      const start = i * blockSize * 2;
-      const end = Math.min(start + blockSize * 2, rawBuf.length);
-      let max = 0;
-      for (let j = start; j < end; j += 2) {
-        const sample = Math.abs(rawBuf.readInt16LE(j));
-        if (sample > max) max = sample;
+      const start = i * blockSize;
+      const end = Math.min(start + blockSize, totalSamples);
+      let sumSq = 0;
+      let count = 0;
+      for (let j = start; j < end; j++) {
+        const sample = rawBuf.readInt16LE(j * 2) / 32768;
+        sumSq += sample * sample;
+        count++;
       }
-      peaks.push(parseFloat((max / 32768).toFixed(4)));
+      rms.push(count > 0 ? Math.sqrt(sumSq / count) : 0);
     }
-    return JSON.stringify(peaks);
+
+    // Normalize so the loudest block = 1.0
+    const maxRms = Math.max(...rms);
+    const normalized = maxRms > 0 ? rms.map(v => v / maxRms) : rms;
+
+    return JSON.stringify(normalized.map(v => parseFloat(v.toFixed(4))));
   } finally {
     try { fs.unlinkSync(tmpRaw); } catch { /* ignore */ }
   }
