@@ -1,31 +1,27 @@
 /**
- * WaveformPlayer — per-track row component.
+ * WaveformPlayer — per-track row waveform component.
  *
- * Responsibilities:
- *  - Renders a WaveSurfer waveform for VISUAL display only, using pre-computed peaks
- *    from the database — NO audio file is downloaded or decoded in this component.
- *  - When the user clicks Play, it calls onPlay(track) to hand off to the GlobalPlayerBar
- *  - When this track IS the active global track, it mirrors the global progress bar
- *  - Does NOT output audio itself — audio comes from the GlobalPlayerBar's WaveSurfer instance
+ * Renders a waveform bar chart directly on a <canvas> element using pre-computed
+ * peaks from the database. No WaveSurfer instance, no audio download, no RAM usage.
  *
- * Memory note: By using pre-computed peaks instead of loading audio, this component
- * avoids the massive RAM usage that comes from WebAudio decoding full audio files.
+ * When the user clicks Play, it hands off to the GlobalPlayerBar (via onPlay).
+ * When this track IS the active global track, the canvas mirrors playback progress
+ * by drawing played bars in the accent colour and unplayed bars in the muted colour.
  */
-import { useEffect, useRef, useState, useCallback } from "react";
-import WaveSurfer from "wavesurfer.js";
-import { Play, Pause, Loader2 } from "lucide-react";
+import { useEffect, useRef, useCallback } from "react";
+import { Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePlayer } from "@/contexts/PlayerContext";
 
 interface WaveformPlayerProps {
-  /** Pre-computed waveform peaks (JSON string or number[] array from DB). Used for visual rendering only — no audio is loaded. */
+  /** Pre-computed waveform peaks (JSON string or number[] from DB). */
   peaks?: string | number[] | null;
-  /** Duration in seconds — used for time display and seek calculations */
+  /** Duration in seconds — used for time display. */
   durationSeconds?: number | null;
   trackId: number;
-  /** Whether this track is the one currently active in the global player */
+  /** Whether this track is the one currently active in the global player. */
   isGloballyPlaying: boolean;
-  /** Called when user wants to start playing this track */
+  /** Called when user wants to start playing this track. */
   onPlay: (trackId: number) => void;
   compact?: boolean;
 }
@@ -37,6 +33,84 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Parse peaks from DB string or array, then apply perceptual sqrt scaling. */
+function processPeaks(raw: string | number[] | null | undefined): number[] {
+  let arr: number[] | undefined;
+  if (!raw) return [];
+  if (Array.isArray(raw)) arr = raw;
+  else { try { arr = JSON.parse(raw); } catch { return []; } }
+  if (!arr || arr.length === 0) return [];
+
+  // Normalize: scale so the loudest peak = 1.0
+  const max = Math.max(...arr);
+  if (max <= 0) return arr;
+  const normalized = arr.map(v => v / max);
+
+  // Sqrt perceptual curve: boosts quiet values so they're visible,
+  // compresses loud ones so they don't dominate. Matches WaveSurfer's
+  // internal normalization behaviour when it decodes audio via WebAudio.
+  return normalized.map(v => Math.sqrt(v));
+}
+
+/** Draw the waveform bars onto the canvas. */
+function drawWaveform(
+  canvas: HTMLCanvasElement,
+  peaks: number[],
+  progressRatio: number,
+  isDark: boolean,
+) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (w === 0 || h === 0) return;
+
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  if (peaks.length === 0) {
+    // Placeholder flat line when no peaks available
+    ctx.fillStyle = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
+    ctx.fillRect(0, h / 2 - 1, w, 2);
+    return;
+  }
+
+  const barWidth = 2;
+  const barGap = 1;
+  const step = barWidth + barGap;
+  const numBars = Math.floor(w / step);
+  const playedColor = "oklch(0.84 0.14 174)";   // primary green accent
+  const unplayedColor = isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.18)";
+
+  // Downsample/upsample peaks to exactly numBars
+  const resampled: number[] = [];
+  for (let i = 0; i < numBars; i++) {
+    const idx = (i / numBars) * peaks.length;
+    const lo = Math.floor(idx);
+    const hi = Math.min(lo + 1, peaks.length - 1);
+    const t = idx - lo;
+    resampled.push(peaks[lo] * (1 - t) + peaks[hi] * t);
+  }
+
+  const progressBar = Math.floor(progressRatio * numBars);
+
+  for (let i = 0; i < numBars; i++) {
+    const barH = Math.max(2, resampled[i] * h);
+    const x = i * step;
+    const y = (h - barH) / 2;
+    ctx.fillStyle = i < progressBar ? playedColor : unplayedColor;
+    // Rounded bar caps
+    const r = Math.min(1, barWidth / 2);
+    ctx.beginPath();
+    ctx.roundRect(x, y, barWidth, barH, r);
+    ctx.fill();
+  }
+}
+
 export default function WaveformPlayer({
   peaks,
   durationSeconds,
@@ -45,114 +119,74 @@ export default function WaveformPlayer({
   onPlay,
   compact = false,
 }: WaveformPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const wavesurferRef = useRef<WaveSurfer | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const processedPeaks = useRef<number[]>([]);
 
-  // Pull live progress from global context when this is the active track
-  const { activeTrackId, currentTime: globalTime, duration: globalDuration, isPlaying: globalIsPlaying, togglePlayPause, seek } = usePlayer();
+  const {
+    activeTrackId,
+    currentTime: globalTime,
+    duration: globalDuration,
+    isPlaying: globalIsPlaying,
+    togglePlayPause,
+    seek,
+  } = usePlayer();
+
   const isActiveGlobal = activeTrackId === trackId;
-
   const displayTime = isActiveGlobal ? globalTime : 0;
   const displayDuration = isActiveGlobal ? globalDuration : (durationSeconds ?? 0);
   const progressRatio = displayDuration > 0 ? displayTime / displayDuration : 0;
 
-  // Parse and visually enhance peaks for consistent waveform appearance.
-  //
-  // Raw peaks are absolute linear amplitudes (0–1). Two problems arise when rendering
-  // them directly:
-  //  1. Quiet tracks (max ~0.04) look almost flat even after normalization.
-  //  2. Tracks with long silent intros show a wall of zero-height bars.
-  //
-  // Fix: normalize to [0,1] then apply sqrt (perceptual) scaling — the same curve
-  // WaveSurfer applies internally when it decodes audio via the WebAudio backend.
-  // sqrt compresses the dynamic range so quiet passages are visually amplified
-  // while loud peaks don't dominate, producing natural-looking waveforms.
-  const parsedPeaks: number[] | undefined = (() => {
-    let raw: number[] | undefined;
-    if (!peaks) return undefined;
-    if (Array.isArray(peaks)) raw = peaks;
-    else { try { raw = JSON.parse(peaks); } catch { return undefined; } }
-    if (!raw || raw.length === 0) return undefined;
-    // Step 1: normalize so loudest peak = 1.0
-    const max = Math.max(...raw);
-    if (max <= 0) return raw;
-    const normalized = raw.map(v => v / max);
-    // Step 2: sqrt perceptual curve — boosts quiet values, compresses loud ones
-    return normalized.map(v => Math.sqrt(v));
-  })();
-
-  // Initialize WaveSurfer for waveform drawing only — no audio loaded
+  // Process peaks once on mount / when peaks prop changes
   useEffect(() => {
-    if (!containerRef.current) return;
+    processedPeaks.current = processPeaks(peaks);
+  }, [peaks]);
 
-    const ws = WaveSurfer.create({
-      container: containerRef.current,
-      waveColor: "oklch(0.80 0.008 240)",
-      progressColor: "oklch(0.84 0.14 174)",
-      cursorColor: "transparent",
-      cursorWidth: 0,
-      height: compact ? 36 : 48,
-      barWidth: 2,
-      barGap: 1,
-      barRadius: 2,
-      normalize: true,
-      interact: false, // clicks handled by the container div below
-      // Use MediaElement backend — lighter than WebAudio, no full decode into RAM
-      backend: "MediaElement",
-      // Duration hint so the waveform can be drawn without loading audio
-      duration: durationSeconds ?? undefined,
-    });
+  // Detect dark mode via CSS variable
+  const isDark = useCallback(() => {
+    if (typeof window === "undefined") return false;
+    return document.documentElement.classList.contains("dark");
+  }, []);
 
-    wavesurferRef.current = ws;
-    ws.setVolume(0); // Mute — audio output is handled by GlobalPlayerBar
+  // Redraw canvas whenever progress or size changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
-    ws.on("ready", () => {
-      setIsReady(true);
-    });
-    ws.on("error", (err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("aborted") || msg.includes("abort")) return;
-      // Suppress "No audio" errors — expected when rendering from peaks only
-      if (msg.includes("No audio") || msg.includes("no audio")) return;
-      console.warn("[WaveformPlayer] error:", err);
-    });
-
-    // Draw waveform from pre-computed peaks immediately — no audio download needed
-    if (parsedPeaks && parsedPeaks.length > 0) {
-      ws.load("", [parsedPeaks], durationSeconds ?? undefined);
-      setIsReady(true);
-    }
-
-    return () => {
-      ws.destroy();
-      wavesurferRef.current = null;
-      setIsReady(false);
+    const draw = () => {
+      drawWaveform(canvas, processedPeaks.current, progressRatio, isDark());
     };
-    // Only re-initialize if compact changes (layout change)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compact]);
 
-  // Mirror global progress in the visual waveform
-  useEffect(() => {
-    if (!wavesurferRef.current || !isReady || !isActiveGlobal || !globalDuration) return;
-    const ratio = globalTime / globalDuration;
-    if (ratio >= 0 && ratio <= 1) {
-      try { wavesurferRef.current.seekTo(ratio); } catch { /* ignore */ }
-    }
-  }, [isActiveGlobal, globalTime, globalDuration, isReady]);
+    draw();
+
+    // Redraw on resize
+    const ro = new ResizeObserver(draw);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [progressRatio, isDark]);
 
   const handlePlayPause = useCallback(() => {
     if (isActiveGlobal) {
-      // Already active — toggle play/pause on the global player
       togglePlayPause();
     } else {
-      // Trigger global player to load and play this track
       onPlay(trackId);
     }
   }, [isActiveGlobal, togglePlayPause, onPlay, trackId]);
 
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (isActiveGlobal && displayDuration > 0) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const ratio = (e.clientX - rect.left) / rect.width;
+        seek(ratio * displayDuration);
+      } else {
+        handlePlayPause();
+      }
+    },
+    [isActiveGlobal, displayDuration, seek, handlePlayPause],
+  );
+
   const isShowingPlaying = isActiveGlobal && globalIsPlaying;
+  const height = compact ? 36 : 48;
 
   return (
     <div className="flex items-center gap-3 w-full">
@@ -171,25 +205,18 @@ export default function WaveformPlayer({
         )}
       </Button>
 
-      {/* Waveform — click seeks when active, otherwise starts playback */}
-      <div
-        ref={containerRef}
+      {/* Canvas waveform */}
+      <canvas
+        ref={canvasRef}
         className="flex-1 min-w-0 cursor-pointer"
-        style={{ minHeight: compact ? 36 : 48 }}
-        onClick={(e) => {
-          if (isActiveGlobal && displayDuration > 0) {
-            const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-            const ratio = (e.clientX - rect.left) / rect.width;
-            seek(ratio * displayDuration);
-          } else {
-            handlePlayPause();
-          }
-        }}
+        style={{ height, display: "block" }}
+        onClick={handleCanvasClick}
+        aria-label="Waveform — click to seek"
       />
 
       {/* Time display */}
       <div className="shrink-0 text-xs text-muted-foreground tabular-nums w-20 text-right">
-        {(isReady || isActiveGlobal) && displayDuration > 0 ? (
+        {displayDuration > 0 ? (
           <span>
             <span className="text-foreground">{formatTime(displayTime)}</span>
             <span className="mx-1 opacity-40">/</span>
