@@ -57,11 +57,29 @@ export default function WaveformPlayer({
   const displayDuration = isActiveGlobal ? globalDuration : (durationSeconds ?? 0);
   const progressRatio = displayDuration > 0 ? displayTime / displayDuration : 0;
 
-  // Parse peaks from string or array
+  // Parse and visually enhance peaks for consistent waveform appearance.
+  //
+  // Raw peaks are absolute linear amplitudes (0–1). Two problems arise when rendering
+  // them directly:
+  //  1. Quiet tracks (max ~0.04) look almost flat even after normalization.
+  //  2. Tracks with long silent intros show a wall of zero-height bars.
+  //
+  // Fix: normalize to [0,1] then apply sqrt (perceptual) scaling — the same curve
+  // WaveSurfer applies internally when it decodes audio via the WebAudio backend.
+  // sqrt compresses the dynamic range so quiet passages are visually amplified
+  // while loud peaks don't dominate, producing natural-looking waveforms.
   const parsedPeaks: number[] | undefined = (() => {
+    let raw: number[] | undefined;
     if (!peaks) return undefined;
-    if (Array.isArray(peaks)) return peaks;
-    try { return JSON.parse(peaks); } catch { return undefined; }
+    if (Array.isArray(peaks)) raw = peaks;
+    else { try { raw = JSON.parse(peaks); } catch { return undefined; } }
+    if (!raw || raw.length === 0) return undefined;
+    // Step 1: normalize so loudest peak = 1.0
+    const max = Math.max(...raw);
+    if (max <= 0) return raw;
+    const normalized = raw.map(v => v / max);
+    // Step 2: sqrt perceptual curve — boosts quiet values, compresses loud ones
+    return normalized.map(v => Math.sqrt(v));
   })();
 
   // Initialize WaveSurfer for waveform drawing only — no audio loaded
