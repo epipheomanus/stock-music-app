@@ -86,6 +86,7 @@ export default function SharedProject({ params }: SharedProjectProps) {
       watermarkedMp3Url: t.watermarkedMp3Url ?? null,
       wavUrl: t.wavUrl ?? null,
       mp3PreviewUrl: t.mp3PreviewUrl ?? null,
+      waveformPeaks: t.waveformPeaks ?? null,
       hasStems: t.hasStems ?? false,
       watermarkStatus: t.watermarkStatus ?? "pending",
       tags: t.tags ?? { genres: [], moods: [], attributes: [] },

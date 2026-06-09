@@ -434,3 +434,13 @@
 - [x] Update Admin Tracks upload flow: get presigned URL → upload directly from browser to S3 → call server to save metadata and trigger watermark
 - [x] Remove the old multipart upload route for WAV files (keep metadata save endpoint)
 - [x] Fix invite status: show "Claimed" (not "Active") when usedById is set on an invite
+
+## Round 69 — Fix 2.2GB RAM Usage (Audio Memory Leak)
+
+- [x] Diagnose root cause: per-row WaveformPlayer used WebAudio backend, loading and decoding full audio files into RAM for every visible track row
+- [x] Switch WaveformPlayer to render from pre-computed waveformPeaks (already in DB) — no audio file loaded at all for row waveforms
+- [x] Remove audioUrl prop from WaveformPlayer; add peaks + durationSeconds props instead
+- [x] Switch global PlayerContext WaveSurfer from WebAudio to MediaElement backend (streams audio instead of decoding full file into RAM)
+- [x] Add waveformPeaks to GlobalTrack interface in PlayerContext
+- [x] Update Browse.tsx TrackData type and TrackRow to pass peaks/durationSeconds to WaveformPlayer
+- [x] Update ProjectDetail.tsx and SharedProject.tsx GlobalTrack constructions to include waveformPeaks

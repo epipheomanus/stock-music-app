@@ -26,6 +26,7 @@ export interface GlobalTrack {
   watermarkedMp3Url: string | null;
   wavUrl: string | null;
   mp3PreviewUrl: string | null;
+  waveformPeaks: string | null;
   hasStems: boolean;
   watermarkStatus: string;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
@@ -133,7 +134,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       barRadius: 2,
       normalize: true,
       interact: true,
-      backend: "WebAudio",
+      // MediaElement backend streams audio like a normal <audio> tag instead of
+      // decoding the entire file into RAM (WebAudio would hold the full PCM buffer).
+      // This is the primary fix for the 2.2GB RAM usage issue.
+      backend: "MediaElement",
     });
 
     wavesurferRef.current = ws;

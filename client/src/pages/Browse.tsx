@@ -510,6 +510,7 @@ type TrackData = {
   id: number; title: string; composerName: string | null; durationSeconds: number | null;
   coverArtUrl: string | null; watermarkedMp3Url: string | null; wavUrl: string | null;
   mp3PreviewUrl: string | null;
+  waveformPeaks: string | null;
   hasStems: boolean; watermarkStatus: string; createdAt: Date;
   tags: { genres: string[]; moods: string[]; attributes: string[] };
 };
@@ -523,8 +524,6 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
   // Deduplicate tags to prevent React duplicate-key warnings (a track can have the same
   // value in multiple tag categories, e.g. "hopeful" as both a mood and an attribute).
   const allTags = Array.from(new Set([...track.tags.genres, ...track.tags.moods, ...track.tags.attributes]));
-  // Use MP3 preview for fast browser streaming; fall back to WAV if not yet generated
-  const audioUrl = track.mp3PreviewUrl ?? track.wavUrl ?? "";
 
   return (
     <div className={`group rounded-xl border transition-all ${isPlaying ? "border-primary/40 bg-primary/5" : "border-border/50 bg-card/50 hover:border-border hover:bg-card"}`}>
@@ -607,11 +606,9 @@ function TrackRow({ track, isPlaying, onPlay, isAuthenticated, onAddToCart, onDo
             )}
           </div>
         </div>
-        {audioUrl && (
-          <div className="mt-3">
-            <WaveformPlayer audioUrl={audioUrl} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
+        <div className="mt-3">
+            <WaveformPlayer peaks={track.waveformPeaks} durationSeconds={track.durationSeconds} trackId={track.id} isGloballyPlaying={isPlaying} onPlay={() => onPlay(track)} />
           </div>
-        )}
       </div>
     </div>
   );

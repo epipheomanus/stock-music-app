@@ -1,0 +1,45 @@
+{
+  "query": "SELECT id, title, \n  LEFT(wavUrl, 80) as wavUrl_sample,\n  LEFT(mp3PreviewUrl, 80) as mp3PreviewUrl_sample,\n  watermarkStatus\nFROM tracks \nLIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, title, \n  LEFT(wavUrl, 80) as wavUrl_sample,\n  LEFT(mp3PreviewUrl, 80) as mp3PreviewUrl_sample,\n  watermarkStatus\nFROM tracks \nLIMIT 5;",
+  "rows": [
+    {
+      "id": "90001",
+      "title": "First Date",
+      "wavUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/90001/wav_16bit_17778",
+      "mp3PreviewUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/90001/mp3preview_1777",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "120001",
+      "title": "90's Kid",
+      "wavUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/120001/wav_16bit_1777",
+      "mp3PreviewUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/120001/mp3preview_177",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "150001",
+      "title": "Best Buddies",
+      "wavUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/150001/wav_16bit_1777",
+      "mp3PreviewUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/150001/mp3preview_177",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "180001",
+      "title": "A Little Whimsical",
+      "wavUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/180001/wav_16bit_1777",
+      "mp3PreviewUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/180001/mp3preview_177",
+      "watermarkStatus": "done"
+    },
+    {
+      "id": "210001",
+      "title": "A Productive Day",
+      "wavUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/210001/wav_16bit_1777",
+      "mp3PreviewUrl_sample": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/210001/mp3preview_177",
+      "watermarkStatus": "done"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\twavUrl_sample\tmp3PreviewUrl_sample\twatermarkStatus\n90001\tFirst Date\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/90001/wav_16bit_17778\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/90001/mp3preview_1777\tdone\n120001\t90's Kid\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/120001/wav_16bit_1777\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/120001/mp3preview_177\tdone\n150001\tBest Buddies\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/150001/wav_16bit_1777\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/150001/mp3preview_177\tdone\n180001\tA Little Whimsical\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/180001/wav_16bit_1777\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/180001/mp3preview_177\tdone\n210001\tA Productive Day\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/210001/wav_16bit_1777\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/210001/mp3preview_177\tdone\n",
+  "stderr": "",
+  "execution_time_ms": 567
+}

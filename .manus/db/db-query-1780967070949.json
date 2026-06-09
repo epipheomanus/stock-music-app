@@ -1,0 +1,16 @@
+{
+  "query": "SELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN mp3PreviewUrl IS NOT NULL THEN 1 ELSE 0 END) as has_mp3_preview,\n  SUM(CASE WHEN watermarkedMp3Url IS NOT NULL THEN 1 ELSE 0 END) as has_watermarked_mp3,\n  SUM(CASE WHEN wavUrl IS NOT NULL THEN 1 ELSE 0 END) as has_wav\nFROM tracks;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT \n  COUNT(*) as total,\n  SUM(CASE WHEN mp3PreviewUrl IS NOT NULL THEN 1 ELSE 0 END) as has_mp3_preview,\n  SUM(CASE WHEN watermarkedMp3Url IS NOT NULL THEN 1 ELSE 0 END) as has_watermarked_mp3,\n  SUM(CASE WHEN wavUrl IS NOT NULL THEN 1 ELSE 0 END) as has_wav\nFROM tracks;",
+  "rows": [
+    {
+      "total": "225",
+      "has_mp3_preview": "225",
+      "has_watermarked_mp3": "225",
+      "has_wav": "225"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\thas_mp3_preview\thas_watermarked_mp3\thas_wav\n225\t225\t225\t225\n",
+  "stderr": "",
+  "execution_time_ms": 1425
+}
