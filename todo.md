@@ -451,3 +451,9 @@
 - [x] Fix broken zip download for web-uploaded tracks (Hiding In The Matrix stems zip corrupt)
 - [x] Fix slow clean download (~15s delay before download starts) — prefer public URL over signed URL generation
 - [x] Fix locked accounts still able to download clean tracks — check isLocked in cart-zip route and downloads.checkout procedure
+
+## Round 71 — Invite Status Fix
+
+- [x] Fix markInviteUsed: Drizzle db.update() returns [ResultSetHeader, FieldPacket[]] tuple; previous code read .affectedRows off the tuple itself (always undefined → fallback ?? 1), so usedById was never actually written. Switched to raw SQL execute() so affectedRows is reliably read from result[0].
+- [x] Update getAllInvites() to LEFT JOIN users table and return claimedByUsername, claimedByEmail, claimedByName alongside each invite row.
+- [x] Update admin Invites UI: "Claimed by <username>" with timestamp shown in the Claimed section row.

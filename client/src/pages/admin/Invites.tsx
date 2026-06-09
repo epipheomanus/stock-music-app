@@ -228,9 +228,10 @@ function InviteRow({ invite, copiedId, onCopy, formatDate, status }: {
               Expires {formatDate(invite.expiresAt)}
             </span>
             {invite.usedById && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 font-medium text-foreground/70">
                 <User className="h-3 w-3" />
-                Used {formatDate(invite.usedAt ?? invite.createdAt)}
+                Claimed by {invite.claimedByUsername ?? invite.claimedByName ?? invite.claimedByEmail ?? `User #${invite.usedById}`}
+                {invite.usedAt && <span className="font-normal text-muted-foreground">· {formatDate(invite.usedAt)}</span>}
               </span>
             )}
             <span>Created {formatDate(invite.createdAt)}</span>

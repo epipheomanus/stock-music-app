@@ -165,19 +165,45 @@ export async function getInviteByToken(token: string): Promise<Invite | undefine
 export async function markInviteUsed(token: string, userId: number): Promise<boolean> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Atomic: only update if not yet used (prevents concurrent redemption)
-  const result = await db.update(invites)
-    .set({ usedById: userId, usedAt: new Date() })
-    .where(and(eq(invites.token, token), isNull(invites.usedById)));
-  const affectedRows = (result as unknown as { rowsAffected?: number; affectedRows?: number }).affectedRows
-    ?? (result as unknown as { rowsAffected?: number }).rowsAffected ?? 1;
+  // Use raw SQL so we get a plain ResultSetHeader with a reliable affectedRows count.
+  // Drizzle's db.update() returns [ResultSetHeader, FieldPacket[]] but the type
+  // casting was reading .affectedRows off the tuple itself (always undefined → ?? 1).
+  const result = await db.execute(
+    sql`UPDATE invites SET usedById = ${userId}, usedAt = NOW() WHERE token = ${token} AND usedById IS NULL`
+  );
+  const header = Array.isArray(result) ? result[0] : result;
+  const affectedRows = (header as unknown as { affectedRows?: number }).affectedRows ?? 0;
   return affectedRows > 0;
 }
 
-export async function getAllInvites(): Promise<Invite[]> {
+export type InviteWithClaimer = Invite & {
+  claimedByUsername: string | null;
+  claimedByEmail: string | null;
+  claimedByName: string | null;
+};
+
+export async function getAllInvites(): Promise<InviteWithClaimer[]> {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(invites).orderBy(desc(invites.createdAt));
+  const rows = await db
+    .select({
+      id: invites.id,
+      token: invites.token,
+      createdById: invites.createdById,
+      usedById: invites.usedById,
+      usedAt: invites.usedAt,
+      expiresAt: invites.expiresAt,
+      role: invites.role,
+      email: invites.email,
+      createdAt: invites.createdAt,
+      claimedByUsername: users.username,
+      claimedByEmail: users.email,
+      claimedByName: users.name,
+    })
+    .from(invites)
+    .leftJoin(users, eq(invites.usedById, users.id))
+    .orderBy(desc(invites.createdAt));
+  return rows;
 }
 
 export async function deleteInvite(id: number): Promise<void> {
