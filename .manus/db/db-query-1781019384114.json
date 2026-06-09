@@ -1,0 +1,90 @@
+{
+  "query": "SELECT id, title, wavKey, LENGTH(waveformPeaks) as peaksLen, mp3PreviewUrl, createdAt FROM tracks ORDER BY createdAt DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, title, wavKey, LENGTH(waveformPeaks) as peaksLen, mp3PreviewUrl, createdAt FROM tracks ORDER BY createdAt DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "2250002",
+      "title": "Your Standard Tech",
+      "wavKey": "tracks/wav/1777924999244_Your_Standard_Tech_cd58c6bf.wav",
+      "peaksLen": "3411",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777925002929_Your_Standard_Tech_eae7072f.mp3",
+      "createdAt": "2026-05-04 20:03:23"
+    },
+    {
+      "id": "2250001",
+      "title": "You're Inspiring",
+      "wavKey": "tracks/wav/1777924865735_You're_Inspiring_7529c998.wav",
+      "peaksLen": "3434",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777924871112_You're_Inspiring_189c803a.mp3",
+      "createdAt": "2026-05-04 20:01:11"
+    },
+    {
+      "id": "2220001",
+      "title": "Wholesome Tech",
+      "wavKey": "tracks/wav/1777924726460_Wholesome_Tech_6e1ac522.wav",
+      "peaksLen": "3446",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777924729740_Wholesome_Tech_e880c03e.mp3",
+      "createdAt": "2026-05-04 19:58:50"
+    },
+    {
+      "id": "2190001",
+      "title": "Vacation Time",
+      "wavKey": "tracks/wav/1777920526457_Vacation_Time_deac7458.wav",
+      "peaksLen": "3457",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777920529148_Vacation_Time_15b32bc5.mp3",
+      "createdAt": "2026-05-04 18:49:00"
+    },
+    {
+      "id": "2160001",
+      "title": "Unique New York",
+      "wavKey": "tracks/wav/1777920381078_Unique_New_York_fbfd7142.wav",
+      "peaksLen": "3431",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777920383207_Unique_New_York_e3979059.mp3",
+      "createdAt": "2026-05-04 18:46:23"
+    },
+    {
+      "id": "2130001",
+      "title": "Ultimate Hope",
+      "wavKey": "tracks/wav/1777920222708_Ultimate_Hope_2e3a711c.wav",
+      "peaksLen": "3429",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777920224919_Ultimate_Hope_d336f501.mp3",
+      "createdAt": "2026-05-04 18:43:45"
+    },
+    {
+      "id": "2100001",
+      "title": "The Drama",
+      "wavKey": "tracks/wav/1777919934465_The_Drama_570569f3.wav",
+      "peaksLen": "3431",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919936735_The_Drama_18d88085.mp3",
+      "createdAt": "2026-05-04 18:39:05"
+    },
+    {
+      "id": "2070001",
+      "title": "Taking Action",
+      "wavKey": "tracks/wav/1777919788320_Taking_Action_5c183728.wav",
+      "peaksLen": "3443",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919790468_Taking_Action_6473be7c.mp3",
+      "createdAt": "2026-05-04 18:36:35"
+    },
+    {
+      "id": "2040001",
+      "title": "Supporting One Another",
+      "wavKey": "tracks/wav/1777919574645_Supporting_One_Another_0f848a0c.wav",
+      "peaksLen": "3444",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919577163_Supporting_One_Another_c3ae55dc.mp3",
+      "createdAt": "2026-05-04 18:33:04"
+    },
+    {
+      "id": "2010001",
+      "title": "Storm Is Coming",
+      "wavKey": "tracks/wav/1777919348027_Storm_Is_Coming_9c970a25.wav",
+      "peaksLen": "3419",
+      "mp3PreviewUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919350477_Storm_Is_Coming_e224781a.mp3",
+      "createdAt": "2026-05-04 18:29:18"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\twavKey\tpeaksLen\tmp3PreviewUrl\tcreatedAt\n2250002\tYour Standard Tech\ttracks/wav/1777924999244_Your_Standard_Tech_cd58c6bf.wav\t3411\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777925002929_Your_Standard_Tech_eae7072f.mp3\t2026-05-04 20:03:23\n2250001\tYou're Inspiring\ttracks/wav/1777924865735_You're_Inspiring_7529c998.wav\t3434\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777924871112_You're_Inspiring_189c803a.mp3\t2026-05-04 20:01:11\n2220001\tWholesome Tech\ttracks/wav/1777924726460_Wholesome_Tech_6e1ac522.wav\t3446\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777924729740_Wholesome_Tech_e880c03e.mp3\t2026-05-04 19:58:50\n2190001\tVacation Time\ttracks/wav/1777920526457_Vacation_Time_deac7458.wav\t3457\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777920529148_Vacation_Time_15b32bc5.mp3\t2026-05-04 18:49:00\n2160001\tUnique New York\ttracks/wav/1777920381078_Unique_New_York_fbfd7142.wav\t3431\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777920383207_Unique_New_York_e3979059.mp3\t2026-05-04 18:46:23\n2130001\tUltimate Hope\ttracks/wav/1777920222708_Ultimate_Hope_2e3a711c.wav\t3429\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777920224919_Ultimate_Hope_d336f501.mp3\t2026-05-04 18:43:45\n2100001\tThe Drama\ttracks/wav/1777919934465_The_Drama_570569f3.wav\t3431\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919936735_The_Drama_18d88085.mp3\t2026-05-04 18:39:05\n2070001\tTaking Action\ttracks/wav/1777919788320_Taking_Action_5c183728.wav\t3443\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919790468_Taking_Action_6473be7c.mp3\t2026-05-04 18:36:35\n2040001\tSupporting One Another\ttracks/wav/1777919574645_Supporting_One_Another_0f848a0c.wav\t3444\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919577163_Supporting_One_Another_c3ae55dc.mp3\t2026-05-04 18:33:04\n2010001\tStorm Is Coming\ttracks/wav/1777919348027_Storm_Is_Coming_9c970a25.wav\t3419\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/mp3preview/1777919350477_Storm_Is_Coming_e224781a.mp3\t2026-05-04 18:29:18\n",
+  "stderr": "",
+  "execution_time_ms": 556
+}

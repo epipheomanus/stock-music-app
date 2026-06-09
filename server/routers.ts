@@ -840,6 +840,28 @@ export const appRouter = router({
         return { count: eligible.length, message: `Queued RMS peak regeneration for ${eligible.length} track(s) — runs in background` };
       }),
 
+    // Admin: regenerate waveform peaks for a single track by ID
+    regeneratePeaksForTrack: adminOnly
+      .input(z.object({ trackId: z.number() }))
+      .mutation(async ({ input }) => {
+        const track = await getTrackById(input.trackId);
+        if (!track) throw new TRPCError({ code: "NOT_FOUND", message: "Track not found" });
+        const audioKey = track.wavKey ?? track.mp3PreviewKey;
+        if (!audioKey) throw new TRPCError({ code: "BAD_REQUEST", message: "Track has no audio file" });
+        const ext = track.wavKey ? ".wav" : ".mp3";
+        let tmpPath: string | null = null;
+        try {
+          const signedUrl = await storageGetSignedUrl(audioKey);
+          tmpPath = await downloadToTemp(signedUrl, ext);
+          const peaksJson = await generateWaveformPeaks(tmpPath);
+          await updateTrack(track.id, { waveformPeaks: peaksJson });
+          console.log(`[Peaks] Regenerated peaks for track ${track.id} (${track.title})`);
+          return { success: true, message: `Peaks regenerated for "${track.title}"` };
+        } finally {
+          if (tmpPath && fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+        }
+      }),
+
     // Admin: delete a global tag value from all tracks
     deleteGlobalTag: adminOnly
       .input(z.object({ type: z.enum(["genre", "mood", "attribute"]), value: z.string() }))

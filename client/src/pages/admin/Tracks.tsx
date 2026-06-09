@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { trpc } from "@/lib/trpc";
-import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Filter, ChevronDown, FileArchive, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
+import { Plus, Pencil, Trash2, Music, Upload, Loader2, X, Check, FolderOpen, FileAudio, RefreshCw, Filter, ChevronDown, FileArchive, CheckCircle2, AlertCircle, SkipForward, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -287,6 +287,11 @@ export default function AdminTracks() {
     onSuccess: (data) => {
       toast.success(data.message);
     },
+    onError: (err: { message?: string }) => toast.error(err.message || "Peak regeneration failed"),
+  });
+
+  const regeneratePeaksForTrackMutation = trpc.tracks.regeneratePeaksForTrack.useMutation({
+    onSuccess: (data) => toast.success(data.message),
     onError: (err: { message?: string }) => toast.error(err.message || "Peak regeneration failed"),
   });
 
@@ -776,6 +781,15 @@ export default function AdminTracks() {
                       <RefreshCw className="h-3.5 w-3.5" />
                     </Button>
                   )}
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-8 w-8 text-blue-500 hover:text-blue-700"
+                    title="Regenerate waveform peaks for this track"
+                    onClick={() => regeneratePeaksForTrackMutation.mutate({ trackId: track.id })}
+                    disabled={regeneratePeaksForTrackMutation.isPending}
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                  </Button>
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => openEdit(track)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
