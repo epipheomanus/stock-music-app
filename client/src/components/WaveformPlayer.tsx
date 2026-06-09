@@ -174,10 +174,14 @@ export default function WaveformPlayer({
     });
     ro.observe(canvas);
 
+    // Redraw when dark/light theme toggles (class change on <html>)
+    const mo = new MutationObserver(draw);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
     // Also redraw when progress changes (size hasn't changed, only ratio)
     draw();
 
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); mo.disconnect(); };
   }, [progressRatio, isDark]);
 
   const handlePlayPause = useCallback(() => {
