@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, title, stemsZipKey, stemsZipUrl, wavKey, wavUrl, originalWavUrl FROM tracks WHERE title LIKE '%Hiding%' OR title LIKE '%Matrix%' LIMIT 5; SELECT id, title, stemsZipKey, stemsZipUrl FROM tracks WHERE hasStems = 1 AND stemsZipUrl IS NOT NULL LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, title, stemsZipKey, stemsZipUrl, wavKey, wavUrl, originalWavUrl FROM tracks WHERE title LIKE '%Hiding%' OR title LIKE '%Matrix%' LIMIT 5; SELECT id, title, stemsZipKey, stemsZipUrl FROM tracks WHERE hasStems = 1 AND stemsZipUrl IS NOT NULL LIMIT 3;",
+  "rows": [
+    {
+      "id": "90001",
+      "title": "First Date",
+      "stemsZipKey": "NULL",
+      "stemsZipUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/stems/1777426359256_First_Date_stems_7cc71810.zip"
+    },
+    {
+      "id": "270002",
+      "title": "All Hail Distortion",
+      "stemsZipKey": "NULL",
+      "stemsZipUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/stems/1777494891848_All_Hail_Distortion_stems_51223897.zip"
+    },
+    {
+      "id": "960001",
+      "title": "Digital Paradise",
+      "stemsZipKey": "NULL",
+      "stemsZipUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/stems/1777571325604_Digital_Paradise_stems_e596d8c8.zip"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tstemsZipKey\tstemsZipUrl\n90001\tFirst Date\tNULL\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/stems/1777426359256_First_Date_stems_7cc71810.zip\n270002\tAll Hail Distortion\tNULL\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/stems/1777494891848_All_Hail_Distortion_stems_51223897.zip\n960001\tDigital Paradise\tNULL\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/tracks/stems/1777571325604_Digital_Paradise_stems_e596d8c8.zip\n",
+  "stderr": "",
+  "execution_time_ms": 683
+}

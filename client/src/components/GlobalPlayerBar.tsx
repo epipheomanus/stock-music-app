@@ -41,7 +41,7 @@ export default function GlobalPlayerBar() {
     setVolume, playNext, playPrev, clearActiveTrack, toggleCollapsed,
   } = usePlayer();
 
-  const { openCart } = useCart();
+  const { openCart, isOpen: isCartOpen } = useCart();
   const addToCartMutation = trpc.cart.add.useMutation({
     onSuccess: () => { openCart(); },
     onError: (err) => toast.error(err.message),
@@ -177,11 +177,12 @@ export default function GlobalPlayerBar() {
       />
 
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)] transition-all duration-300 ${
+        className={`fixed bottom-0 left-0 z-50 border-t border-border bg-background/95 backdrop-blur-md shadow-[0_-4px_24px_rgba(0,0,0,0.08)] transition-all duration-300 ${
           isCollapsed
             ? "h-14"
             : "h-auto sm:h-24"
         }`}
+        style={{ right: isCartOpen ? "min(448px, 100vw)" : "0px" }}
       >
         {/* ── Collapsed mini-bar ── */}
         {isCollapsed ? (

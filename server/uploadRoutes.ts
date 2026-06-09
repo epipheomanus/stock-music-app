@@ -523,6 +523,12 @@ export function registerUploadRoutes(app: any) {
         return;
       }
 
+      // Block locked accounts from downloading clean tracks
+      if (user.isLocked) {
+        res.status(403).json({ error: "Your account has been locked. Please contact support." });
+        return;
+      }
+
       const projectName = (req.query.projectName as string)?.trim();
       const trackIdsRaw = req.query.trackIds as string;
       if (!projectName || !trackIdsRaw) {
@@ -538,18 +544,43 @@ export function registerUploadRoutes(app: any) {
 
       // Resolve tracks
       const { getTrackById, logDownload, clearCart } = await import("./db");
+      const { storageGetSignedUrl: getSignedUrl } = await import("./storage");
+
+      // Helper: get an absolute fetch-able URL for a storage key or URL.
+      // Prefer the stored public URL when it's already absolute (fast, no API call).
+      // Fall back to storageGetSignedUrl(key) only when the stored URL is a relative
+      // /manus-storage/ path (web-uploaded tracks) — this requires an API round-trip.
+      const resolveDownloadUrl = async (key: string | null | undefined, url: string | null | undefined): Promise<string | null> => {
+        if (url && url.startsWith("http")) return url; // already a public absolute URL — use directly
+        if (key) return getSignedUrl(key);              // relative path — generate signed URL
+        return null;
+      };
+
       const resolvedTracks: { title: string; url: string; filename: string }[] = [];
       for (const trackId of trackIds) {
         const track = await getTrackById(trackId);
-        if (!track || !track.wavUrl) continue;
-        const downloadUrl = track.originalWavUrl ?? track.wavUrl;
+        if (!track) continue;
         const safeTitle = track.title.replace(/[^a-zA-Z0-9 _\-]/g, "").trim();
-        const hasStems = track.hasStems && track.stemsZipUrl;
-        resolvedTracks.push({
-          title: track.title,
-          url: hasStems ? track.stemsZipUrl! : downloadUrl,
-          filename: hasStems ? `${safeTitle}_with_stems.zip` : `${safeTitle}.wav`,
-        });
+        const hasStems = track.hasStems && (track.stemsZipKey || track.stemsZipUrl);
+        if (hasStems) {
+          const stemsUrl = await resolveDownloadUrl(track.stemsZipKey, track.stemsZipUrl);
+          if (!stemsUrl) continue;
+          resolvedTracks.push({
+            title: track.title,
+            url: stemsUrl,
+            filename: `${safeTitle}_with_stems.zip`,
+          });
+        } else {
+          const wavKey = track.originalWavKey ?? track.wavKey;
+          const wavFallbackUrl = track.originalWavUrl ?? track.wavUrl;
+          const wavUrl = await resolveDownloadUrl(wavKey, wavFallbackUrl);
+          if (!wavUrl) continue;
+          resolvedTracks.push({
+            title: track.title,
+            url: wavUrl,
+            filename: `${safeTitle}.wav`,
+          });
+        }
         await logDownload(user.id, trackId, projectName, "clean_wav");
       }
 

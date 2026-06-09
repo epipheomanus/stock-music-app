@@ -444,3 +444,10 @@
 - [x] Add waveformPeaks to GlobalTrack interface in PlayerContext
 - [x] Update Browse.tsx TrackData type and TrackRow to pass peaks/durationSeconds to WaveformPlayer
 - [x] Update ProjectDetail.tsx and SharedProject.tsx GlobalTrack constructions to include waveformPeaks
+
+## Round 70 — Four Bug Fixes
+
+- [x] Fix player bar overlapping cart drawer — shrink player bar width when cart is open
+- [x] Fix broken zip download for web-uploaded tracks (Hiding In The Matrix stems zip corrupt)
+- [x] Fix slow clean download (~15s delay before download starts) — prefer public URL over signed URL generation
+- [x] Fix locked accounts still able to download clean tracks — check isLocked in cart-zip route and downloads.checkout procedure

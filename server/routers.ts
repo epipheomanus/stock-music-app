@@ -979,6 +979,10 @@ export const appRouter = router({
         trackIds: z.array(z.number()).min(1),
       }))
       .mutation(async ({ ctx, input }) => {
+        // Block locked accounts from downloading clean tracks
+        if (ctx.user.isLocked) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Your account has been locked. Please contact support." });
+        }
         const results = [];
         for (const trackId of input.trackIds) {
           const track = await getTrackById(trackId);
