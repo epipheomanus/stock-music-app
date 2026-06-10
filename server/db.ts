@@ -103,14 +103,20 @@ export async function createLocalUser(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const openId = `local_${data.username}_${Date.now()}`;
-  const result = await db.insert(users).values({
-    openId, name: `${data.firstName} ${data.lastName}`,
-    firstName: data.firstName, lastName: data.lastName,
-    email: data.email, company: data.company ?? null,
-    username: data.username, passwordHash: data.passwordHash,
-    loginMethod: "local", role: data.role ?? "user", lastSignedIn: new Date(),
-  });
-  return (result as unknown as { insertId: number }).insertId;
+  const result = await db.execute(
+    sql`INSERT INTO users (openId, name, firstName, lastName, email, company, username, passwordHash, loginMethod, role, lastSignedIn)
+        VALUES (${openId}, ${data.firstName + ' ' + data.lastName}, ${data.firstName}, ${data.lastName},
+                ${data.email}, ${data.company ?? null}, ${data.username}, ${data.passwordHash},
+                'local', ${data.role ?? 'user'}, NOW())`
+  );
+  const header = Array.isArray(result) ? result[0] : result;
+  const insertId = (header as unknown as { insertId?: number }).insertId;
+  console.log(`[createLocalUser] insertId=${insertId} header=${JSON.stringify(header)}`);
+  if (insertId) return insertId;
+  // Fallback: look up by email if insertId is missing (e.g. TiDB replication quirk)
+  const created = await getUserByEmail(data.email);
+  if (!created?.id) throw new Error('Failed to get inserted user ID');
+  return created.id;
 }
 
 export async function setResetToken(userId: number, token: string, expiresAt: Date): Promise<void> {
