@@ -173,6 +173,7 @@ export async function markInviteUsed(token: string, userId: number): Promise<boo
   );
   const header = Array.isArray(result) ? result[0] : result;
   const affectedRows = (header as unknown as { affectedRows?: number }).affectedRows ?? 0;
+  console.log(`[markInviteUsed] token=${token.slice(0,8)}... userId=${userId} affectedRows=${affectedRows} header=${JSON.stringify(header)}`);
   return affectedRows > 0;
 }
 

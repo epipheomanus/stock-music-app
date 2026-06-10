@@ -162,7 +162,9 @@ export const appRouter = router({
           username: input.username, passwordHash,
           role: invite.role as "user" | "admin",
         });
+        console.log(`[register] Calling markInviteUsed: token=${input.token.slice(0,8)}... userId=${userId}`);
         const claimed = await markInviteUsed(input.token, userId);
+        console.log(`[register] markInviteUsed result: claimed=${claimed}, userId=${userId}`);
         if (!claimed) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already used" });
         // Fetch the newly created user — fall back to email lookup in case of
         // TiDB replication lag where insertId lookup returns undefined briefly.
