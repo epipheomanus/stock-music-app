@@ -132,7 +132,7 @@ export const appRouter = router({
         if (!invite) throw new TRPCError({ code: "NOT_FOUND", message: "Invalid invite token" });
         if (invite.usedById) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite already used" });
         if (new Date() > invite.expiresAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Invite has expired" });
-        return { valid: true };
+        return { valid: true, email: invite.email ?? null };
       }),
 
     // Register with invite

@@ -1,0 +1,9 @@
+{
+  "query": "SELECT i.id, i.email AS invite_email, i.usedById, u.id AS user_id, u.email AS user_email, u.username, u.createdAt AS user_created\nFROM invites i\nJOIN users u ON LOWER(u.email) = LOWER(i.email)\nWHERE i.usedById IS NULL\nORDER BY u.createdAt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT i.id, i.email AS invite_email, i.usedById, u.id AS user_id, u.email AS user_email, u.username, u.createdAt AS user_created\nFROM invites i\nJOIN users u ON LOWER(u.email) = LOWER(i.email)\nWHERE i.usedById IS NULL\nORDER BY u.createdAt DESC;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1337
+}

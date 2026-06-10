@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, username, email, createdAt FROM users ORDER BY createdAt DESC LIMIT 30;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, username, email, createdAt FROM users ORDER BY createdAt DESC LIMIT 30;",
+  "rows": [
+    {
+      "id": "8400001",
+      "username": "AlexMcKenzie",
+      "email": "admckenzie88@gmail.com",
+      "createdAt": "2026-05-12 18:06:43"
+    },
+    {
+      "id": "1",
+      "username": "NULL",
+      "email": "alex.mckenzie@epipheo.com",
+      "createdAt": "2026-04-28 19:22:05"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tusername\temail\tcreatedAt\n8400001\tAlexMcKenzie\tadmckenzie88@gmail.com\t2026-05-12 18:06:43\n1\tNULL\talex.mckenzie@epipheo.com\t2026-04-28 19:22:05\n",
+  "stderr": "",
+  "execution_time_ms": 1487
+}

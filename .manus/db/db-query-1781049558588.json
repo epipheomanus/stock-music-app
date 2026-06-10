@@ -1,0 +1,38 @@
+{
+  "query": "SELECT 'invites' as tbl, id, email, usedById, createdAt FROM invites\nUNION ALL\nSELECT 'users' as tbl, id, email, NULL, createdAt FROM users\nORDER BY tbl, createdAt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT 'invites' as tbl, id, email, usedById, createdAt FROM invites\nUNION ALL\nSELECT 'users' as tbl, id, email, NULL, createdAt FROM users\nORDER BY tbl, createdAt DESC;",
+  "rows": [
+    {
+      "tbl": "invites",
+      "id": "30001",
+      "email": "NULL",
+      "usedById": "NULL",
+      "createdAt": "2026-05-12 17:57:52"
+    },
+    {
+      "tbl": "invites",
+      "id": "1",
+      "email": "NULL",
+      "usedById": "NULL",
+      "createdAt": "2026-04-29 02:38:47"
+    },
+    {
+      "tbl": "users",
+      "id": "8400001",
+      "email": "admckenzie88@gmail.com",
+      "usedById": "NULL",
+      "createdAt": "2026-05-12 18:06:43"
+    },
+    {
+      "tbl": "users",
+      "id": "1",
+      "email": "alex.mckenzie@epipheo.com",
+      "usedById": "NULL",
+      "createdAt": "2026-04-28 19:22:05"
+    }
+  ],
+  "messages": [],
+  "stdout": "tbl\tid\temail\tusedById\tcreatedAt\ninvites\t30001\tNULL\tNULL\t2026-05-12 17:57:52\ninvites\t1\tNULL\tNULL\t2026-04-29 02:38:47\nusers\t8400001\tadmckenzie88@gmail.com\tNULL\t2026-05-12 18:06:43\nusers\t1\talex.mckenzie@epipheo.com\tNULL\t2026-04-28 19:22:05\n",
+  "stderr": "",
+  "execution_time_ms": 638
+}

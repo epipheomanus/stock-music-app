@@ -24,6 +24,14 @@ export default function Register() {
     { enabled: !!token, retry: false }
   );
 
+  // Pre-fill email from invite when it was sent to a specific address
+  const inviteEmail = validateQuery.data?.email ?? null;
+  useEffect(() => {
+    if (inviteEmail) {
+      setForm(prev => ({ ...prev, email: inviteEmail }));
+    }
+  }, [inviteEmail]);
+
   const registerMutation = trpc.auth.register.useMutation({
     onSuccess: () => {
       toast.success("Account Successfully Created! Welcome to Epipheo Music.");
@@ -138,8 +146,19 @@ export default function Register() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email address *</Label>
-              <Input id="email" name="email" type="email" placeholder="jane@company.com" value={form.email} onChange={handleChange} required className="bg-card border-border" />
+              <Label htmlFor="email">
+                Email address *
+                {inviteEmail && <span className="ml-2 text-xs text-muted-foreground font-normal">(pre-filled from your invite)</span>}
+              </Label>
+              <Input
+                id="email" name="email" type="email"
+                placeholder="jane@company.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+                readOnly={!!inviteEmail}
+                className={`bg-card border-border ${inviteEmail ? "opacity-70 cursor-not-allowed select-none" : ""}`}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="company">Company <span className="text-muted-foreground text-xs">(optional)</span></Label>
