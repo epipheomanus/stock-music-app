@@ -417,11 +417,11 @@
 
 ## Round 66 — Background Track Uploads
 
-- [ ] Create useUploadQueue hook to manage concurrent background upload jobs with status tracking
-- [ ] Update Admin Tracks upload modal to close immediately on submit and run upload in background
-- [ ] Show persistent upload progress indicator (bottom-right corner) while uploads are in flight
-- [ ] Show success/error toast when each upload job completes
-- [ ] Diagnose and fix watermark generation error on Railway (WM Error status on uploaded tracks)
+- [x] Create useUploadQueue hook to manage concurrent background upload jobs with status tracking
+- [x] Update Admin Tracks upload modal to close immediately on submit and run upload in background
+- [x] Show persistent upload progress indicator (bottom-right corner) while uploads are in flight
+- [x] Show success/error toast when each upload job completes
+- [x] Diagnose and fix watermark generation error on Railway (WM Error status on uploaded tracks)
 
 ## Round 67 — Bug Fixes
 
