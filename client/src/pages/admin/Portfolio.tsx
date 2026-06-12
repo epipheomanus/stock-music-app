@@ -29,27 +29,45 @@ function normalizeContentType(file: File): string {
   return (ext && map[ext]) ?? "application/octet-stream";
 }
 
-function uploadFileToPresignedUrl(
+async function uploadFileToPresignedUrl(
   url: string,
   file: File,
   onProgress?: (pct: number) => void
 ): Promise<void> {
+  // Ensure url is a plain string (some environments wrap it in an object)
+  const urlStr = typeof url === "string" ? url : (url as unknown as { url?: string; href?: string })?.url ?? (url as unknown as { href?: string })?.href ?? String(url);
+  const contentType = normalizeContentType(file);
+
+  // Use fetch (no progress) as the reliable fallback; XHR for progress tracking
+  if (!onProgress) {
+    const res = await fetch(urlStr, { method: "PUT", body: file, headers: { "Content-Type": contentType } });
+    if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+    return;
+  }
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", url);
-    xhr.setRequestHeader("Content-Type", normalizeContentType(file));
-    if (onProgress) {
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-      };
+    try {
+      xhr.open("PUT", urlStr);
+    } catch {
+      // XHR open failed (env restriction) — fall back to fetch without progress
+      fetch(urlStr, { method: "PUT", body: file, headers: { "Content-Type": contentType } })
+        .then(res => { if (!res.ok) throw new Error(`Upload failed: ${res.status}`); })
+        .then(resolve)
+        .catch(reject);
+      return;
     }
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
       else reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
     };
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.ontimeout = () => reject(new Error("Upload timed out"));
-    xhr.timeout = 0; // no timeout — let large files finish
+    xhr.timeout = 0;
     xhr.send(file);
   });
 }
