@@ -456,7 +456,14 @@ function CreateGenreDialog({
       toast.success(`${type === "audio" ? "Audio" : "Video"} genre created`);
       onClose();
     },
+    onError: (err) => toast.error(`Failed to create genre: ${err.message}`),
   });
+
+  function handleCreate() {
+    const trimmed = name.trim();
+    if (!trimmed) { toast.error("Please enter a genre name"); return; }
+    createGenre.mutate({ name: trimmed, type });
+  }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -471,13 +478,14 @@ function CreateGenreDialog({
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Corporate, Cinematic, Upbeat…"
             autoFocus
-            onKeyDown={(e) => e.key === "Enter" && name.trim() && createGenre.mutate({ name: name.trim(), type })}
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
-            onClick={() => createGenre.mutate({ name: name.trim(), type })}
+            type="button"
+            onClick={handleCreate}
             disabled={!name.trim() || createGenre.isPending}
           >
             {createGenre.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
