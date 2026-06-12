@@ -1,0 +1,465 @@
+{
+  "query": "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nAND TABLE_NAME IN ('tracks','users','invites','downloads','portfolio_items','portfolio_genres','watermark_config','taxonomy_tags','track_tags')\nORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nAND TABLE_NAME IN ('tracks','users','invites','downloads','portfolio_items','portfolio_genres','watermark_config','taxonomy_tags','track_tags')\nORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "rows": [
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "userId",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "trackId",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "projectName",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "downloadedAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "fileType",
+      "COLUMN_TYPE": "enum('clean_wav','watermarked_mp3')"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "ipAddress",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "token",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "createdById",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "usedById",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "usedAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "expiresAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "role",
+      "COLUMN_TYPE": "enum('user','admin')"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "email",
+      "COLUMN_TYPE": "varchar(320)"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('audio','video')"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "sortOrder",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "genreId",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('audio','video')"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "title",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "description",
+      "COLUMN_TYPE": "text"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "fileKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "fileUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "mp3Key",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "mp3Url",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "thumbnailKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "thumbnailUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "waveformPeaks",
+      "COLUMN_TYPE": "mediumtext"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "durationSeconds",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "sortOrder",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('genre','mood','attribute')"
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags",
+      "COLUMN_NAME": "value",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "trackId",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('genre','mood','attribute','hidden')"
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "value",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "title",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "composerName",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "description",
+      "COLUMN_TYPE": "text"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "durationSeconds",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "bpm",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "wavKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "wavUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "stemsZipKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "stemsZipUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "watermarkedMp3Key",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "watermarkedMp3Url",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "coverArtKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "coverArtUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "hasStems",
+      "COLUMN_TYPE": "tinyint(1)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "watermarkStatus",
+      "COLUMN_TYPE": "enum('pending','processing','done','error')"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "isPublished",
+      "COLUMN_TYPE": "tinyint(1)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "waveformPeaks",
+      "COLUMN_TYPE": "mediumtext"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "originalWavKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "originalWavUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "keySignature",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "mp3PreviewKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "mp3PreviewUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "openId",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "text"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "email",
+      "COLUMN_TYPE": "varchar(320)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "loginMethod",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "role",
+      "COLUMN_TYPE": "enum('user','admin')"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "lastSignedIn",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "firstName",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "lastName",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "company",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "username",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "passwordHash",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "resetToken",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "resetTokenExpiresAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "isLocked",
+      "COLUMN_TYPE": "tinyint(1)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "skipWatermarkConfirm",
+      "COLUMN_TYPE": "tinyint(1)"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "jobTitle",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "audioKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "audioUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tCOLUMN_NAME\tCOLUMN_TYPE\ndownloads\tid\tint\ndownloads\tuserId\tint\ndownloads\ttrackId\tint\ndownloads\tprojectName\tvarchar(256)\ndownloads\tdownloadedAt\ttimestamp\ndownloads\tfileType\tenum('clean_wav','watermarked_mp3')\ndownloads\tipAddress\tvarchar(64)\ninvites\tid\tint\ninvites\ttoken\tvarchar(128)\ninvites\tcreatedById\tint\ninvites\tusedById\tint\ninvites\tusedAt\ttimestamp\ninvites\texpiresAt\ttimestamp\ninvites\tcreatedAt\ttimestamp\ninvites\trole\tenum('user','admin')\ninvites\temail\tvarchar(320)\nportfolio_genres\tid\tint\nportfolio_genres\tname\tvarchar(128)\nportfolio_genres\ttype\tenum('audio','video')\nportfolio_genres\tsortOrder\tint\nportfolio_genres\tcreatedAt\ttimestamp\nportfolio_items\tid\tint\nportfolio_items\tgenreId\tint\nportfolio_items\ttype\tenum('audio','video')\nportfolio_items\ttitle\tvarchar(256)\nportfolio_items\tdescription\ttext\nportfolio_items\tfileKey\tvarchar(512)\nportfolio_items\tfileUrl\tvarchar(1024)\nportfolio_items\tmp3Key\tvarchar(512)\nportfolio_items\tmp3Url\tvarchar(1024)\nportfolio_items\tthumbnailKey\tvarchar(512)\nportfolio_items\tthumbnailUrl\tvarchar(1024)\nportfolio_items\twaveformPeaks\tmediumtext\nportfolio_items\tdurationSeconds\tint\nportfolio_items\tsortOrder\tint\nportfolio_items\tcreatedAt\ttimestamp\ntaxonomy_tags\tid\tint\ntaxonomy_tags\ttype\tenum('genre','mood','attribute')\ntaxonomy_tags\tvalue\tvarchar(128)\ntrack_tags\tid\tint\ntrack_tags\ttrackId\tint\ntrack_tags\ttype\tenum('genre','mood','attribute','hidden')\ntrack_tags\tvalue\tvarchar(128)\ntracks\tid\tint\ntracks\ttitle\tvarchar(256)\ntracks\tcomposerName\tvarchar(256)\ntracks\tdescription\ttext\ntracks\tdurationSeconds\tint\ntracks\tbpm\tint\ntracks\twavKey\tvarchar(512)\ntracks\twavUrl\tvarchar(1024)\ntracks\tstemsZipKey\tvarchar(512)\ntracks\tstemsZipUrl\tvarchar(1024)\ntracks\twatermarkedMp3Key\tvarchar(512)\ntracks\twatermarkedMp3Url\tvarchar(1024)\ntracks\tcoverArtKey\tvarchar(512)\ntracks\tcoverArtUrl\tvarchar(1024)\ntracks\thasStems\ttinyint(1)\ntracks\twatermarkStatus\tenum('pending','processing','done','error')\ntracks\tisPublished\ttinyint(1)\ntracks\tcreatedAt\ttimestamp\ntracks\tupdatedAt\ttimestamp\ntracks\twaveformPeaks\tmediumtext\ntracks\toriginalWavKey\tvarchar(512)\ntracks\toriginalWavUrl\tvarchar(1024)\ntracks\tkeySignature\tvarchar(64)\ntracks\tmp3PreviewKey\tvarchar(512)\ntracks\tmp3PreviewUrl\tvarchar(1024)\nusers\tid\tint\nusers\topenId\tvarchar(64)\nusers\tname\ttext\nusers\temail\tvarchar(320)\nusers\tloginMethod\tvarchar(64)\nusers\trole\tenum('user','admin')\nusers\tcreatedAt\ttimestamp\nusers\tupdatedAt\ttimestamp\nusers\tlastSignedIn\ttimestamp\nusers\tfirstName\tvarchar(128)\nusers\tlastName\tvarchar(128)\nusers\tcompany\tvarchar(256)\nusers\tusername\tvarchar(64)\nusers\tpasswordHash\tvarchar(256)\nusers\tresetToken\tvarchar(128)\nusers\tresetTokenExpiresAt\ttimestamp\nusers\tisLocked\ttinyint(1)\nusers\tskipWatermarkConfirm\ttinyint(1)\nusers\tjobTitle\tvarchar(128)\nwatermark_config\tid\tint\nwatermark_config\taudioKey\tvarchar(512)\nwatermark_config\taudioUrl\tvarchar(1024)\nwatermark_config\tupdatedAt\ttimestamp\n",
+  "stderr": "",
+  "execution_time_ms": 567
+}

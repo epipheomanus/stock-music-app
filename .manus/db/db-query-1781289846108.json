@@ -1,0 +1,32 @@
+{
+  "query": "SELECT id, type, title, fileUrl, mp3Url, thumbnailUrl, waveformPeaks IS NOT NULL as hasWaveform, durationSeconds, createdAt\nFROM portfolio_items\nORDER BY createdAt DESC\nLIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT id, type, title, fileUrl, mp3Url, thumbnailUrl, waveformPeaks IS NOT NULL as hasWaveform, durationSeconds, createdAt\nFROM portfolio_items\nORDER BY createdAt DESC\nLIMIT 5;",
+  "rows": [
+    {
+      "id": "60002",
+      "type": "audio",
+      "title": "Cracking The Code",
+      "fileUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/audio/1781287595443-nik4hqvfb1_72d42265.wav",
+      "mp3Url": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/mp3/1781287601410-ywyrof1dbjn_4b652389.mp3",
+      "thumbnailUrl": "NULL",
+      "hasWaveform": "1",
+      "durationSeconds": "NULL",
+      "createdAt": "2026-06-12 18:06:41"
+    },
+    {
+      "id": "60001",
+      "type": "video",
+      "title": "GameStop",
+      "fileUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/video/1781287549976-r8mngh5grl_edd9499a.mp4",
+      "mp3Url": "NULL",
+      "thumbnailUrl": "https://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/thumbnail/1781287552889-4sksblrqmdo_ab91b89d.png",
+      "hasWaveform": "0",
+      "durationSeconds": "NULL",
+      "createdAt": "2026-06-12 18:05:53"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttype\ttitle\tfileUrl\tmp3Url\tthumbnailUrl\thasWaveform\tdurationSeconds\tcreatedAt\n60002\taudio\tCracking The Code\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/audio/1781287595443-nik4hqvfb1_72d42265.wav\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/mp3/1781287601410-ywyrof1dbjn_4b652389.mp3\tNULL\t1\tNULL\t2026-06-12 18:06:41\n60001\tvideo\tGameStop\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/video/1781287549976-r8mngh5grl_edd9499a.mp4\tNULL\thttps://pub-cdb5b776f5474aeeb82bb9fe960adccf.r2.dev/portfolio/thumbnail/1781287552889-4sksblrqmdo_ab91b89d.png\t0\tNULL\t2026-06-12 18:05:53\n",
+  "stderr": "",
+  "execution_time_ms": 578
+}

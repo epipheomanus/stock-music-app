@@ -1,0 +1,35 @@
+{
+  "query": "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nAND TABLE_NAME IN ('tracks','users')\nAND ORDINAL_POSITION > 20\nORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nAND TABLE_NAME IN ('tracks','users')\nAND ORDINAL_POSITION > 20\nORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "rows": [
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "originalWavKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "originalWavUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "keySignature",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "mp3PreviewKey",
+      "COLUMN_TYPE": "varchar(512)"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "mp3PreviewUrl",
+      "COLUMN_TYPE": "varchar(1024)"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tCOLUMN_NAME\tCOLUMN_TYPE\ntracks\toriginalWavKey\tvarchar(512)\ntracks\toriginalWavUrl\tvarchar(1024)\ntracks\tkeySignature\tvarchar(64)\ntracks\tmp3PreviewKey\tvarchar(512)\ntracks\tmp3PreviewUrl\tvarchar(1024)\n",
+  "stderr": "",
+  "execution_time_ms": 591
+}

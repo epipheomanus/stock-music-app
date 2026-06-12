@@ -1,0 +1,938 @@
+{
+  "query": "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, EXTRA\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nORDER BY TABLE_NAME, ORDINAL_POSITION;",
+  "rows": [
+    {
+      "TABLE_NAME": "__drizzle_migrations",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "bigint unsigned",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "__drizzle_migrations",
+      "COLUMN_NAME": "hash",
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "__drizzle_migrations",
+      "COLUMN_NAME": "created_at",
+      "COLUMN_TYPE": "bigint",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cart_items",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "cart_items",
+      "COLUMN_NAME": "userId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cart_items",
+      "COLUMN_NAME": "trackId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "cart_items",
+      "COLUMN_NAME": "addedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "userId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "trackId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "projectName",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "downloadedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "fileType",
+      "COLUMN_TYPE": "enum('clean_wav','watermarked_mp3')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "clean_wav",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "downloads",
+      "COLUMN_NAME": "ipAddress",
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "token",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "createdById",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "usedById",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "usedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "expiresAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "role",
+      "COLUMN_TYPE": "enum('user','admin')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "user",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "invites",
+      "COLUMN_NAME": "email",
+      "COLUMN_TYPE": "varchar(320)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlist_tracks",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "playlist_tracks",
+      "COLUMN_NAME": "playlistId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlist_tracks",
+      "COLUMN_NAME": "trackId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlist_tracks",
+      "COLUMN_NAME": "sortOrder",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlist_tracks",
+      "COLUMN_NAME": "addedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlists",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "playlists",
+      "COLUMN_NAME": "projectId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlists",
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlists",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "playlists",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('audio','video')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "sortOrder",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_genres",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "genreId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('audio','video')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "title",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "description",
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "fileKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "fileUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "mp3Key",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "mp3Url",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "thumbnailKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "thumbnailUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "waveformPeaks",
+      "COLUMN_TYPE": "mediumtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "durationSeconds",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "sortOrder",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "portfolio_items",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "userId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "description",
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "status",
+      "COLUMN_TYPE": "enum('active','archived')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "active",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "shareToken",
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "projects",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('genre','mood','attribute')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags",
+      "COLUMN_NAME": "value",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "trackId",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "type",
+      "COLUMN_TYPE": "enum('genre','mood','attribute','hidden')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "track_tags",
+      "COLUMN_NAME": "value",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "title",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "composerName",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "description",
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "durationSeconds",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "bpm",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "wavKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "wavUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "stemsZipKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "stemsZipUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "watermarkedMp3Key",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "watermarkedMp3Url",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "coverArtKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "coverArtUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "hasStems",
+      "COLUMN_TYPE": "tinyint(1)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "watermarkStatus",
+      "COLUMN_TYPE": "enum('pending','processing','done','error')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "pending",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "isPublished",
+      "COLUMN_TYPE": "tinyint(1)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "waveformPeaks",
+      "COLUMN_TYPE": "mediumtext",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "originalWavKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "originalWavUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "keySignature",
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "mp3PreviewKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "tracks",
+      "COLUMN_NAME": "mp3PreviewUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "openId",
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "text",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "email",
+      "COLUMN_TYPE": "varchar(320)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "loginMethod",
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "role",
+      "COLUMN_TYPE": "enum('user','admin')",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "user",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "lastSignedIn",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "firstName",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "lastName",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "company",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "username",
+      "COLUMN_TYPE": "varchar(64)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "passwordHash",
+      "COLUMN_TYPE": "varchar(256)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "resetToken",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "resetTokenExpiresAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "isLocked",
+      "COLUMN_TYPE": "tinyint(1)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "skipWatermarkConfirm",
+      "COLUMN_TYPE": "tinyint(1)",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "0",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "users",
+      "COLUMN_NAME": "jobTitle",
+      "COLUMN_TYPE": "varchar(128)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": "auto_increment"
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "audioKey",
+      "COLUMN_TYPE": "varchar(512)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "audioUrl",
+      "COLUMN_TYPE": "varchar(1024)",
+      "IS_NULLABLE": "YES",
+      "COLUMN_DEFAULT": "NULL",
+      "EXTRA": ""
+    },
+    {
+      "TABLE_NAME": "watermark_config",
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp",
+      "IS_NULLABLE": "NO",
+      "COLUMN_DEFAULT": "CURRENT_TIMESTAMP",
+      "EXTRA": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\tCOLUMN_NAME\tCOLUMN_TYPE\tIS_NULLABLE\tCOLUMN_DEFAULT\tEXTRA\n__drizzle_migrations\tid\tbigint unsigned\tNO\tNULL\tauto_increment\n__drizzle_migrations\thash\ttext\tNO\tNULL\t\n__drizzle_migrations\tcreated_at\tbigint\tYES\tNULL\t\ncart_items\tid\tint\tNO\tNULL\tauto_increment\ncart_items\tuserId\tint\tNO\tNULL\t\ncart_items\ttrackId\tint\tNO\tNULL\t\ncart_items\taddedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\ndownloads\tid\tint\tNO\tNULL\tauto_increment\ndownloads\tuserId\tint\tYES\tNULL\t\ndownloads\ttrackId\tint\tNO\tNULL\t\ndownloads\tprojectName\tvarchar(256)\tNO\tNULL\t\ndownloads\tdownloadedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\ndownloads\tfileType\tenum('clean_wav','watermarked_mp3')\tNO\tclean_wav\t\ndownloads\tipAddress\tvarchar(64)\tYES\tNULL\t\ninvites\tid\tint\tNO\tNULL\tauto_increment\ninvites\ttoken\tvarchar(128)\tNO\tNULL\t\ninvites\tcreatedById\tint\tNO\tNULL\t\ninvites\tusedById\tint\tYES\tNULL\t\ninvites\tusedAt\ttimestamp\tYES\tNULL\t\ninvites\texpiresAt\ttimestamp\tNO\tNULL\t\ninvites\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\ninvites\trole\tenum('user','admin')\tNO\tuser\t\ninvites\temail\tvarchar(320)\tYES\tNULL\t\nplaylist_tracks\tid\tint\tNO\tNULL\tauto_increment\nplaylist_tracks\tplaylistId\tint\tNO\tNULL\t\nplaylist_tracks\ttrackId\tint\tNO\tNULL\t\nplaylist_tracks\tsortOrder\tint\tNO\t0\t\nplaylist_tracks\taddedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nplaylists\tid\tint\tNO\tNULL\tauto_increment\nplaylists\tprojectId\tint\tNO\tNULL\t\nplaylists\tname\tvarchar(256)\tNO\tNULL\t\nplaylists\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nplaylists\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nportfolio_genres\tid\tint\tNO\tNULL\tauto_increment\nportfolio_genres\tname\tvarchar(128)\tNO\tNULL\t\nportfolio_genres\ttype\tenum('audio','video')\tNO\tNULL\t\nportfolio_genres\tsortOrder\tint\tNO\t0\t\nportfolio_genres\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nportfolio_items\tid\tint\tNO\tNULL\tauto_increment\nportfolio_items\tgenreId\tint\tNO\tNULL\t\nportfolio_items\ttype\tenum('audio','video')\tNO\tNULL\t\nportfolio_items\ttitle\tvarchar(256)\tYES\tNULL\t\nportfolio_items\tdescription\ttext\tYES\tNULL\t\nportfolio_items\tfileKey\tvarchar(512)\tNO\tNULL\t\nportfolio_items\tfileUrl\tvarchar(1024)\tNO\tNULL\t\nportfolio_items\tmp3Key\tvarchar(512)\tYES\tNULL\t\nportfolio_items\tmp3Url\tvarchar(1024)\tYES\tNULL\t\nportfolio_items\tthumbnailKey\tvarchar(512)\tYES\tNULL\t\nportfolio_items\tthumbnailUrl\tvarchar(1024)\tYES\tNULL\t\nportfolio_items\twaveformPeaks\tmediumtext\tYES\tNULL\t\nportfolio_items\tdurationSeconds\tint\tYES\tNULL\t\nportfolio_items\tsortOrder\tint\tNO\t0\t\nportfolio_items\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nprojects\tid\tint\tNO\tNULL\tauto_increment\nprojects\tuserId\tint\tNO\tNULL\t\nprojects\tname\tvarchar(256)\tNO\tNULL\t\nprojects\tdescription\ttext\tYES\tNULL\t\nprojects\tstatus\tenum('active','archived')\tNO\tactive\t\nprojects\tshareToken\tvarchar(64)\tNO\tNULL\t\nprojects\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nprojects\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\ntaxonomy_tags\tid\tint\tNO\tNULL\tauto_increment\ntaxonomy_tags\ttype\tenum('genre','mood','attribute')\tNO\tNULL\t\ntaxonomy_tags\tvalue\tvarchar(128)\tNO\tNULL\t\ntrack_tags\tid\tint\tNO\tNULL\tauto_increment\ntrack_tags\ttrackId\tint\tNO\tNULL\t\ntrack_tags\ttype\tenum('genre','mood','attribute','hidden')\tNO\tNULL\t\ntrack_tags\tvalue\tvarchar(128)\tNO\tNULL\t\ntracks\tid\tint\tNO\tNULL\tauto_increment\ntracks\ttitle\tvarchar(256)\tNO\tNULL\t\ntracks\tcomposerName\tvarchar(256)\tYES\tNULL\t\ntracks\tdescription\ttext\tYES\tNULL\t\ntracks\tdurationSeconds\tint\tYES\tNULL\t\ntracks\tbpm\tint\tYES\tNULL\t\ntracks\twavKey\tvarchar(512)\tYES\tNULL\t\ntracks\twavUrl\tvarchar(1024)\tYES\tNULL\t\ntracks\tstemsZipKey\tvarchar(512)\tYES\tNULL\t\ntracks\tstemsZipUrl\tvarchar(1024)\tYES\tNULL\t\ntracks\twatermarkedMp3Key\tvarchar(512)\tYES\tNULL\t\ntracks\twatermarkedMp3Url\tvarchar(1024)\tYES\tNULL\t\ntracks\tcoverArtKey\tvarchar(512)\tYES\tNULL\t\ntracks\tcoverArtUrl\tvarchar(1024)\tYES\tNULL\t\ntracks\thasStems\ttinyint(1)\tNO\t0\t\ntracks\twatermarkStatus\tenum('pending','processing','done','error')\tNO\tpending\t\ntracks\tisPublished\ttinyint(1)\tNO\t0\t\ntracks\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\ntracks\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\ntracks\twaveformPeaks\tmediumtext\tYES\tNULL\t\ntracks\toriginalWavKey\tvarchar(512)\tYES\tNULL\t\ntracks\toriginalWavUrl\tvarchar(1024)\tYES\tNULL\t\ntracks\tkeySignature\tvarchar(64)\tYES\tNULL\t\ntracks\tmp3PreviewKey\tvarchar(512)\tYES\tNULL\t\ntracks\tmp3PreviewUrl\tvarchar(1024)\tYES\tNULL\t\nusers\tid\tint\tNO\tNULL\tauto_increment\nusers\topenId\tvarchar(64)\tNO\tNULL\t\nusers\tname\ttext\tYES\tNULL\t\nusers\temail\tvarchar(320)\tYES\tNULL\t\nusers\tloginMethod\tvarchar(64)\tYES\tNULL\t\nusers\trole\tenum('user','admin')\tNO\tuser\t\nusers\tcreatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nusers\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nusers\tlastSignedIn\ttimestamp\tNO\tCURRENT_TIMESTAMP\t\nusers\tfirstName\tvarchar(128)\tYES\tNULL\t\nusers\tlastName\tvarchar(128)\tYES\tNULL\t\nusers\tcompany\tvarchar(256)\tYES\tNULL\t\nusers\tusername\tvarchar(64)\tYES\tNULL\t\nusers\tpasswordHash\tvarchar(256)\tYES\tNULL\t\nusers\tresetToken\tvarchar(128)\tYES\tNULL\t\nusers\tresetTokenExpiresAt\ttimestamp\tYES\tNULL\t\nusers\tisLocked\ttinyint(1)\tNO\t0\t\nusers\tskipWatermarkConfirm\ttinyint(1)\tNO\t0\t\nusers\tjobTitle\tvarchar(128)\tYES\tNULL\t\nwatermark_config\tid\tint\tNO\tNULL\tauto_increment\nwatermark_config\taudioKey\tvarchar(512)\tYES\tNULL\t\nwatermark_config\taudioUrl\tvarchar(1024)\tYES\tNULL\t\nwatermark_config\tupdatedAt\ttimestamp\tNO\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\n",
+  "stderr": "",
+  "execution_time_ms": 631
+}

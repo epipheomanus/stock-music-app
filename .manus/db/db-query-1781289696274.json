@@ -1,0 +1,52 @@
+{
+  "query": "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME;",
+  "rows": [
+    {
+      "TABLE_NAME": "__drizzle_migrations"
+    },
+    {
+      "TABLE_NAME": "cart_items"
+    },
+    {
+      "TABLE_NAME": "downloads"
+    },
+    {
+      "TABLE_NAME": "invites"
+    },
+    {
+      "TABLE_NAME": "playlist_tracks"
+    },
+    {
+      "TABLE_NAME": "playlists"
+    },
+    {
+      "TABLE_NAME": "portfolio_genres"
+    },
+    {
+      "TABLE_NAME": "portfolio_items"
+    },
+    {
+      "TABLE_NAME": "projects"
+    },
+    {
+      "TABLE_NAME": "taxonomy_tags"
+    },
+    {
+      "TABLE_NAME": "track_tags"
+    },
+    {
+      "TABLE_NAME": "tracks"
+    },
+    {
+      "TABLE_NAME": "users"
+    },
+    {
+      "TABLE_NAME": "watermark_config"
+    }
+  ],
+  "messages": [],
+  "stdout": "TABLE_NAME\n__drizzle_migrations\ncart_items\ndownloads\ninvites\nplaylist_tracks\nplaylists\nportfolio_genres\nportfolio_items\nprojects\ntaxonomy_tags\ntrack_tags\ntracks\nusers\nwatermark_config\n",
+  "stderr": "",
+  "execution_time_ms": 604
+}

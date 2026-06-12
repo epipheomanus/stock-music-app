@@ -1,0 +1,86 @@
+{
+  "query": "SELECT COLUMN_NAME, COLUMN_TYPE\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nAND TABLE_NAME = 'users'\nORDER BY ORDINAL_POSITION;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute SELECT COLUMN_NAME, COLUMN_TYPE\nFROM INFORMATION_SCHEMA.COLUMNS\nWHERE TABLE_SCHEMA = DATABASE()\nAND TABLE_NAME = 'users'\nORDER BY ORDINAL_POSITION;",
+  "rows": [
+    {
+      "COLUMN_NAME": "id",
+      "COLUMN_TYPE": "int"
+    },
+    {
+      "COLUMN_NAME": "openId",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "COLUMN_NAME": "name",
+      "COLUMN_TYPE": "text"
+    },
+    {
+      "COLUMN_NAME": "email",
+      "COLUMN_TYPE": "varchar(320)"
+    },
+    {
+      "COLUMN_NAME": "loginMethod",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "COLUMN_NAME": "role",
+      "COLUMN_TYPE": "enum('user','admin')"
+    },
+    {
+      "COLUMN_NAME": "createdAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "COLUMN_NAME": "updatedAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "COLUMN_NAME": "lastSignedIn",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "COLUMN_NAME": "firstName",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "COLUMN_NAME": "lastName",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "COLUMN_NAME": "company",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "COLUMN_NAME": "username",
+      "COLUMN_TYPE": "varchar(64)"
+    },
+    {
+      "COLUMN_NAME": "passwordHash",
+      "COLUMN_TYPE": "varchar(256)"
+    },
+    {
+      "COLUMN_NAME": "resetToken",
+      "COLUMN_TYPE": "varchar(128)"
+    },
+    {
+      "COLUMN_NAME": "resetTokenExpiresAt",
+      "COLUMN_TYPE": "timestamp"
+    },
+    {
+      "COLUMN_NAME": "isLocked",
+      "COLUMN_TYPE": "tinyint(1)"
+    },
+    {
+      "COLUMN_NAME": "skipWatermarkConfirm",
+      "COLUMN_TYPE": "tinyint(1)"
+    },
+    {
+      "COLUMN_NAME": "jobTitle",
+      "COLUMN_TYPE": "varchar(128)"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\tCOLUMN_TYPE\nid\tint\nopenId\tvarchar(64)\nname\ttext\nemail\tvarchar(320)\nloginMethod\tvarchar(64)\nrole\tenum('user','admin')\ncreatedAt\ttimestamp\nupdatedAt\ttimestamp\nlastSignedIn\ttimestamp\nfirstName\tvarchar(128)\nlastName\tvarchar(128)\ncompany\tvarchar(256)\nusername\tvarchar(64)\npasswordHash\tvarchar(256)\nresetToken\tvarchar(128)\nresetTokenExpiresAt\ttimestamp\nisLocked\ttinyint(1)\nskipWatermarkConfirm\ttinyint(1)\njobTitle\tvarchar(128)\n",
+  "stderr": "",
+  "execution_time_ms": 572
+}
