@@ -1,4 +1,8 @@
 import "dotenv/config";
+import path from "path";
+import { fileURLToPath } from "url";
+import { drizzle } from "drizzle-orm/mysql2";
+import { migrate } from "drizzle-orm/mysql2/migrator";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -9,6 +13,26 @@ import { registerUploadRoutes } from "../uploadRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+
+async function runMigrations() {
+  if (!process.env.DATABASE_URL) {
+    console.warn("[Migrations] DATABASE_URL not set, skipping migrations");
+    return;
+  }
+  try {
+    // In production the bundle lives at dist/index.js and migrations are at dist/drizzle/
+    // In development the file is at server/_core/index.ts and migrations are at drizzle/
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const migrationsFolder = path.resolve(__dirname, "../../drizzle");
+    const db = drizzle(process.env.DATABASE_URL);
+    console.log(`[Migrations] Running pending migrations from ${migrationsFolder}...`);
+    await migrate(db, { migrationsFolder });
+    console.log("[Migrations] All migrations applied successfully.");
+  } catch (err) {
+    console.error("[Migrations] Failed to run migrations:", err);
+    // Don't crash the server — log and continue so the app stays up
+  }
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -30,6 +54,9 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  // Run DB migrations before accepting any requests
+  await runMigrations();
+
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads

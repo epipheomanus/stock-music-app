@@ -134,7 +134,8 @@ function AddItemDialog({
       // 2. Upload media to S3
       const mediaUploadTyped = mediaUpload as unknown as { uploadUrl: string; key: string; publicUrl: string };
       await uploadFileToPresignedUrl(mediaUploadTyped.uploadUrl, mediaFile, setUploadProgress);
-      const fileUrl = mediaUploadTyped.publicUrl || `/manus-storage/${mediaUpload.key}`;
+      const fileUrl = mediaUploadTyped.publicUrl;
+      if (!fileUrl) throw new Error("Upload failed: no public URL returned from storage");
 
       // 3. Optionally upload thumbnail
       let thumbnailKey: string | undefined;
@@ -148,7 +149,7 @@ function AddItemDialog({
         const thumbUploadTyped = thumbUpload as unknown as { uploadUrl: string; key: string; publicUrl: string };
         await uploadFileToPresignedUrl(thumbUploadTyped.uploadUrl, thumbFile);
         thumbnailKey = thumbUpload.key;
-        thumbnailUrl = thumbUploadTyped.publicUrl || `/manus-storage/${thumbUpload.key}`;
+        thumbnailUrl = thumbUploadTyped.publicUrl ?? undefined;
       }
 
       // 4. Save item record (server generates waveform peaks for audio)
