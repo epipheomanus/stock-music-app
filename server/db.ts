@@ -450,13 +450,15 @@ export async function getQuarterlyDownloads(): Promise<number> {
   const month = now.getMonth();
   const quarterStart = new Date(year, Math.floor(month / 3) * 3, 1);
   const quarterEnd = new Date(year, Math.floor(month / 3) * 3 + 3, 1);
+  const qStartStr = quarterStart.toISOString().slice(0, 19).replace('T', ' ');
+  const qEndStr = quarterEnd.toISOString().slice(0, 19).replace('T', ' ');
   const rows = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(downloads)
     .where(and(
       eq(downloads.fileType, "clean_wav"),
-      sql`${downloads.downloadedAt} >= ${quarterStart}`,
-      sql`${downloads.downloadedAt} < ${quarterEnd}`
+      sql`${downloads.downloadedAt} >= ${qStartStr}`,
+      sql`${downloads.downloadedAt} < ${qEndStr}`
     ));
   return Number(rows[0]?.count ?? 0);
 }
@@ -464,12 +466,13 @@ export async function getYtdDownloads(): Promise<number> {
   const db = await getDb();
   if (!db) return 0;
   const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const yearStartStr = yearStart.toISOString().slice(0, 19).replace('T', ' ');
   const rows = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(downloads)
     .where(and(
       eq(downloads.fileType, "clean_wav"),
-      sql`${downloads.downloadedAt} >= ${yearStart}`
+      sql`${downloads.downloadedAt} >= ${yearStartStr}`
     ));
   return Number(rows[0]?.count ?? 0);
 }
