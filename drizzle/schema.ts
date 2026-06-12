@@ -194,6 +194,9 @@ export const portfolioItems = mysqlTable("portfolio_items", {
   description: text("description"),
   fileKey: varchar("fileKey", { length: 512 }).notNull(),
   fileUrl: varchar("fileUrl", { length: 1024 }).notNull(),
+  // Clean MP3 transcoded from the original upload (for browser playback)
+  mp3Key: varchar("mp3Key", { length: 512 }),
+  mp3Url: varchar("mp3Url", { length: 1024 }),
   thumbnailKey: varchar("thumbnailKey", { length: 512 }),
   thumbnailUrl: varchar("thumbnailUrl", { length: 1024 }),
   // Pre-computed waveform peaks for audio items (JSON array of floats)

@@ -98,8 +98,8 @@ const portfolioRouter = router({
     .mutation(async ({ input }) => {
       const ext = input.filename.split(".").pop() ?? "bin";
       const key = `portfolio/${input.type}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const uploadUrl = await storagePresignPut(key, input.contentType);
-      return { uploadUrl, key };
+      const { uploadUrl, key: finalKey, publicUrl } = await storagePresignPut(key, input.contentType);
+      return { uploadUrl, key: finalKey, publicUrl };
     }),
 
   // Admin: save a portfolio item after upload completes
@@ -116,22 +116,48 @@ const portfolioRouter = router({
       durationSeconds: z.number().optional(),
     }))
     .mutation(async ({ input }) => {
-      // For audio items, generate waveform peaks
-      // generateWaveformPeaks needs a local file path, not a URL — download first
       let waveformPeaks: string | undefined;
+      let mp3Key: string | undefined;
+      let mp3Url: string | undefined;
+
       if (input.type === "audio") {
         let tmpPath: string | undefined;
         try {
-          const ext = input.fileUrl.includes(".wav") ? ".wav" : ".mp3";
+          // Download the uploaded audio to a temp file for ffmpeg processing
+          const isWav = /\.wav$/i.test(input.fileUrl) || input.fileKey.toLowerCase().endsWith(".wav");
+          const ext = isWav ? ".wav" : ".mp3";
           tmpPath = await downloadToTemp(input.fileUrl, ext);
-          const peaks = await generateWaveformPeaks(tmpPath);
-          waveformPeaks = JSON.stringify(peaks);
+
+          // Generate waveform peaks from the audio
+          try {
+            waveformPeaks = await generateWaveformPeaks(tmpPath);
+          } catch (e) {
+            console.warn("[portfolio] Failed to generate waveform peaks:", e);
+          }
+
+          // Transcode WAV to clean 192kbps MP3 for browser playback
+          if (isWav) {
+            try {
+              const mp3Buffer = await generateMp3Preview(tmpPath);
+              const mp3StorageKey = `portfolio/mp3/${Date.now()}-${Math.random().toString(36).slice(2)}.mp3`;
+              const { key: savedKey, url: savedUrl } = await storagePut(mp3StorageKey, mp3Buffer, "audio/mpeg");
+              mp3Key = savedKey;
+              mp3Url = savedUrl;
+            } catch (e) {
+              console.warn("[portfolio] Failed to transcode to MP3:", e);
+            }
+          } else {
+            // Already an MP3 — reuse the original as the mp3Url
+            mp3Key = input.fileKey;
+            mp3Url = input.fileUrl;
+          }
         } catch (e) {
-          console.warn("[portfolio] Failed to generate waveform peaks:", e);
+          console.warn("[portfolio] Failed to process audio:", e);
         } finally {
-          if (tmpPath) { try { require("fs").unlinkSync(tmpPath); } catch { /* ignore */ } }
+          if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch { /* ignore */ } }
         }
       }
+
       const id = await addPortfolioItem({
         genreId: input.genreId,
         type: input.type,
@@ -139,6 +165,8 @@ const portfolioRouter = router({
         description: input.description,
         fileKey: input.fileKey,
         fileUrl: input.fileUrl,
+        mp3Key,
+        mp3Url,
         thumbnailKey: input.thumbnailKey,
         thumbnailUrl: input.thumbnailUrl,
         waveformPeaks,

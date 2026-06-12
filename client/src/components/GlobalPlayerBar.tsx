@@ -13,6 +13,7 @@
  * WaveSurfer attaches to a `display:none` container and the visible slot never gets it.
  */
 import { useRef, useState, useCallback, useEffect } from "react";
+import { useLocation } from "wouter";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -47,6 +48,9 @@ export default function GlobalPlayerBar() {
     onError: (err) => toast.error(err.message),
   });
   const { isAuthenticated, user } = useAuth();
+  const [location] = useLocation();
+  // On the public /portfolio page, hide cart and preview-download buttons
+  const isPortfolioPage = location === "/portfolio" || location.startsWith("/portfolio/");
 
   // Single stable waveform container — always in the DOM, never conditionally hidden.
   const waveContainerRef = useRef<HTMLDivElement | null>(null);
@@ -303,26 +307,30 @@ export default function GlobalPlayerBar() {
                 <span className="text-xs text-muted-foreground w-8 flex-shrink-0">
                   {formatTime(duration)}
                 </span>
-                {/* Action buttons */}
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 px-2 flex-shrink-0"
-                  onClick={handlePreviewDownload}
-                  disabled={!activeTrack.watermarkedMp3Url}
-                  title={activeTrack.watermarkedMp3Url ? "Download preview (watermarked)" : "Preview not ready yet"}
-                >
-                  <Download className="w-3 h-3" />
-                  <span className="hidden xs:inline">Preview</span>
-                </Button>
-                {isAuthenticated && (
-                  <Button
-                    variant="outline" size="sm"
-                    className="h-7 text-xs gap-1 px-2 flex-shrink-0"
-                    onClick={handleAddToCart}
-                  >
-                    <ShoppingCart className="w-3 h-3" />
-                    <span className="hidden xs:inline">Cart</span>
-                  </Button>
+                {/* Action buttons — hidden on the public /portfolio page */}
+                {!isPortfolioPage && (
+                  <>
+                    <Button
+                      variant="outline" size="sm"
+                      className="h-7 text-xs gap-1 px-2 flex-shrink-0"
+                      onClick={handlePreviewDownload}
+                      disabled={!activeTrack.watermarkedMp3Url}
+                      title={activeTrack.watermarkedMp3Url ? "Download preview (watermarked)" : "Preview not ready yet"}
+                    >
+                      <Download className="w-3 h-3" />
+                      <span className="hidden xs:inline">Preview</span>
+                    </Button>
+                    {isAuthenticated && (
+                      <Button
+                        variant="outline" size="sm"
+                        className="h-7 text-xs gap-1 px-2 flex-shrink-0"
+                        onClick={handleAddToCart}
+                      >
+                        <ShoppingCart className="w-3 h-3" />
+                        <span className="hidden xs:inline">Cart</span>
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -395,27 +403,29 @@ export default function GlobalPlayerBar() {
                 />
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 px-2"
-                  onClick={handlePreviewDownload}
-                  disabled={!activeTrack.watermarkedMp3Url}
-                  title={activeTrack.watermarkedMp3Url ? "Download preview (watermarked)" : "Preview not ready yet"}
-                >
-                  <Download className="w-3 h-3" />
-                  Preview
-                </Button>
-                <Button
-                  variant="outline" size="sm"
-                  className="h-7 text-xs gap-1 px-2"
-                  onClick={handleAddToCart}
-                >
-                  <ShoppingCart className="w-3 h-3" />
-                  Cart
-                </Button>
-              </div>
+              {/* Action buttons — hidden on the public /portfolio page */}
+              {!isPortfolioPage && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-7 text-xs gap-1 px-2"
+                    onClick={handlePreviewDownload}
+                    disabled={!activeTrack.watermarkedMp3Url}
+                    title={activeTrack.watermarkedMp3Url ? "Download preview (watermarked)" : "Preview not ready yet"}
+                  >
+                    <Download className="w-3 h-3" />
+                    Preview
+                  </Button>
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-7 text-xs gap-1 px-2"
+                    onClick={handleAddToCart}
+                  >
+                    <ShoppingCart className="w-3 h-3" />
+                    Cart
+                  </Button>
+                </div>
+              )}
 
               {/* Collapse + Close */}
               <div className="flex items-center gap-0.5 flex-shrink-0">

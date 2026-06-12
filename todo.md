@@ -469,3 +469,11 @@
 - [x] Build public /portfolio page (audio section + video section, genre cards, waveform player, video thumbnail grid with modal player)
 - [x] Register /portfolio route in App.tsx (no nav link from main site)
 - [x] Test end-to-end: upload, display, modal video player
+
+## Portfolio Page Bug Fixes
+- [x] Fix getUploadUrl procedure to return publicUrl from storagePresignPut (was returning only uploadUrl + key, causing admin upload to fall back to /manus-storage/ path instead of real R2 URL)
+- [x] Add mp3Key and mp3Url columns to portfolioItems schema (migration 0017)
+- [x] Update addPortfolioItem db helper to accept and store mp3Key and mp3Url
+- [x] Update addItem tRPC procedure: download uploaded audio to temp, generate waveform peaks, transcode WAV to clean 192kbps MP3 via generateMp3Preview, store MP3 in R2, save mp3Key/mp3Url
+- [x] Update public Portfolio.tsx toGlobalTrack to use mp3Url for mp3PreviewUrl (fallback to fileUrl)
+- [x] Fix GlobalPlayerBar: add useLocation() from wouter, hide Preview and Cart buttons when on /portfolio route (both mobile and desktop layouts)

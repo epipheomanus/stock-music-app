@@ -25,6 +25,7 @@ type PortfolioItem = {
   title: string | null;
   description: string | null;
   fileUrl: string;
+  mp3Url: string | null;
   thumbnailUrl: string | null;
   waveformPeaks: string | null;
   durationSeconds: number | null;
@@ -40,7 +41,7 @@ function toGlobalTrack(item: PortfolioItem): GlobalTrack {
     coverArtUrl: item.thumbnailUrl ?? null,
     watermarkedMp3Url: null,
     wavUrl: null,
-    mp3PreviewUrl: item.fileUrl,
+    mp3PreviewUrl: item.mp3Url ?? item.fileUrl,
     waveformPeaks: item.waveformPeaks ?? null,
     hasStems: false,
     watermarkStatus: "none",

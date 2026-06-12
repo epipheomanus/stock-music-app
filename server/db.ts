@@ -727,6 +727,8 @@ export async function addPortfolioItem(data: {
   description?: string;
   fileKey: string;
   fileUrl: string;
+  mp3Key?: string;
+  mp3Url?: string;
   thumbnailKey?: string;
   thumbnailUrl?: string;
   waveformPeaks?: string;
@@ -737,9 +739,10 @@ export async function addPortfolioItem(data: {
   const existing = await db.select().from(portfolioItems).where(eq(portfolioItems.genreId, data.genreId)).orderBy(desc(portfolioItems.sortOrder));
   const sortOrder = existing.length > 0 ? (existing[0].sortOrder + 1) : 0;
   const result = await db.execute(
-    sql`INSERT INTO portfolio_items (genreId, type, title, description, fileKey, fileUrl, thumbnailKey, thumbnailUrl, waveformPeaks, durationSeconds, sortOrder)
+    sql`INSERT INTO portfolio_items (genreId, type, title, description, fileKey, fileUrl, mp3Key, mp3Url, thumbnailKey, thumbnailUrl, waveformPeaks, durationSeconds, sortOrder)
         VALUES (${data.genreId}, ${data.type}, ${data.title ?? null}, ${data.description ?? null},
-                ${data.fileKey}, ${data.fileUrl}, ${data.thumbnailKey ?? null}, ${data.thumbnailUrl ?? null},
+                ${data.fileKey}, ${data.fileUrl}, ${data.mp3Key ?? null}, ${data.mp3Url ?? null},
+                ${data.thumbnailKey ?? null}, ${data.thumbnailUrl ?? null},
                 ${data.waveformPeaks ?? null}, ${data.durationSeconds ?? null}, ${sortOrder})`
   );
   const header = Array.isArray(result) ? result[0] : result;

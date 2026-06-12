@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE portfolio_items ADD COLUMN mp3Key varchar(512) NULL AFTER fileUrl, ADD COLUMN mp3Url varchar(1024) NULL AFTER mp3Key;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user DRjtGbRWtyk5ygt.root --database mpaZMgz95tACQ4cMT9DNze --execute ALTER TABLE portfolio_items ADD COLUMN mp3Key varchar(512) NULL AFTER fileUrl, ADD COLUMN mp3Url varchar(1024) NULL AFTER mp3Key;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'mp3key' in 'portfolio_items'"
+  ]
+}
