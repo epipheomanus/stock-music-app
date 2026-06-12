@@ -44,8 +44,30 @@ function AddItemDialog({
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [mediaDragging, setMediaDragging] = useState(false);
+  const [thumbDragging, setThumbDragging] = useState(false);
   const mediaRef = useRef<HTMLInputElement>(null);
   const thumbRef = useRef<HTMLInputElement>(null);
+
+  function handleMediaDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setMediaDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const isAudio = type === "audio" && (file.type.startsWith("audio/") || /\.(mp3|wav)$/i.test(file.name));
+    const isVideo = type === "video" && (file.type.startsWith("video/") || /\.(mp4|mov)$/i.test(file.name));
+    if (isAudio || isVideo) setMediaFile(file);
+    else toast.error(`Please drop a ${type === "audio" ? "MP3 or WAV" : "MP4 or MOV"} file`);
+  }
+
+  function handleThumbDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setThumbDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (file.type.startsWith("image/")) setThumbFile(file);
+    else toast.error("Please drop an image file (JPG, PNG, WebP)");
+  }
 
   const getUploadUrl = trpc.portfolio.getUploadUrl.useMutation();
   const addItem = trpc.portfolio.addItem.useMutation();
@@ -115,8 +137,13 @@ function AddItemDialog({
           <div className="space-y-1.5">
             <Label>{type === "audio" ? "Audio File" : "Video File"} <span className="text-destructive">*</span></Label>
             <div
-              className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                mediaDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+              }`}
               onClick={() => mediaRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setMediaDragging(true); }}
+              onDragLeave={() => setMediaDragging(false)}
+              onDrop={handleMediaDrop}
             >
               {mediaFile ? (
                 <div className="flex items-center justify-center gap-2 text-sm">
@@ -129,7 +156,7 @@ function AddItemDialog({
               ) : (
                 <div className="text-muted-foreground text-sm">
                   <Upload className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                  Click to select {type === "audio" ? "MP3 or WAV" : "MP4 or MOV"}
+                  {mediaDragging ? "Drop file here" : `Drag & drop or click to select ${type === "audio" ? "MP3 or WAV" : "MP4 or MOV"}`}
                 </div>
               )}
             </div>
@@ -141,8 +168,13 @@ function AddItemDialog({
           <div className="space-y-1.5">
             <Label>Thumbnail Image {type === "video" ? <span className="text-muted-foreground text-xs">(recommended)</span> : <span className="text-muted-foreground text-xs">(optional)</span>}</Label>
             <div
-              className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                thumbDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+              }`}
               onClick={() => thumbRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setThumbDragging(true); }}
+              onDragLeave={() => setThumbDragging(false)}
+              onDrop={handleThumbDrop}
             >
               {thumbFile ? (
                 <div className="flex items-center justify-center gap-2 text-sm">
@@ -155,7 +187,7 @@ function AddItemDialog({
               ) : (
                 <div className="text-muted-foreground text-sm">
                   <Upload className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                  Click to select image (JPG, PNG, WebP)
+                  {thumbDragging ? "Drop image here" : "Drag & drop or click to select image (JPG, PNG, WebP)"}
                 </div>
               )}
             </div>
