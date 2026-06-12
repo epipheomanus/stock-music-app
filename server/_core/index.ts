@@ -23,7 +23,12 @@ async function runMigrations() {
     // In production the bundle lives at dist/index.js and migrations are at dist/drizzle/
     // In development the file is at server/_core/index.ts and migrations are at drizzle/
     const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const migrationsFolder = path.resolve(__dirname, "../../drizzle");
+    const isProduction = process.env.NODE_ENV === "production";
+    // Production:  dist/index.js  → __dirname = dist/   → dist/drizzle  (one level down)
+    // Development: server/_core/index.ts → __dirname = server/_core/ → ../../drizzle
+    const migrationsFolder = isProduction
+      ? path.resolve(__dirname, "drizzle")
+      : path.resolve(__dirname, "../../drizzle");
     const db = drizzle(process.env.DATABASE_URL);
     console.log(`[Migrations] Running pending migrations from ${migrationsFolder}...`);
     await migrate(db, { migrationsFolder });
