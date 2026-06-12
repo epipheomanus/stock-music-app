@@ -348,25 +348,28 @@ function GenreCard({
               <CardTitle className="text-base truncate">{genre.name}</CardTitle>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingName(true)} title="Rename genre">
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
-            {confirmDelete ? (
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-destructive">Delete genre + all items?</span>
-                <Button size="sm" variant="destructive" className="h-6 px-2 text-xs"
-                  onClick={() => deleteGenre.mutate({ id: genre.id })}>Yes</Button>
-                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
-                  onClick={() => setConfirmDelete(false)}>No</Button>
-              </div>
-            ) : (
+          {!confirmDelete && (
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setEditingName(true)} title="Rename genre">
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
               <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:text-destructive" onClick={() => setConfirmDelete(true)} title="Delete genre">
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+        {confirmDelete && (
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <span className="text-xs text-destructive">Delete genre + all items?</span>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="destructive" className="h-6 px-2 text-xs"
+                onClick={() => deleteGenre.mutate({ id: genre.id })}>Yes</Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2 text-xs"
+                onClick={() => setConfirmDelete(false)}>No</Button>
+            </div>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-2">
