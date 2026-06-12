@@ -18,13 +18,40 @@ type ItemType = "audio" | "video";
 type GenreType = "audio" | "video";
 
 // ─── Upload helpers ────────────────────────────────────────────────────────────
-async function uploadFileToPresignedUrl(url: string, file: File): Promise<void> {
-  const res = await fetch(url, {
-    method: "PUT",
-    body: file,
-    headers: { "Content-Type": file.type },
+function normalizeContentType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  const map: Record<string, string> = {
+    mp3: "audio/mpeg", wav: "audio/wav",
+    mp4: "video/mp4", mov: "video/quicktime",
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
+  };
+  return (ext && map[ext]) ?? "application/octet-stream";
+}
+
+function uploadFileToPresignedUrl(
+  url: string,
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", normalizeContentType(file));
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.ontimeout = () => reject(new Error("Upload timed out"));
+    xhr.timeout = 0; // no timeout — let large files finish
+    xhr.send(file);
   });
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
 }
 
 // ─── Add Item Dialog ───────────────────────────────────────────────────────────
@@ -44,6 +71,7 @@ function AddItemDialog({
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [mediaDragging, setMediaDragging] = useState(false);
   const [thumbDragging, setThumbDragging] = useState(false);
   const mediaRef = useRef<HTMLInputElement>(null);
@@ -86,8 +114,9 @@ function AddItemDialog({
         type,
       });
       // 2. Upload media to S3
-      await uploadFileToPresignedUrl((mediaUpload as unknown as { uploadUrl: string }).uploadUrl, mediaFile);
-      const fileUrl = `/manus-storage/${mediaUpload.key}`;
+      const mediaUploadTyped = mediaUpload as unknown as { uploadUrl: string; key: string; publicUrl: string };
+      await uploadFileToPresignedUrl(mediaUploadTyped.uploadUrl, mediaFile, setUploadProgress);
+      const fileUrl = mediaUploadTyped.publicUrl || `/manus-storage/${mediaUpload.key}`;
 
       // 3. Optionally upload thumbnail
       let thumbnailKey: string | undefined;
@@ -98,9 +127,10 @@ function AddItemDialog({
           contentType: thumbFile.type,
           type: "thumbnail",
         });
-        await uploadFileToPresignedUrl((thumbUpload as unknown as { uploadUrl: string }).uploadUrl, thumbFile);
+        const thumbUploadTyped = thumbUpload as unknown as { uploadUrl: string; key: string; publicUrl: string };
+        await uploadFileToPresignedUrl(thumbUploadTyped.uploadUrl, thumbFile);
         thumbnailKey = thumbUpload.key;
-        thumbnailUrl = `/manus-storage/${thumbUpload.key}`;
+        thumbnailUrl = thumbUploadTyped.publicUrl || `/manus-storage/${thumbUpload.key}`;
       }
 
       // 4. Save item record (server generates waveform peaks for audio)
@@ -211,7 +241,7 @@ function AddItemDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={uploading}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={uploading || !mediaFile}>
-            {uploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</> : "Add Item"}
+            {uploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />{uploadProgress > 0 && uploadProgress < 100 ? `Uploading ${uploadProgress}%…` : "Uploading…"}</> : "Add Item"}
           </Button>
         </DialogFooter>
       </DialogContent>

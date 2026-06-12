@@ -117,13 +117,19 @@ const portfolioRouter = router({
     }))
     .mutation(async ({ input }) => {
       // For audio items, generate waveform peaks
+      // generateWaveformPeaks needs a local file path, not a URL — download first
       let waveformPeaks: string | undefined;
       if (input.type === "audio") {
+        let tmpPath: string | undefined;
         try {
-          const peaks = await generateWaveformPeaks(input.fileUrl);
+          const ext = input.fileUrl.includes(".wav") ? ".wav" : ".mp3";
+          tmpPath = await downloadToTemp(input.fileUrl, ext);
+          const peaks = await generateWaveformPeaks(tmpPath);
           waveformPeaks = JSON.stringify(peaks);
         } catch (e) {
           console.warn("[portfolio] Failed to generate waveform peaks:", e);
+        } finally {
+          if (tmpPath) { try { require("fs").unlinkSync(tmpPath); } catch { /* ignore */ } }
         }
       }
       const id = await addPortfolioItem({
