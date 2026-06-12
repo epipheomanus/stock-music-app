@@ -29,6 +29,15 @@ import {
   getUserDownloads,
   deleteDownloadEntry,
   deleteDownloadAdmin,
+  getPortfolioGenres,
+  getPortfolioItems,
+  createPortfolioGenre,
+  updatePortfolioGenre,
+  deletePortfolioGenre,
+  addPortfolioItem,
+  updatePortfolioItem,
+  deletePortfolioItem,
+  reorderPortfolioItems,
 } from "./db";
 import { eq, and, or } from "drizzle-orm";
 import { tracks as tracksTable, trackTags as trackTagsTable, taxonomyTags as taxonomyTagsTable } from "../drizzle/schema";
@@ -45,6 +54,128 @@ const adminOnly = adminProcedure.use(({ ctx, next }) => {
 // Per-IP rate limit store for anonymous watermarked downloads
 // Map<ip, timestamp[]> — timestamps of downloads within the rolling window
 const anonDownloadRateLimit = new Map<string, number[]>();
+
+// ─── Portfolio Router ────────────────────────────────────────────────────────
+const portfolioRouter = router({
+  // Public: get all genres + items (used by the public /portfolio page)
+  getAll: publicProcedure.query(async () => {
+    const genres = await getPortfolioGenres();
+    const items = await getPortfolioItems();
+    return { genres, items };
+  }),
+
+  // Admin: create a new genre
+  createGenre: adminProcedure
+    .input(z.object({ name: z.string().min(1).max(128), type: z.enum(["audio", "video"]) }))
+    .mutation(async ({ input }) => {
+      const id = await createPortfolioGenre(input.name, input.type);
+      return { id };
+    }),
+
+  // Admin: rename a genre
+  updateGenre: adminProcedure
+    .input(z.object({ id: z.number(), name: z.string().min(1).max(128) }))
+    .mutation(async ({ input }) => {
+      await updatePortfolioGenre(input.id, input.name);
+      return { success: true };
+    }),
+
+  // Admin: delete a genre (cascades to items)
+  deleteGenre: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deletePortfolioGenre(input.id);
+      return { success: true };
+    }),
+
+  // Admin: get presigned URL to upload a portfolio file (audio or video) directly to S3
+  getUploadUrl: adminProcedure
+    .input(z.object({
+      filename: z.string(),
+      contentType: z.string(),
+      type: z.enum(["audio", "video", "thumbnail"]),
+    }))
+    .mutation(async ({ input }) => {
+      const ext = input.filename.split(".").pop() ?? "bin";
+      const key = `portfolio/${input.type}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const uploadUrl = await storagePresignPut(key, input.contentType);
+      return { uploadUrl, key };
+    }),
+
+  // Admin: save a portfolio item after upload completes
+  addItem: adminProcedure
+    .input(z.object({
+      genreId: z.number(),
+      type: z.enum(["audio", "video"]),
+      title: z.string().max(256).optional(),
+      description: z.string().optional(),
+      fileKey: z.string(),
+      fileUrl: z.string(),
+      thumbnailKey: z.string().optional(),
+      thumbnailUrl: z.string().optional(),
+      durationSeconds: z.number().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      // For audio items, generate waveform peaks
+      let waveformPeaks: string | undefined;
+      if (input.type === "audio") {
+        try {
+          const peaks = await generateWaveformPeaks(input.fileUrl);
+          waveformPeaks = JSON.stringify(peaks);
+        } catch (e) {
+          console.warn("[portfolio] Failed to generate waveform peaks:", e);
+        }
+      }
+      const id = await addPortfolioItem({
+        genreId: input.genreId,
+        type: input.type,
+        title: input.title,
+        description: input.description,
+        fileKey: input.fileKey,
+        fileUrl: input.fileUrl,
+        thumbnailKey: input.thumbnailKey,
+        thumbnailUrl: input.thumbnailUrl,
+        waveformPeaks,
+        durationSeconds: input.durationSeconds,
+      });
+      return { id };
+    }),
+
+  // Admin: update item metadata
+  updateItem: adminProcedure
+    .input(z.object({
+      id: z.number(),
+      title: z.string().max(256).nullable().optional(),
+      description: z.string().nullable().optional(),
+      thumbnailKey: z.string().nullable().optional(),
+      thumbnailUrl: z.string().nullable().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await updatePortfolioItem(input.id, {
+        title: input.title,
+        description: input.description,
+        thumbnailKey: input.thumbnailKey,
+        thumbnailUrl: input.thumbnailUrl,
+      });
+      return { success: true };
+    }),
+
+  // Admin: delete an item
+  deleteItem: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      await deletePortfolioItem(input.id);
+      return { success: true };
+    }),
+
+  // Admin: reorder items within a genre
+  reorderItems: adminProcedure
+    .input(z.object({ items: z.array(z.object({ id: z.number(), sortOrder: z.number() })) }))
+    .mutation(async ({ input }) => {
+      await reorderPortfolioItems(input.items);
+      return { success: true };
+    }),
+});
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -1180,7 +1311,10 @@ export const appRouter = router({
       .input(z.object({ playlistId: z.number(), orderedTrackIds: z.array(z.number()) }))
       .mutation(async ({ input }) => { await reorderPlaylistTracks(input.playlistId, input.orderedTrackIds); return { success: true }; }),
   }),
+
+  portfolio: portfolioRouter,
 });
+
 
 // Helper to get user by numeric ID (local helper)
 async function getUserById_local(id: number) {

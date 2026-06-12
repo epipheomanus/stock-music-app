@@ -45,6 +45,8 @@ import MyProjects from "./pages/MyProjects";
 import ProjectDetail from "./pages/ProjectDetail";
 import SharedProject from "./pages/SharedProject";
 import Profile from "./pages/Profile";
+import Portfolio from "./pages/Portfolio";
+import AdminPortfolio from "./pages/admin/Portfolio";
 
 function Router() {
   return (
@@ -67,6 +69,8 @@ function Router() {
       <Route path="/projects/:id" component={ProjectDetail} />
       <Route path="/shared/:token" component={SharedProject} />
       <Route path="/profile" component={Profile} />
+      <Route path="/portfolio" component={Portfolio} />
+      <Route path="/admin/portfolio" component={AdminPortfolio} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

@@ -18,7 +18,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!isUnauthorized) return;
 
   // Don't redirect away from public pages — guests are allowed here
-  const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/browse", "/"];
+  const publicPaths = ["/login", "/register", "/forgot-password", "/reset-password", "/browse", "/", "/portfolio"];
   const isPublicPath =
     publicPaths.includes(window.location.pathname) ||
     window.location.pathname.startsWith("/shared/");

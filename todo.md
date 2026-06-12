@@ -457,3 +457,15 @@
 - [x] Fix markInviteUsed: Drizzle db.update() returns [ResultSetHeader, FieldPacket[]] tuple; previous code read .affectedRows off the tuple itself (always undefined → fallback ?? 1), so usedById was never actually written. Switched to raw SQL execute() so affectedRows is reliably read from result[0].
 - [x] Update getAllInvites() to LEFT JOIN users table and return claimedByUsername, claimedByEmail, claimedByName alongside each invite row.
 - [x] Update admin Invites UI: "Claimed by <username>" with timestamp shown in the Claimed section row.
+
+## Portfolio Page Feature
+
+- [x] Add portfolioGenres and portfolioItems tables to drizzle/schema.ts
+- [x] Generate and apply migration SQL
+- [x] Add db helpers: getPortfolioGenres, getPortfolioItems, createPortfolioGenre, addPortfolioItem, updatePortfolioItem, deletePortfolioItem, deletePortfolioGenre, reorderPortfolioItems
+- [x] Add tRPC procedures: portfolio.getAll (public), portfolio.createGenre, portfolio.addItem, portfolio.updateItem, portfolio.deleteItem, portfolio.deleteGenre (all admin-protected)
+- [x] Build admin Portfolio management page (genre cards, upload audio/video + thumbnail, title/description optional)
+- [x] Add admin Portfolio nav link in DashboardLayout sidebar
+- [x] Build public /portfolio page (audio section + video section, genre cards, waveform player, video thumbnail grid with modal player)
+- [x] Register /portfolio route in App.tsx (no nav link from main site)
+- [x] Test end-to-end: upload, display, modal video player

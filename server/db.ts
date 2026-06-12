@@ -22,6 +22,10 @@ import {
   Project,
   Playlist,
   PlaylistTrack,
+  portfolioGenres,
+  portfolioItems,
+  PortfolioGenre,
+  PortfolioItem,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -661,4 +665,116 @@ export async function deleteDownloadEntry(downloadId: number, userId: number): P
   if (!db) throw new Error("Database not available");
   // Only delete if the download belongs to the requesting user
   await db.delete(downloads).where(and(eq(downloads.id, downloadId), eq(downloads.userId, userId)));
+}
+
+// ─── Portfolio ────────────────────────────────────────────────────────────────
+
+export type { PortfolioGenre, PortfolioItem };
+
+export async function getPortfolioGenres(type?: "audio" | "video"): Promise<PortfolioGenre[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const query = db.select().from(portfolioGenres).orderBy(portfolioGenres.sortOrder, portfolioGenres.createdAt);
+  if (type) {
+    return db.select().from(portfolioGenres).where(eq(portfolioGenres.type, type)).orderBy(portfolioGenres.sortOrder, portfolioGenres.createdAt);
+  }
+  return query;
+}
+
+export async function getPortfolioItems(genreId?: number): Promise<PortfolioItem[]> {
+  const db = await getDb();
+  if (!db) return [];
+  if (genreId !== undefined) {
+    return db.select().from(portfolioItems).where(eq(portfolioItems.genreId, genreId)).orderBy(portfolioItems.sortOrder, portfolioItems.createdAt);
+  }
+  return db.select().from(portfolioItems).orderBy(portfolioItems.genreId, portfolioItems.sortOrder, portfolioItems.createdAt);
+}
+
+export async function createPortfolioGenre(name: string, type: "audio" | "video"): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Assign sortOrder = max existing + 1 for this type
+  const existing = await db.select().from(portfolioGenres).where(eq(portfolioGenres.type, type)).orderBy(desc(portfolioGenres.sortOrder));
+  const sortOrder = existing.length > 0 ? (existing[0].sortOrder + 1) : 0;
+  const result = await db.execute(
+    sql`INSERT INTO portfolio_genres (name, type, sortOrder) VALUES (${name}, ${type}, ${sortOrder})`
+  );
+  const header = Array.isArray(result) ? result[0] : result;
+  return (header as unknown as { insertId: number }).insertId;
+}
+
+export async function updatePortfolioGenre(id: number, name: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(portfolioGenres).set({ name }).where(eq(portfolioGenres.id, id));
+}
+
+export async function deletePortfolioGenre(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete all items in this genre first
+  await db.delete(portfolioItems).where(eq(portfolioItems.genreId, id));
+  await db.delete(portfolioGenres).where(eq(portfolioGenres.id, id));
+}
+
+export async function addPortfolioItem(data: {
+  genreId: number;
+  type: "audio" | "video";
+  title?: string;
+  description?: string;
+  fileKey: string;
+  fileUrl: string;
+  thumbnailKey?: string;
+  thumbnailUrl?: string;
+  waveformPeaks?: string;
+  durationSeconds?: number;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await db.select().from(portfolioItems).where(eq(portfolioItems.genreId, data.genreId)).orderBy(desc(portfolioItems.sortOrder));
+  const sortOrder = existing.length > 0 ? (existing[0].sortOrder + 1) : 0;
+  const result = await db.execute(
+    sql`INSERT INTO portfolio_items (genreId, type, title, description, fileKey, fileUrl, thumbnailKey, thumbnailUrl, waveformPeaks, durationSeconds, sortOrder)
+        VALUES (${data.genreId}, ${data.type}, ${data.title ?? null}, ${data.description ?? null},
+                ${data.fileKey}, ${data.fileUrl}, ${data.thumbnailKey ?? null}, ${data.thumbnailUrl ?? null},
+                ${data.waveformPeaks ?? null}, ${data.durationSeconds ?? null}, ${sortOrder})`
+  );
+  const header = Array.isArray(result) ? result[0] : result;
+  return (header as unknown as { insertId: number }).insertId;
+}
+
+export async function updatePortfolioItem(id: number, data: {
+  title?: string | null;
+  description?: string | null;
+  thumbnailKey?: string | null;
+  thumbnailUrl?: string | null;
+  waveformPeaks?: string | null;
+  durationSeconds?: number | null;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(portfolioItems).set({
+    ...(data.title !== undefined && { title: data.title }),
+    ...(data.description !== undefined && { description: data.description }),
+    ...(data.thumbnailKey !== undefined && { thumbnailKey: data.thumbnailKey }),
+    ...(data.thumbnailUrl !== undefined && { thumbnailUrl: data.thumbnailUrl }),
+    ...(data.waveformPeaks !== undefined && { waveformPeaks: data.waveformPeaks }),
+    ...(data.durationSeconds !== undefined && { durationSeconds: data.durationSeconds }),
+  }).where(eq(portfolioItems.id, id));
+}
+
+export async function deletePortfolioItem(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(portfolioItems).where(eq(portfolioItems.id, id));
+}
+
+export async function reorderPortfolioItems(items: { id: number; sortOrder: number }[]): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await Promise.all(
+    items.map(({ id, sortOrder }) =>
+      db.update(portfolioItems).set({ sortOrder }).where(eq(portfolioItems.id, id))
+    )
+  );
 }

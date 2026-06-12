@@ -174,3 +174,32 @@ export const playlistTracks = mysqlTable("playlist_tracks", {
   addedAt: timestamp("addedAt").defaultNow().notNull(),
 });
 export type PlaylistTrack = typeof playlistTracks.$inferSelect;
+
+// ─── Portfolio Genres ─────────────────────────────────────────────────────────
+export const portfolioGenres = mysqlTable("portfolio_genres", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 128 }).notNull(),
+  type: mysqlEnum("type", ["audio", "video"]).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PortfolioGenre = typeof portfolioGenres.$inferSelect;
+
+// ─── Portfolio Items ──────────────────────────────────────────────────────────
+export const portfolioItems = mysqlTable("portfolio_items", {
+  id: int("id").autoincrement().primaryKey(),
+  genreId: int("genreId").notNull(),
+  type: mysqlEnum("type", ["audio", "video"]).notNull(),
+  title: varchar("title", { length: 256 }),
+  description: text("description"),
+  fileKey: varchar("fileKey", { length: 512 }).notNull(),
+  fileUrl: varchar("fileUrl", { length: 1024 }).notNull(),
+  thumbnailKey: varchar("thumbnailKey", { length: 512 }),
+  thumbnailUrl: varchar("thumbnailUrl", { length: 1024 }),
+  // Pre-computed waveform peaks for audio items (JSON array of floats)
+  waveformPeaks: mediumtext("waveformPeaks"),
+  durationSeconds: int("durationSeconds"),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PortfolioItem = typeof portfolioItems.$inferSelect;
